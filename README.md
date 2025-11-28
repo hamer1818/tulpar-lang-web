@@ -1,49 +1,107 @@
-# Starlight Starter Kit: Basics
+## 🌌 Tulpar Language Docs
 
-[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
+Tulpar is a futuristic programming language designed for modern developers, combining a **minimal, readable syntax** with a **powerful standard library**.  
+This repository contains the source code for the **official documentation site** of Tulpar, currently offering content in **English and Turkish**.
 
-```
-pnpm create astro@latest -- --template starlight
-```
+The site is built with Astro, Starlight, and Tailwind, featuring a **dark‑first, high‑contrast, futuristic UI** with strong focus on readability and code examples.
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+---
 
-## 🚀 Project Structure
+## 🛰️ Features
 
-Inside of your Astro + Starlight project, you'll see the following folders and files:
+- **Multilingual docs**: English and Turkish content
+- **Futuristic UI**: Carefully tuned accent colors, dark theme, and typography
+- **Starlight documentation stack**: Ready for versioning and large doc sets
+- **Code‑centric content**: Guides, examples, and standard library references
+- **Static site**: Fast, secure, and easy to deploy anywhere
 
-```
+---
+
+## 🧱 Project Structure
+
+High‑level directory layout:
+
+```text
 .
-├── public/
+├── public/               # Static assets (favicon, icons, etc.)
 ├── src/
-│   ├── assets/
+│   ├── assets/           # Images and media
 │   ├── content/
-│   │   └── docs/
-│   └── content.config.ts
-├── astro.config.mjs
+│   │   └── docs/         # EN / TR documentation content
+│   ├── styles/           # Custom styles (e.g. custom.css)
+│   └── content.config.ts # Starlight content configuration
+├── astro.config.mjs      # Astro + Starlight configuration
+├── tailwind.config.mjs   # Tailwind theme configuration
 ├── package.json
 └── tsconfig.json
 ```
 
-Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
+---
 
-Images can be added to `src/assets/` and embedded in Markdown with a relative link.
+## 🔧 Setup
 
-Static assets, like favicons, can be placed in the `public/` directory.
+Requirements:
+- **Node.js** (recommended: LTS)
+- **pnpm** package manager
 
-## 🧞 Commands
+After cloning the repository, install dependencies:
 
-All commands are run from the root of the project, from a terminal:
+```bash
+pnpm install
+```
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `pnpm install`             | Installs dependencies                            |
-| `pnpm dev`             | Starts local dev server at `localhost:4321`      |
-| `pnpm build`           | Build your production site to `./dist/`          |
-| `pnpm preview`         | Preview your build locally, before deploying     |
-| `pnpm astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `pnpm astro -- --help` | Get help using the Astro CLI                     |
+---
 
-## 👀 Want to learn more?
+## 🚀 Development & Build Commands
 
-Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).
+- **Start the development server**  
+  ```bash
+  pnpm dev
+  ```  
+  Default URL: `http://localhost:4321`
+
+- **Create a production build**  
+  ```bash
+  pnpm build
+  ```  
+  Output directory: `./dist/`
+
+- **Preview the production build locally**  
+  ```bash
+  pnpm preview
+  ```
+
+- **Astro CLI commands**  
+  ```bash
+  pnpm astro -- --help
+  ```
+
+---
+
+## 🎨 Design & Theme
+
+- **Dark‑first**, futuristic color palette (the `accent` color represents the Tulpar brand)
+- `src/styles/custom.css` redefines Starlight colors to match Tulpar’s visual identity
+- Tailwind configuration is extended to keep the docs UI minimal yet expressive
+
+---
+
+## 📚 Documentation Sections
+
+The documentation is organized into the following main sections (with EN and TR variants):
+
+- **Introduction**
+- **Language Guide**
+- **Standard Library**
+- **Examples**
+
+Each section is designed to provide a clear and practical learning path, from **first steps with Tulpar** to **advanced examples**.
+
+---
+
+## 🤝 Contributing & Feedback
+
+We welcome **ideas, fixes, and contributions** to make the Tulpar documentation even better.  
+You can open issues, submit pull requests, or propose improvements to the content and structure.
+
+Let’s write the code of the future together. 🚀
