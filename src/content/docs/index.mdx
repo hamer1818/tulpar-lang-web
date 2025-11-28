@@ -1,40 +1,36 @@
 ---
-title: Welcome to Starlight
-description: Get started building your docs site with Starlight.
-template: splash # Remove or comment out this line to display the site sidebar on this page.
+title: Tulpar Language
+description: A modern, C-based programming language with UTF-8 support, JSON-native syntax, and comprehensive built-in libraries.
+template: splash
 hero:
-  tagline: Congrats on setting up a new Starlight project!
+  tagline: A modern, C-based programming language with UTF-8 support, JSON-native syntax, and comprehensive built-in libraries.
   image:
     file: ../../assets/houston.webp
   actions:
-    - text: Example Guide
-      link: /guides/example/
+    - text: Get Started
+      link: /intro/getting-started/
       icon: right-arrow
-    - text: Read the Starlight docs
-      link: https://starlight.astro.build
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/hamer1818/TulparLang
       icon: external
-      variant: minimal
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-## Next steps
+## Key Features
 
 <CardGrid stagger>
-	<Card title="Update content" icon="pencil">
-		Edit `src/content/docs/index.mdx` to see this page change.
+	<Card title="UTF-8 Support" icon="pencil">
+		Full Unicode support for variable names, strings, and identifiers.
 	</Card>
-	<Card title="Change page layout" icon="document">
-		Delete `template: splash` in `src/content/docs/index.mdx` to display a
-		sidebar on this page.
+	<Card title="JSON-Native Syntax" icon="add-document">
+		First-class JSON object support with hash table implementation.
 	</Card>
-	<Card title="Add new content" icon="add-document">
-		Add Markdown or MDX files to `src/content/docs` to create new pages.
+	<Card title="Type Safety" icon="setting">
+		Strong typing with type-safe arrays and custom struct definitions.
 	</Card>
-	<Card title="Configure your site" icon="setting">
-		Edit your `sidebar` and other config in `astro.config.mjs`.
-	</Card>
-	<Card title="Read the docs" icon="open-book">
-		Learn more in [the Starlight Docs](https://starlight.astro.build/).
+	<Card title="Cross-Platform" icon="open-book">
+		Write once, run anywhere (Linux, macOS, Windows).
 	</Card>
 </CardGrid>
