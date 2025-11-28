@@ -7,6 +7,13 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'Tulpar Language',
+			customCss: ['./src/styles/custom.css'],
+			logo: {
+				src: './src/assets/icon.png',
+			},
+			head: [
+				{ tag: 'link', attrs: { rel: 'icon', href: '/icon.png', type: 'image/png' } },
+			],
 			defaultLocale: 'root',
 			locales: {
 				root: {
