@@ -1,0 +1,182 @@
+---
+title: Tulpar vs C Language
+description: Compare the Tulpar language with C side by side using practical examples.
+---
+
+import TulparTabs from '../../../components/TulparTabs.astro';
+import TulparTabItem from '../../../components/TulparTabItem.astro';
+
+## JSON vs Struct Usage
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+```tulpar
+arrayJson user = {"name": "Hamza", "age": 27};
+
+print(user.name);
+print(user.age);
+```
+
+  </TulparTabItem>
+  <TulparTabItem label="C Language">
+
+```c
+#include <stdio.h>
+
+struct User {
+    const char *name;
+    int age;
+};
+
+int main(void) {
+    struct User user;
+    user.name = "Hamza";
+    user.age = 27;
+
+    printf("%s\n", user.name);
+    printf("%d\n", user.age);
+    return 0;
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## Arrays and Loops
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+```tulpar
+arrayInt numbers = [1, 2, 3, 4, 5];
+
+for (int i = 0; i < length(numbers); i++) {
+    print("Item:", numbers[i]);
+}
+```
+
+  </TulparTabItem>
+  <TulparTabItem label="C Language">
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int numbers[] = {1, 2, 3, 4, 5};
+    int length_arr = sizeof(numbers) / sizeof(numbers[0]);
+
+    for (int i = 0; i < length_arr; i++) {
+        printf("Item: %d\n", numbers[i]);
+    }
+
+    return 0;
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## String Processing
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+```tulpar
+str input = "  TULPAR LANG  ";
+
+str cleaned = lower(trim(input));
+arrayStr parts = split(cleaned, " ");
+
+print("Cleaned:", cleaned);
+print("First word:", parts[0]);
+```
+
+  </TulparTabItem>
+  <TulparTabItem label="C Language">
+
+```c
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+void trim(char *s) {
+    int start = 0;
+    while (isspace((unsigned char)s[start])) start++;
+
+    int end = strlen(s) - 1;
+    while (end >= start && isspace((unsigned char)s[end])) end--;
+
+    int j = 0;
+    for (int i = start; i <= end; i++) {
+        s[j++] = s[i];
+    }
+    s[j] = '\0';
+}
+
+void lower_str(char *s) {
+    for (int i = 0; s[i] != '\0'; i++) {
+        s[i] = (char)tolower((unsigned char)s[i]);
+    }
+}
+
+int main(void) {
+    char input[] = "  TULPAR LANG  ";
+
+    trim(input);
+    lower_str(input);
+
+    char *first_word = strtok(input, " ");
+
+    printf("Cleaned: %s\n", input);
+    printf("First word: %s\n", first_word);
+    return 0;
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## Input and Error Handling
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+```tulpar
+int age = inputInt("Enter your age: ");
+
+if (age < 18) {
+    print("Access denied.");
+} else {
+    print("Welcome!");
+}
+```
+
+  </TulparTabItem>
+  <TulparTabItem label="C Language">
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int age;
+    printf("Enter your age: ");
+
+    if (scanf("%d", &age) != 1) {
+        printf("Invalid input.\n");
+        return 1;
+    }
+
+    if (age < 18) {
+        printf("Access denied.\n");
+    } else {
+        printf("Welcome!\n");
+    }
+
+    return 0;
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+

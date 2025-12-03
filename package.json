@@ -17,6 +17,10 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.17",
-    "tailwindcss": "^4.1.17"
+    "hast": "^1.0.0",
+    "hast-util-select": "^6.0.4",
+    "rehype": "^13.0.2",
+    "tailwindcss": "^4.1.17",
+    "unist-util-visit": "^5.0.0"
   }
 }

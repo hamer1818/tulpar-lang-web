@@ -1,0 +1,182 @@
+---
+title: Tulpar ve C Dili Karşılaştırmaları
+description: Tulpar dilini C ile yan yana örnekler üzerinden karşılaştırın.
+---
+
+import TulparTabs from '../../../../components/TulparTabs.astro';
+import TulparTabItem from '../../../../components/TulparTabItem.astro';
+
+## JSON ve Struct Kullanımı
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+```tulpar
+arrayJson user = {"name": "Hamza", "age": 27};
+
+print(user.name);
+print(user.age);
+```
+
+  </TulparTabItem>
+  <TulparTabItem label="C Dili">
+
+```c
+#include <stdio.h>
+
+struct User {
+    const char *name;
+    int age;
+};
+
+int main(void) {
+    struct User user;
+    user.name = "Hamza";
+    user.age = 27;
+
+    printf("%s\n", user.name);
+    printf("%d\n", user.age);
+    return 0;
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## Diziler ve Döngüler
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+```tulpar
+arrayInt sayilar = [1, 2, 3, 4, 5];
+
+for (int i = 0; i < length(sayilar); i++) {
+    print("Eleman:", sayilar[i]);
+}
+```
+
+  </TulparTabItem>
+  <TulparTabItem label="C Dili">
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int sayilar[] = {1, 2, 3, 4, 5};
+    int uzunluk = sizeof(sayilar) / sizeof(sayilar[0]);
+
+    for (int i = 0; i < uzunluk; i++) {
+        printf("Eleman: %d\n", sayilar[i]);
+    }
+
+    return 0;
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## Metin İşleme
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+```tulpar
+str giris = "  Tulpar DILI  ";
+
+str temiz = lower(trim(giris));
+arrayStr parcali = split(temiz, " ");
+
+print("Temiz:", temiz);
+print("İlk kelime:", parcali[0]);
+```
+
+  </TulparTabItem>
+  <TulparTabItem label="C Dili">
+
+```c
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+void trim(char *s) {
+    int start = 0;
+    while (isspace((unsigned char)s[start])) start++;
+
+    int end = strlen(s) - 1;
+    while (end >= start && isspace((unsigned char)s[end])) end--;
+
+    int j = 0;
+    for (int i = start; i <= end; i++) {
+        s[j++] = s[i];
+    }
+    s[j] = '\0';
+}
+
+void lower_str(char *s) {
+    for (int i = 0; s[i] != '\0'; i++) {
+        s[i] = (char)tolower((unsigned char)s[i]);
+    }
+}
+
+int main(void) {
+    char giris[] = "  Tulpar DILI  ";
+
+    trim(giris);
+    lower_str(giris);
+
+    char *ilk_kelime = strtok(giris, " ");
+
+    printf("Temiz: %s\n", giris);
+    printf("İlk kelime: %s\n", ilk_kelime);
+    return 0;
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## Girdi Alma ve Hata Kontrolü
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+```tulpar
+int yas = inputInt("Yaşınızı girin: ");
+
+if (yas < 18) {
+    print("Erişim reddedildi.");
+} else {
+    print("Hoş geldiniz!");
+}
+```
+
+  </TulparTabItem>
+  <TulparTabItem label="C Dili">
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int yas;
+    printf("Yaşınızı girin: ");
+
+    if (scanf("%d", &yas) != 1) {
+        printf("Geçersiz girdi.\n");
+        return 1;
+    }
+
+    if (yas < 18) {
+        printf("Erişim reddedildi.\n");
+    } else {
+        printf("Hoş geldiniz!\n");
+    }
+
+    return 0;
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+

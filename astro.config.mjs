@@ -7,7 +7,7 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'Tulpar Language',
-			favicon: './public/favicon.png',
+			favicon: './public/favicon.svg',
 
 			customCss: ['./src/styles/custom.css'],
 			logo: {
@@ -29,6 +29,14 @@ export default defineConfig({
 			},
 			expressiveCode: {
 				themes: ['dracula', 'github-light'],
+				styleOverrides: {
+                    frames: {
+                        // Terminal başlığı görünümü
+                        frameBoxShadowCssValue: '0 0 20px rgba(0, 229, 255, 0.15)',
+                        editorActiveTabBackground: 'rgba(0, 229, 255, 0.1)',
+                        editorActiveTabBorderColor: '#00e5ff',
+                    }
+                },
 				shiki: {
 					langAlias: {
 						tulpar: 'c',
@@ -54,6 +62,7 @@ export default defineConfig({
 						{ label: 'Arrays & JSON', translations: { tr: 'Diziler ve JSON' }, slug: 'guide/arrays-json' },
 						{ label: 'Structs', translations: { tr: 'Yapılar (Structs)' }, slug: 'guide/structs' },
 						{ label: 'Modules & Imports', translations: { tr: 'Modüller ve İçe Aktarma' }, slug: 'guide/modules' },
+						{ label: 'Tulpar vs C', translations: { tr: 'Tulpar ve C Karşılaştırma' }, slug: 'guide/tulpar-vs-c' },
 					],
 				},
 				{

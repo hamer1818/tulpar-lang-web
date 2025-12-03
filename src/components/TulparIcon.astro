@@ -1,0 +1,59 @@
+---
+interface Props {
+	name: string;
+	label?: string;
+	size?: string;
+	color?: string;
+	class?: string;
+}
+
+const { name, label, size = '1em', color } = Astro.props as Props;
+const a11yAttrs = label ? ({ alt: label } as const) : ({ alt: name } as const);
+
+const builtinIcons: Record<string, string> = {
+	'seti:c': `
+    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" />
+    <text x="12" y="16" text-anchor="middle" font-size="12" fill="currentColor" font-family="monospace">C</text>
+  `,
+};
+
+const isBuiltin = name in builtinIcons;
+const fileName = !isBuiltin ? name : undefined;
+---
+
+{isBuiltin ? (
+	<svg
+		{...a11yAttrs}
+		class={Astro.props.class}
+		width="16"
+		height="16"
+		viewBox="0 0 24 24"
+		fill="currentColor"
+		set:html={builtinIcons[name]}
+	/>
+) : (
+	<img
+		src={`/icons/${fileName}.svg`}
+		width="16"
+		height="16"
+		class={Astro.props.class}
+		loading="lazy"
+		{...a11yAttrs}
+	/>
+)}
+
+<style define:vars={{ 'sl-icon-color': color, 'sl-icon-size': size }}>
+	@layer starlight.components {
+		svg,
+		img {
+			color: var(--sl-icon-color);
+			font-size: var(--sl-icon-size, 1em);
+			width: 1em;
+			height: 1em;
+			object-fit: contain;
+			display: inline-block;
+		}
+	}
+</style>
+
+

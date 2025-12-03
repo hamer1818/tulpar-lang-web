@@ -152,3 +152,45 @@ header.header {
 	background: linear-gradient(90deg, var(--tech-glow), transparent);
 	border-left: 3px solid var(--sl-color-accent);
 }
+
+
+/* Admonition (Uyarı Kutuları) Özelleştirmesi */
+.starlight-aside {
+    border: 1px solid var(--sl-color-accent-low);
+    background: rgba(15, 23, 42, 0.6) !important;
+    backdrop-filter: blur(5px);
+    border-radius: 0px 12px 0px 12px; /* Köşeli, teknik görünüm */
+    box-shadow: -4px 0 0 var(--sl-color-accent); /* Sol tarafta neon çizgi */
+}
+
+/* İkonları parlat */
+.starlight-aside .icon {
+    filter: drop-shadow(0 0 8px var(--sl-color-accent));
+}
+
+/* Başlıkları daha teknik yap */
+.starlight-aside__title {
+    font-family: var(--sl-font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.9rem;
+}
+
+/* --- Tulpar Tabs İkonu (özel SVG) --- */
+[data-icon="tulpar"]::before {
+	content: '';
+	display: inline-block;
+	width: 1.1em;
+	height: 1.1em;
+	margin-inline-end: 0.4em;
+	background-image: url('/icons/tulpar.svg');
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	vertical-align: middle;
+}
+
+/* Her ihtimale karşı, Starlight'ın kendi SVG ikonunu gizle */
+[data-icon="tulpar"] svg {
+	display: none;
+}
