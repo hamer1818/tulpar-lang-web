@@ -1,30 +1,154 @@
-/* Dark mode colors */
+/* src/styles/custom.css */
+
+/* Modern Fontları Yükle */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;700&display=swap');
+
+/* --- KOYU TEMA (Varsayılan Cyberpunk/Futuristic) --- */
 :root {
-	--sl-color-accent-low: #124041;
-	--sl-color-accent: #1bbdbf;
-	--sl-color-accent-high: #b8eeee;
+	/* Tulpar Neon Paleti */
+	--sl-color-accent-low: #0f3032;
+	--sl-color-accent: #00e5ff; /* Neon Turkuaz */
+	--sl-color-accent-high: #b3f6ff;
+	
+	/* Arka planlar (Derin Siyah/Lacivert) */
 	--sl-color-white: #ffffff;
 	--sl-color-gray-1: #eceef2;
 	--sl-color-gray-2: #c0c2c7;
 	--sl-color-gray-3: #888b96;
 	--sl-color-gray-4: #545665;
-	--sl-color-gray-5: #353641;
-	--sl-color-gray-6: #24252d;
-	--sl-color-black: #17181c;
+	--sl-color-gray-5: #23262f;
+	--sl-color-gray-6: #0f1115; /* Ana arka plan */
+	--sl-color-black: #0b0c0f;
+	
+	/* Font Ayarları */
+	--sl-font: 'Inter', system-ui, sans-serif;
+	--sl-font-mono: 'JetBrains Mono', monospace;
+	
+	/* Özel Efekt Değişkenleri (KOYU) */
+	--tech-glow: rgba(0, 229, 255, 0.4);            /* Vurgu parlaması */
+	--tech-grid: rgba(255, 255, 255, 0.03);          /* Arka plan ızgarası */
+	--tech-card-bg: rgba(35, 38, 47, 0.6);           /* Kart rengi */
+	--tech-glass-border: rgba(255, 255, 255, 0.05);  /* Kart kenarı */
+	--tech-header-bg: rgba(15, 17, 21, 0.8);         /* Header arkaplanı */
 }
 
-/* Light mode colors */
+/* --- AÇIK TEMA (High-Tech Laboratuvar Görünümü) --- */
 :root[data-theme='light'] {
+	/* Tulpar Açık Mod Paleti (Daha koyu turkuaz ile kontrast) */
 	--sl-color-accent-low: #cceeee;
-	--sl-color-accent: #1bbdbf;
-	--sl-color-accent-high: #0d6e70;
-	--sl-color-white: #17181c;
+	--sl-color-accent: #008c9e; /* Okunabilir Koyu Turkuaz */
+	--sl-color-accent-high: #064e52;
+	
+	/* Arka planlar (Temiz Beyaz/Gri) */
+	--sl-color-white: #17181c; /* Metin rengi siyaha döner */
 	--sl-color-gray-1: #24252d;
 	--sl-color-gray-2: #353641;
 	--sl-color-gray-3: #545665;
 	--sl-color-gray-4: #888b96;
-	--sl-color-gray-5: #c0c2c7;
-	--sl-color-gray-6: #eceef2;
-	--sl-color-gray-7: #f5f6f8;
+	--sl-color-gray-5: #e3e6eb; /* Kart hover */
+	--sl-color-gray-6: #f5f6f8; /* Ana arka plan */
+	--sl-color-gray-7: #ffffff; /* Kart arka plan */
 	--sl-color-black: #ffffff;
+	
+	/* Özel Efekt Değişkenleri (AÇIK) */
+	--tech-glow: rgba(0, 140, 158, 0.2);             /* Daha hafif parlama */
+	--tech-grid: rgba(0, 0, 0, 0.04);                /* Koyu ızgara çizgileri */
+	--tech-card-bg: rgba(255, 255, 255, 0.7);        /* Beyazımsı kart */
+	--tech-glass-border: rgba(0, 0, 0, 0.05);        /* Gri kenarlık */
+	--tech-header-bg: rgba(255, 255, 255, 0.85);     /* Beyaz header */
+}
+
+/* --- GENEL STİLLER --- */
+
+/* Arka Plana Dinamik Grid Dokusu */
+body {
+	background-color: var(--sl-color-gray-6);
+	background-image: 
+		linear-gradient(var(--tech-grid) 1px, transparent 1px),
+		linear-gradient(90deg, var(--tech-grid) 1px, transparent 1px);
+	background-size: 40px 40px;
+	background-position: center top;
+	transition: background-color 0.3s ease;
+}
+
+/* --- Hero (Başlık) Bölümü --- */
+.hero h1 {
+	/* Gradyan metin (Temaya göre accent rengini kullanır) */
+	background: linear-gradient(to right, var(--sl-color-accent), #2979ff);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	/* Hafif parlama efekti */
+	filter: drop-shadow(0 0 15px var(--tech-glow));
+	font-weight: 800;
+	letter-spacing: -0.02em;
+}
+
+/* Butonlar */
+.action.primary {
+	background: linear-gradient(45deg, var(--sl-color-accent), #2979ff);
+	border: none;
+	color: #fff; /* Yazı her zaman beyaz olsun */
+	font-weight: bold;
+	box-shadow: 0 0 15px var(--tech-glow);
+	transition: all 0.3s ease;
+}
+:root[data-theme='light'] .action.primary {
+    color: #fff; /* Açık temada da buton yazısı beyaz */
+}
+
+.action.primary:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 0 25px var(--tech-glow);
+}
+
+.action.secondary {
+	border: 1px solid var(--sl-color-gray-4);
+	background: rgba(125, 125, 125, 0.05);
+	backdrop-filter: blur(5px);
+}
+
+/* --- Kartlar (Card Grid) --- */
+.card {
+	background: var(--tech-card-bg) !important;
+	border: 1px solid var(--tech-glass-border);
+	backdrop-filter: blur(10px);
+	transition: all 0.3s ease;
+	border-radius: 12px;
+	box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+}
+
+.card:hover {
+	border-color: var(--sl-color-accent);
+	box-shadow: 0 0 20px var(--tech-glow);
+	transform: translateY(-5px);
+}
+
+.card .title {
+	color: var(--sl-color-white); /* Temaya göre siyah veya beyaz */
+	font-weight: 700;
+}
+
+.card .icon {
+	color: var(--sl-color-accent) !important;
+}
+
+/* --- Navigasyon Barı (Header) --- */
+header.header {
+	background: var(--tech-header-bg) !important;
+	backdrop-filter: blur(12px);
+	border-bottom: 1px solid var(--tech-glass-border);
+}
+
+/* --- Kod Blokları (Her iki tema için modern görünüm) --- */
+.expressive-code .frame {
+	border: 1px solid var(--sl-color-accent-low) !important;
+	border-radius: 8px !important;
+	box-shadow: 0 10px 30px rgba(0,0,0,0.15) !important;
+}
+
+/* Yan Menü (Sidebar) Vurgusu */
+.sidebar-content a[aria-current="page"] {
+	color: var(--sl-color-accent);
+	background: linear-gradient(90deg, var(--tech-glow), transparent);
+	border-left: 3px solid var(--sl-color-accent);
 }
