@@ -7,6 +7,8 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'Tulpar Language',
+			favicon: './public/favicon.png',
+
 			customCss: ['./src/styles/custom.css'],
 			logo: {
 				src: './src/assets/icon.png',
