@@ -194,3 +194,123 @@ header.header {
 [data-icon="tulpar"] svg {
 	display: none;
 }
+
+/* --- Tulpar Playground (WASM) --- */
+.tulpar-playground {
+	border: 1px solid var(--sl-color-accent-low);
+	border-radius: 10px;
+	background: rgba(0, 0, 0, 0.15);
+	backdrop-filter: blur(6px);
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+	overflow: hidden;
+	margin: 1rem 0;
+}
+
+:root[data-theme='light'] .tulpar-playground {
+	background: rgba(255, 255, 255, 0.7);
+}
+
+.tulpar-playground__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	padding: 0.6rem 0.8rem;
+	border-bottom: 1px solid var(--sl-color-accent-low);
+}
+
+.tulpar-playground__title {
+	font-family: var(--sl-font-mono);
+	font-size: 0.85rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--sl-color-white);
+}
+
+.tulpar-playground__headerRight {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+}
+
+.tulpar-playground__status {
+	font-family: var(--sl-font-mono);
+	font-size: 0.8rem;
+	color: var(--sl-color-gray-2);
+	white-space: nowrap;
+}
+
+.tulpar-playground__run {
+	border: 1px solid var(--sl-color-accent);
+	background: linear-gradient(45deg, var(--sl-color-accent), #2979ff);
+	color: #fff;
+	font-weight: 700;
+	padding: 0.35rem 0.6rem;
+	border-radius: 8px;
+	box-shadow: 0 0 15px var(--tech-glow);
+	cursor: pointer;
+}
+
+.tulpar-playground__run:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+	box-shadow: none;
+}
+
+.tulpar-playground__editor {
+	width: 100%;
+	display: block;
+	border: 0;
+	outline: none;
+	resize: vertical;
+	padding: 0.75rem 0.8rem;
+	font-family: var(--sl-font-mono);
+	font-size: 0.92rem;
+	line-height: 1.5;
+	color: var(--sl-color-white);
+	background: rgba(15, 17, 21, 0.55);
+}
+
+:root[data-theme='light'] .tulpar-playground__editor {
+	color: #17181c;
+	background: rgba(245, 246, 248, 0.9);
+}
+
+.tulpar-playground__outputWrap {
+	border-top: 1px solid var(--sl-color-accent-low);
+}
+
+.tulpar-playground__outputHeader {
+	padding: 0.45rem 0.8rem;
+	font-family: var(--sl-font-mono);
+	font-size: 0.8rem;
+	color: var(--sl-color-gray-2);
+	background: rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme='light'] .tulpar-playground__outputHeader {
+	background: rgba(0, 0, 0, 0.03);
+}
+
+.tulpar-playground__output {
+	margin: 0;
+	padding: 0.75rem 0.8rem;
+	white-space: pre-wrap;
+	word-break: break-word;
+	font-family: var(--sl-font-mono);
+	font-size: 0.9rem;
+	line-height: 1.5;
+	color: var(--sl-color-gray-1);
+	max-height: 360px;
+	overflow: auto;
+	background: rgba(0, 0, 0, 0.06);
+}
+
+:root[data-theme='light'] .tulpar-playground__output {
+	color: #17181c;
+	background: rgba(0, 0, 0, 0.02);
+}
+
+.tulpar-playground__output.is-error {
+	color: #ff6b6b;
+}

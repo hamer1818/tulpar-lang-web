@@ -3,24 +3,33 @@ title: Temel Örnekler
 description: Tulpar ile yazılmış örnek programları inceleyin.
 ---
 
+import TulparPlayground from '../../../../components/TulparPlayground.astro';
+
 ## Hesap Makinesi
 
-```tulpar
-print("=== TulparLang Hesap Makinesi ===");
+<TulparPlayground
+	title="Hesap Makinesi"
+	code={String.raw`int a = 10;
+int b = 5;
 
-int a = inputInt("Birinci sayı: ");
-int b = inputInt("İkinci sayı: ");
+print("=== TulparLang Hesap Makinesi ===");
+print("Birinci sayı:", a);
+print("İkinci sayı:", b);
 
 print("Toplam:", a + b);
 print("Fark:", a - b);
 print("Çarpım:", a * b);
-print("Bölüm:", a / b);
-```
+print("Bölüm:", a / b);`}
+/>
+
+> Not: Web Playground şu anda `inputInt` gibi etkileşimli giriş fonksiyonlarını desteklemiyor.  
+> Tam etkileşimli sürümü denemek için bu örneği Tulpar CLI ile çalıştırabilirsiniz.
 
 ## Fibonacci Dizisi
 
-```tulpar
-func fibonacci(int n) {
+<TulparPlayground
+	title="Fibonacci Dizisi"
+	code={String.raw`func fibonacci(int n) {
     if (n <= 1) {
         return n;
     }
@@ -30,13 +39,14 @@ func fibonacci(int n) {
 print("Fibonacci dizisi:");
 for (int i = 0; i < 10; i++) {
     print("F(" + toString(i) + ") =", fibonacci(i));
-}
-```
+}`}
+/>
 
 ## JSON Veri İşleme
 
-```tulpar
-arrayJson kullanicilar = {
+<TulparPlayground
+	title="JSON Veri İşleme"
+	code={String.raw`arrayJson kullanicilar = {
     "data": [
         {"isim": "Ali", "yas": 25, "rol": "Geliştirici"},
         {"isim": "Veli", "yas": 30, "rol": "Tasarımcı"},
@@ -52,29 +62,36 @@ for (int i = 0; i < length(kullanicilar["data"]); i++) {
     str rol = kullanici["rol"];
     
     print(isim, "-", yas, "yaşında -", rol);
-}
-```
+}`}
+/>
 
 ## Metin İşleme
 
-```tulpar
-str eposta = "  HAMZA@EXAMPLE.COM  ";
+<TulparPlayground
+	title="Metin İşleme"
+	code={String.raw`str eposta = "  HAMZA@EXAMPLE.COM  ";
 
 // E-postayı temizle ve ayrıştır
 str temiz = lower(trim(eposta));
-arrayStr parcalar = split(temiz, "@");
-str kullanici_adi = parcalar[0];
-str alan_adi = parcalar[1];
+array parcalar = split(temiz, "@");
 
-print("Kullanıcı Adı:", kullanici_adi);
-print("Alan Adı:", alan_adi);
-print("Geçerli:", contains(alan_adi, "."));
-```
+if (length(parcalar) >= 2) {
+    str kullanici_adi = parcalar[0];
+    str alan_adi = parcalar[1];
+
+    print("Kullanıcı Adı:", kullanici_adi);
+    print("Alan Adı:", alan_adi);
+    print("Geçerli:", contains(alan_adi, "."));
+} else {
+    print("Geçersiz e-posta:", temiz);
+}`}
+/>
 
 ## Matematiksel Hesaplama
 
-```tulpar
-// Daire özelliklerini hesapla
+<TulparPlayground
+	title="Matematiksel Hesaplama"
+	code={String.raw`// Daire özelliklerini hesapla
 float yaricap = 5.0;
 float pi = 3.14159;
 
@@ -91,5 +108,5 @@ float r = random() * yaricap;
 float x = r * cos(aci);
 float y = r * sin(aci);
 
-print("Rastgele nokta: (", x, ",", y, ")");
-```
+print("Rastgele nokta: (", x, ",", y, ")");`}
+/>

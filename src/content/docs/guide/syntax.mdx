@@ -3,6 +3,8 @@ title: Syntax & Variables
 description: Learn about Tulpar's syntax, data types, and variables.
 ---
 
+import TulparPlayground from '../../../components/TulparPlayground.astro';
+
 ## Data Types
 
 Tulpar supports the following data types:
@@ -24,8 +26,9 @@ Tulpar supports the following data types:
 
 Variables are declared with their type:
 
-```tulpar
-// Variable declaration
+<TulparPlayground
+	title="Variables"
+	code={String.raw`// Variable declaration
 int x = 10;
 float y = 3.14;
 str name = "TulparLang";
@@ -37,18 +40,19 @@ x *= 2;   // x = 30
 
 // Increment/Decrement
 x++;      // x = 31
-x--;      // x = 30
-```
+x--;      // x = 30`}
+/>
 
 ## Comments
 
 Tulpar supports single-line and multi-line comments:
 
-```tulpar
-// Single-line comment
+<TulparPlayground
+	title="Comments"
+	code={String.raw`// Single-line comment
 
 /*
  Multi-line
  block comment
-*/
-```
+*/`}
+/>

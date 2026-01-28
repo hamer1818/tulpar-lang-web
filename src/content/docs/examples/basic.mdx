@@ -3,24 +3,33 @@ title: Basic Examples
 description: Learn from example programs written in Tulpar.
 ---
 
+import TulparPlayground from '../../../components/TulparPlayground.astro';
+
 ## Calculator
 
-```tulpar
-print("=== TulparLang Calculator ===");
+<TulparPlayground
+	title="Calculator"
+	code={String.raw`int a = 10;
+int b = 5;
 
-int a = inputInt("First number: ");
-int b = inputInt("Second number: ");
+print("=== TulparLang Calculator ===");
+print("First:", a);
+print("Second:", b);
 
 print("Sum:", a + b);
 print("Difference:", a - b);
 print("Product:", a * b);
-print("Division:", a / b);
-```
+print("Division:", a / b);`}
+/>
+
+> Note: The web Playground does not support interactive input functions like `inputInt` yet.  
+> To test the fully interactive version, run this example with the Tulpar CLI.
 
 ## Fibonacci Sequence
 
-```tulpar
-func fibonacci(int n) {
+<TulparPlayground
+	title="Fibonacci"
+	code={String.raw`func fibonacci(int n) {
     if (n <= 1) {
         return n;
     }
@@ -30,13 +39,14 @@ func fibonacci(int n) {
 print("Fibonacci sequence:");
 for (int i = 0; i < 10; i++) {
     print("F(" + toString(i) + ") =", fibonacci(i));
-}
-```
+}`}
+/>
 
 ## JSON Data Processing
 
-```tulpar
-arrayJson users = {
+<TulparPlayground
+	title="JSON Data Processing"
+	code={String.raw`arrayJson users = {
     "data": [
         {"name": "Alice", "age": 25, "role": "Developer"},
         {"name": "Bob", "age": 30, "role": "Designer"},
@@ -52,29 +62,36 @@ for (int i = 0; i < length(users["data"]); i++) {
     str role = user["role"];
     
     print(name, "-", age, "years old -", role);
-}
-```
+}`}
+/>
 
 ## String Processing
 
-```tulpar
-str email = "  HAMZA@EXAMPLE.COM  ";
+<TulparPlayground
+	title="String Processing"
+	code={String.raw`str email = "  HAMZA@EXAMPLE.COM  ";
 
 // Clean and parse email
 str clean = lower(trim(email));
-arrayStr parts = split(clean, "@");
-str username = parts[0];
-str domain = parts[1];
+array parts = split(clean, "@");
 
-print("Username:", username);
-print("Domain:", domain);
-print("Valid:", contains(domain, "."));
-```
+if (length(parts) >= 2) {
+    str username = parts[0];
+    str domain = parts[1];
+
+    print("Username:", username);
+    print("Domain:", domain);
+    print("Valid:", contains(domain, "."));
+} else {
+    print("Invalid email:", clean);
+}`}
+/>
 
 ## Mathematical Computation
 
-```tulpar
-// Calculate circle properties
+<TulparPlayground
+	title="Math Computation"
+	code={String.raw`// Calculate circle properties
 float radius = 5.0;
 float pi = 3.14159;
 
@@ -91,5 +108,5 @@ float r = random() * radius;
 float x = r * cos(angle);
 float y = r * sin(angle);
 
-print("Random point: (", x, ",", y, ")");
-```
+print("Random point: (", x, ",", y, ")");`}
+/>

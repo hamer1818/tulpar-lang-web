@@ -3,6 +3,8 @@ title: Sözdizimi ve Değişkenler
 description: Tulpar'ın sözdizimi, veri tipleri ve değişkenleri hakkında bilgi edinin.
 ---
 
+import TulparPlayground from '../../../../components/TulparPlayground.astro';
+
 ## Veri Tipleri
 
 Tulpar aşağıdaki veri tiplerini destekler:
@@ -24,8 +26,9 @@ Tulpar aşağıdaki veri tiplerini destekler:
 
 Değişkenler tipleriyle birlikte tanımlanır:
 
-```tulpar
-// Değişken tanımlama
+<TulparPlayground
+	title="Değişkenler"
+	code={String.raw`// Değişken tanımlama
 int x = 10;
 float y = 3.14;
 str isim = "TulparLang";
@@ -37,18 +40,19 @@ x *= 2;   // x = 30
 
 // Artırma/Azaltma
 x++;      // x = 31
-x--;      // x = 30
-```
+x--;      // x = 30`}
+/>
 
 ## Yorum Satırları
 
 Tulpar tek satırlı ve çok satırlı yorumları destekler:
 
-```tulpar
-// Tek satırlı yorum
+<TulparPlayground
+	title="Yorum Satırları"
+	code={String.raw`// Tek satırlı yorum
 
 /*
  Çok satırlı
  blok yorum
-*/
-```
+*/`}
+/>
