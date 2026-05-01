@@ -1,0 +1,84 @@
+---
+title: HTTP İstemcisi
+description: http_get, http_post ve dostlarıyla outbound HTTP/HTTPS istek. JSON convenience wrapper'ları dahili.
+---
+
+`lib/http_client.tpr`, gömülü outbound HTTP kütüphanesidir. Bir Tulpar
+programının içinden başka API'leri çağırmak için kullan — ekstra
+dependency yok, `npm install` yok.
+
+```tulpar
+import "http_client";
+
+json r = http_get("http://api.example.com/users/1");
+if (r["ok"]) {
+    print("status=" + toString(r["status"]));
+    print("body=" + r["body"]);
+}
+```
+
+## Yardımcılar
+
+| Helper                                | Sarar                                       |
+| ------------------------------------- | ------------------------------------------- |
+| `http_get(url)`                       | Boş gövdeli `GET`                           |
+| `http_post(url, body)`                | Ham string gövdeli `POST`                   |
+| `http_put(url, body)`                 | `PUT`                                       |
+| `http_delete(url)`                    | `DELETE`                                    |
+| `http_get_json(url)`                  | `GET` + 2xx ise `fromJson(body)`            |
+| `http_post_json(url, data)`           | `toJson(data)` POST + cevabı parse          |
+| `http_request(method, url, body)`     | Düşük seviye primitif                       |
+
+## Cevap şekli
+
+Tüm helper'lar aynı zarfı döner:
+
+```tulpar
+json r = http_get("http://api.example.com/");
+
+if (r["ok"]) {
+    int status = r["status"];        // 200, 404, ...
+    json headers = r["headers"];     // case-sensitive header haritası
+    str body = r["body"];            // ham response gövdesi
+} else {
+    str why = r["error"];            // "connect failed", "TLS handshake failed", ...
+}
+```
+
+`_json` varyantları ek olarak `r["body"]`'yi parse edip `r["data"]`'ya
+koyar:
+
+```tulpar
+json r = http_get_json("http://api.example.com/users/1");
+if (r["ok"]) {
+    json user = r["data"];
+    print("merhaba " + user["name"]);
+}
+```
+
+## HTTPS
+
+`https://` URL'leri Tulpar'ın OpenSSL ile build'ini gerektirir. Yoksa
+çağrı `{"ok": 0, "error": "TLS not compiled in (build Tulpar with
+OpenSSL to enable https://)"}` döner.
+
+MSYS2'de TLS aktive etmek için:
+
+```bash
+pacman -S mingw-w64-x86_64-openssl
+./build.sh
+```
+
+CMake `find_package(OpenSSL)` ile otomatik algılar ve `TULPAR_HAS_TLS=1`
+define'ını açar. SNI otomatik set, sertifika doğrulama şu an
+`SSL_VERIFY_NONE` (yapılandırılabilir trust-store yolu inene kadar).
+
+## Sınırlar
+
+Bugün:
+
+- HTTP/1.0 (client tarafında keep-alive yok)
+- OpenSSL ile derlendiğinde HTTPS
+- 8 MB cevap gövdesi sınırı
+- Otomatik redirect takibi yok
+- Chunked transfer-encoding yok

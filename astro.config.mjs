@@ -78,6 +78,18 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Ecosystem & Tooling',
+					translations: { tr: 'Ekosistem ve Araçlar' },
+					items: [
+						{ label: 'Package Manager', translations: { tr: 'Paket Yöneticisi' }, slug: 'ecosystem/package-manager' },
+						{ label: 'HTTP Server (Wings)', translations: { tr: 'HTTP Sunucusu (Wings)' }, slug: 'ecosystem/http-server' },
+						{ label: 'HTTP Client', translations: { tr: 'HTTP İstemcisi' }, slug: 'ecosystem/http-client' },
+						{ label: 'ORM (lib/orm)', translations: { tr: 'ORM (lib/orm)' }, slug: 'ecosystem/orm' },
+						{ label: 'Tooling — LSP / Formatter / VS Code', translations: { tr: 'Araçlar — LSP / Formatter / VS Code' }, slug: 'ecosystem/tooling' },
+						{ label: 'Benchmarks', translations: { tr: 'Benchmark Sonuçları' }, slug: 'ecosystem/benchmarks' },
+					],
+				},
+				{
 					label: 'Examples',
 					translations: { tr: 'Örnekler' },
 					items: [

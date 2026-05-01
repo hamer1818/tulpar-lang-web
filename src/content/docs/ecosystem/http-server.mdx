@@ -1,0 +1,158 @@
+---
+title: HTTP Server (Wings)
+description: Wings is Tulpar's batteries-included HTTP framework — keep-alive connections, /healthz, /metrics, OpenAPI auto-gen, multi-threaded request handling, structured logging.
+---
+
+Wings is the embedded HTTP framework that ships with Tulpar. It's
+designed to take you from `import "wings"` to a production-shaped
+JSON API in under 20 lines of code, with health checks, metrics,
+OpenAPI documentation, and multi-threaded request handling already
+wired up.
+
+## Hello world
+
+```tulpar
+import "wings";
+
+func index_handler() {
+    return {"hello": "world"};
+}
+
+get("/", "index_handler");
+listen(8080);
+```
+
+That's a complete HTTP/1.1 server with keep-alive, CORS-friendly default
+headers, and `/healthz` + `/metrics` auto-registered.
+
+## Routing
+
+```tulpar
+get("/users/:id", "show_user");      // path params live in _request["params"]
+post("/users", "create_user");
+put("/users/:id", "update_user");
+del("/users/:id", "delete_user");
+
+func show_user() {
+    str id = _request["params"]["id"];
+    return orm_find("users", toInt(id));
+}
+```
+
+Inside a handler, the parsed request is on the global `_request`:
+
+| Field          | Type         | Notes                                      |
+| -------------- | ------------ | ------------------------------------------ |
+| `method`       | `str`        | `GET`, `POST`, `PUT`, `DELETE`, …          |
+| `path`         | `str`        | URL path without the query string.         |
+| `raw_path`     | `str`        | Path + query as the client sent it.        |
+| `query`        | `json`       | Parsed `?k=v&...` (URL-decoded).           |
+| `headers`      | `json`       | Header map (case-sensitive keys).          |
+| `body`         | `str`        | Raw body bytes, length-bounded.            |
+
+## Single-thread vs multi-thread
+
+```tulpar
+listen(8080);          // single accept loop, keep-alive on each connection
+listen_async(8080);    // thread-per-connection, parallel recv/send
+```
+
+`listen()` is the battle-tested single-thread server: it serves multiple
+keep-alive requests on each accepted socket, but new connections wait
+until the current one returns to `accept()`. Throughput on a benchmark
+load: **~24k req/sec**, ~Node.js parity.
+
+`listen_async()` spawns a detached worker per accepted TCP connection.
+Each worker does its own `recv` / parse / `send` in parallel; handler
+dispatch is serialised under `_wings_handler_mu` until LLVM thread-local
+globals land, but the network parts run concurrently. The win is:
+multi-thread accept (no one slow request blocks others) and parallel
+keep-alive serving for many idle clients.
+
+## Auto-routes
+
+If you don't register them yourself, `listen()` and `listen_async()`
+auto-register two routes that production deployments expect:
+
+### `/healthz`
+
+```json
+{
+  "status": "ok",
+  "uptime_s": 142,
+  "now": "2026-05-02T18:34:21Z"
+}
+```
+
+Drop-in compatible with Kubernetes liveness probes. Override by
+registering your own `GET /healthz` before calling `listen`.
+
+### `/metrics`
+
+```json
+{
+  "uptime_s": 142,
+  "requests_total": 5021,
+  "requests_2xx": 4998,
+  "requests_4xx": 23,
+  "requests_5xx": 0,
+  "routes": 7
+}
+```
+
+Tracks counters that Wings increments on every response. For Prometheus
+scrapers, add `?format=prom` to get text exposition format, or build a
+dedicated route with `wings_metrics_prom()`.
+
+## OpenAPI auto-generation
+
+```tulpar
+func openapi_handler() {
+    return wings_openapi("My API", "1.0.0");
+}
+get("/openapi.json", "openapi_handler");
+```
+
+`wings_openapi(title, version)` walks the registered routes and emits
+an OpenAPI 3.0 document. Swagger UI / Postman / Insomnia consume it
+directly. Today's coverage: every route's path + method + handler name.
+Request / response schemas are placeholder; richer route metadata is
+on the roadmap.
+
+## Structured logging
+
+```tulpar
+log_info("user signed up: " + email);
+log_error("payment failed: " + toString(code));
+```
+
+Output (one JSON object per line — log aggregator-friendly):
+
+```json
+{"@timestamp":"2026-05-02T18:34:21Z","level":"info","msg":"user signed up: a@b.c"}
+{"@timestamp":"2026-05-02T18:34:21Z","level":"error","msg":"payment failed: 502"}
+```
+
+The Wings access log itself uses the same format. To silence the
+per-request access line on benchmark / production paths, set
+`TULPAR_HTTP_QUIET=1`.
+
+## Custom responses
+
+The default `200 application/json` plus CORS headers covers most cases.
+For custom status codes, headers, or content types:
+
+```tulpar
+func download_handler() {
+    str body = read_file("./report.csv");
+    json headers = {
+        "Content-Disposition": "attachment; filename=\"report.csv\""
+    };
+    int keep = http_should_keepalive(_request);
+    return http_create_response(200, "text/csv", body, headers, keep);
+}
+```
+
+`http_create_response(status, content_type, body, headers, keep_alive)`
+is the underlying primitive Wings uses internally; calling it directly
+gives you complete control over the response.

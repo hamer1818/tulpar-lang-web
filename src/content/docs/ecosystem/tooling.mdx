@@ -1,0 +1,90 @@
+---
+title: Tooling — LSP, Formatter, VS Code
+description: tulpar --lsp language server, tulpar fmt formatter, and the official VS Code extension.
+---
+
+Tulpar ships its own editor tooling — no separate "language plugin"
+project to clone, no node-based shim. Three pieces:
+
+1. **`tulpar --lsp`** — a Language Server Protocol implementation in C++
+   that any LSP-aware editor can spawn.
+2. **`tulpar fmt`** — a gofmt-style idempotent formatter.
+3. **VS Code extension** — pre-configured client that wraps both.
+
+## Language Server (`tulpar --lsp`)
+
+Speaks the full LSP base protocol over stdio JSON-RPC. Capabilities
+advertised today:
+
+| Capability                        | What it gives you                                   |
+| --------------------------------- | --------------------------------------------------- |
+| `textDocument/publishDiagnostics` | Parser + codegen errors, structured ranges, did-you-mean hints. |
+| `textDocument/hover`              | Function signatures + leading-comment doc strings (user funcs + 80+ builtins). |
+| `textDocument/completion`         | User functions, builtins, keywords, lib modules.    |
+| `textDocument/definition`         | Jump from a call site to the declaration.           |
+| `textDocument/references`         | Find every call site of a symbol.                   |
+| `textDocument/rename`             | Atomic rename across declaration + every call.      |
+
+Diagnostics use a process-global "structured sink" — the same Rust-style
+caret-and-hint output the CLI prints, but emitted as LSP `Diagnostic`
+objects with proper `range`, `severity`, and `source: "tulpar"`.
+
+## Formatter (`tulpar fmt`)
+
+```bash
+tulpar fmt path/to/file.tpr            # print formatted version to stdout
+tulpar fmt path/to/file.tpr --write    # rewrite the file in place
+```
+
+Two passes:
+
+**Indentation pass** — based on `{` / `}` brace depth. 4-space indent.
+Closing braces line up with their opener. Trailing whitespace stripped.
+Runs of 2+ blank lines collapsed to 1. Exactly one trailing newline.
+
+**Token-spacing pass** — preserves string literal and comment content
+unchanged, normalises everything else:
+
+- `,` and `;`: no space before, exactly one after (unless followed by a closer).
+- `:` (return type / object key): no space before, one after.
+- Binary operators (`+`, `-`, `*`, `/`, `==`, `!=`, `<=`, `>=`, `&&`, `||`, `+=` …): exactly one space on each side.
+- Unary `-`: kept tight (`-x`, `return -1`).
+- `(` and `[`: no padding inside.
+- Keywords: `if(...)` → `if (...)`, `}else{` → `} else {`, `try{}catch(e){}finally{}` all spaced.
+
+Idempotent: `fmt(fmt(s)) == fmt(s)`.
+
+## VS Code extension
+
+Install the bundled `.vsix` (search "Tulpar" once it's on the marketplace):
+
+```bash
+code --install-extension vscode-tulpar-0.3.0.vsix
+```
+
+The extension auto-spawns `tulpar --lsp` per workspace and forwards every
+LSP capability above. It also adds:
+
+- Status bar buttons: ▶ Tulpar Run, 📦 Tulpar Build.
+- Commands: `Tulpar: Run File`, `Tulpar: Build (AOT)`, `Tulpar: Open REPL`, …
+- 30+ snippets covering Wings, ORM, http_client, OpenAPI, regex, datetime, the package manifest, and more.
+- Syntax highlighting for the full Tulpar grammar including the typed-return form.
+
+When you edit `tulpar.executablePath` or toggle `tulpar.diagnostics.enabled`,
+the extension restarts the LSP automatically — no window reload needed.
+
+## Editors other than VS Code
+
+`tulpar --lsp` is a plain stdio LSP server. To use it from Neovim,
+Emacs, JetBrains, Sublime, or anything LSP-aware, point the editor's
+language-client config at `tulpar --lsp` and set the file pattern to
+`*.tpr`. Example for Neovim's built-in LSP:
+
+```lua
+vim.lsp.config('tulpar', {
+  cmd = { 'tulpar', '--lsp' },
+  filetypes = { 'tulpar' },
+  root_markers = { 'tulpar.toml', '.git' },
+})
+vim.lsp.enable('tulpar')
+```

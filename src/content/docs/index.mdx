@@ -1,9 +1,9 @@
 ---
 title: Tulpar Language
-description: A modern, C-based programming language with UTF-8 support, JSON-native syntax, and comprehensive built-in libraries.
+description: As easy as Python, as fast as C. A statically-typed scripting language with an LLVM 18 backend, batteries-included HTTP/JSON/SQLite stack, and full editor tooling.
 template: splash
 hero:
-  tagline: A modern, C-based programming language with UTF-8 support, JSON-native syntax, and comprehensive built-in libraries.
+  tagline: "<strong>Python kadar kolay, C kadar hızlı.</strong> Statically-typed scripting language with an LLVM 18 backend, batteries-included HTTP / JSON / SQLite stack, and full editor tooling out of the box."
   image:
     file: ../../assets/icon.png
   actions:
@@ -18,19 +18,53 @@ hero:
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-## Key Features
+## Why Tulpar
 
 <CardGrid stagger>
-	<Card title="UTF-8 Support" icon="pencil">
-		Full Unicode support for variable names, strings, and identifiers.
+	<Card title="C-class performance" icon="rocket">
+		AOT-compiled via LLVM. Lands in the **1.3–1.4× C** range on tight loops on identical hardware — same neighbourhood as Rust and Go. HTTP server hits ~24k req/sec single-threaded, ~Node.js parity.
 	</Card>
-	<Card title="JSON-Native Syntax" icon="add-document">
-		First-class JSON object support with hash table implementation.
+	<Card title="API-day-1 stack" icon="seti:json">
+		`import "wings"`, register a route, `listen_async(8080)` — done. Built-in `/healthz`, `/metrics` (JSON + Prometheus), OpenAPI 3.0 auto-gen, structured JSON logging, HTTP keep-alive, multi-threaded request handling.
 	</Card>
-	<Card title="Type Safety" icon="setting">
-		Strong typing with type-safe arrays and custom struct definitions.
+	<Card title="Modern editor tooling" icon="laptop">
+		Bundled language server: diagnostics, hover, completion, go-to-definition, find-references, rename. Plus `tulpar fmt` (gofmt-style idempotent formatter) and a VS Code extension that just works.
 	</Card>
-	<Card title="Cross-Platform" icon="open-book">
-		Write once, run anywhere (Linux, macOS, Windows).
+	<Card title="Package manager" icon="puzzle">
+		`tulpar pkg init / add / install / list / remove`, `tulpar.toml` manifest, `tulpar.lock` lockfile. Vendor local paths, fetch single-file URLs, or pull from a registry by semver.
+	</Card>
+	<Card title="Batteries included" icon="seti:db">
+		Embedded SQLite + Active-Record ORM. Outbound HTTP/HTTPS client. Regex, CSV, file glob, datetime (ISO 8601 parse/format/weekday), JSON, threads, mutex, sockets — all in the runtime, no `npm install`.
+	</Card>
+	<Card title="UTF-8 + Türkçe + English" icon="pencil">
+		Identifiers, strings, paths — all UTF-8. Compiler error messages are bilingual (Turkish + English via `tr_en` localisation). Cross-platform (Linux, macOS, Windows).
 	</Card>
 </CardGrid>
+
+## Quick taste
+
+```tulpar
+import "wings";
+import "orm";
+
+orm_open("app.db");
+define_model("users", {
+    "id":   "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "name": "TEXT NOT NULL",
+    "age":  "INTEGER"
+});
+
+func list_users() {
+    return orm_all("users");
+}
+
+func create_user() {
+    int id = orm_create("users", _request["body"]);
+    return orm_find("users", id);
+}
+
+get("/users", "list_users");
+post("/users", "create_user");
+
+listen_async(8080);  // multi-threaded server, /healthz + /metrics + /openapi.json for free
+```

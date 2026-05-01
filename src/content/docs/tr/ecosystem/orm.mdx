@@ -1,0 +1,98 @@
+---
+title: ORM (lib/orm)
+description: Gömülü SQLite üzerine Active-Record stili helper'lar. orm_open / define_model / orm_create / orm_find / orm_all / orm_where / orm_update / orm_delete.
+---
+
+`lib/orm.tpr`, ham `db_execute` / `db_query` çağrılarını
+kodun geri kalanı gibi okunan bir API'ye dönüştüren küçük bir
+Active-Record style mini-ORM'dir.
+
+```tulpar
+import "orm";
+
+orm_open("app.db");
+
+define_model("users", {
+    "id":   "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "name": "TEXT NOT NULL",
+    "age":  "INTEGER"
+});
+
+int id = orm_create("users", {"name": "Hamza", "age": 23});
+json u = orm_find("users", id);
+print(u["name"]);  // "Hamza"
+
+orm_update("users", id, {"age": 24});
+array adults = orm_where("users", "age >= 18");
+orm_delete("users", id);
+
+orm_close();
+```
+
+## Model tanımı
+
+`define_model(table, columns)` tabloyu `CREATE TABLE IF NOT EXISTS`
+ile oluşturur. `columns` haritası ekleme sırasını korur — üretilen
+DDL yazdığınla birebir:
+
+```tulpar
+define_model("posts", {
+    "id":         "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "user_id":    "INTEGER NOT NULL",
+    "title":      "TEXT NOT NULL",
+    "body":       "TEXT",
+    "created_at": "TEXT DEFAULT (datetime('now'))"
+});
+```
+
+Değerler verbatim geçer — SQLite'ın `CREATE TABLE` kolon pozisyonunda
+kabul ettiği her şey çalışır (`INTEGER`, `TEXT`, `REAL`, `BLOB`,
+`PRIMARY KEY`, `NOT NULL`, `DEFAULT (...)`, `REFERENCES other(id)`, …).
+
+## CRUD referansı
+
+| Fonksiyon                          | Döner             | Notlar                                              |
+| ---------------------------------- | ----------------- | --------------------------------------------------- |
+| `orm_open(path)`                   | `int` handle      | Test için `:memory:` kullan.                        |
+| `orm_close()`                      | —                 |                                                     |
+| `define_model(table, columns)`     | —                 | Idempotent (`CREATE TABLE IF NOT EXISTS`).          |
+| `orm_create(table, attrs)`         | `int` last id     |                                                     |
+| `orm_find(table, id)`              | `json` satır veya `{}` |                                                |
+| `orm_all(table)`                   | `array<json>`     |                                                     |
+| `orm_where(table, where_sql)`      | `array<json>`     | `where_sql` ham SQL — input'u SEN sanitize et!      |
+| `orm_update(table, id, attrs)`     | `int` 1/0         | Sadece `attrs`'taki kolonlar değişir.               |
+| `orm_delete(table, id)`            | `int` 1           |                                                     |
+
+## Wings + ORM örneği
+
+30 satırda dört-route REST API:
+
+```tulpar
+import "wings";
+import "orm";
+
+orm_open("app.db");
+define_model("posts", {
+    "id":    "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "title": "TEXT NOT NULL",
+    "body":  "TEXT"
+});
+
+func list_posts()   { return orm_all("posts"); }
+func show_post()    { return orm_find("posts", toInt(_request["params"]["id"])); }
+func create_post()  {
+    int id = orm_create("posts", _request["body"]);
+    return orm_find("posts", id);
+}
+func delete_post()  {
+    orm_delete("posts", toInt(_request["params"]["id"]));
+    return {"ok": 1};
+}
+
+get("/posts",      "list_posts");
+get("/posts/:id",  "show_post");
+post("/posts",     "create_post");
+del("/posts/:id",  "delete_post");
+
+listen_async(8080);
+```

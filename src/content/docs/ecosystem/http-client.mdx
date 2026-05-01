@@ -1,0 +1,93 @@
+---
+title: HTTP Client
+description: Outbound HTTP/HTTPS requests via http_get, http_post, and friends. Built-in JSON convenience wrappers.
+---
+
+`lib/http_client.tpr` is the embedded outbound HTTP library. Use it
+to call other APIs from inside a Tulpar program — no extra dependency,
+no `npm install`.
+
+```tulpar
+import "http_client";
+
+json r = http_get("http://api.example.com/users/1");
+if (r["ok"]) {
+    print("status=" + toString(r["status"]));
+    print("body=" + r["body"]);
+}
+```
+
+## Verbs
+
+| Helper                                | Wraps                                    |
+| ------------------------------------- | ---------------------------------------- |
+| `http_get(url)`                       | `GET` with empty body                    |
+| `http_post(url, body)`                | `POST` with raw string body              |
+| `http_put(url, body)`                 | `PUT`                                    |
+| `http_delete(url)`                    | `DELETE`                                 |
+| `http_get_json(url)`                  | `GET` + `fromJson(body)` if response 2xx |
+| `http_post_json(url, data)`           | `POST` `toJson(data)` + parse response   |
+| `http_request(method, url, body)`     | The underlying primitive                 |
+
+## Response shape
+
+Every helper returns the same envelope:
+
+```tulpar
+json r = http_get("http://api.example.com/");
+
+if (r["ok"]) {
+    int status = r["status"];        // 200, 404, ...
+    json headers = r["headers"];     // case-sensitive header map
+    str body = r["body"];            // raw response body
+} else {
+    str why = r["error"];            // "connect failed", "TLS handshake failed", ...
+}
+```
+
+The `_json` variants additionally parse `r["body"]` and put the result
+in `r["data"]`:
+
+```tulpar
+json r = http_get_json("http://api.example.com/users/1");
+if (r["ok"]) {
+    json user = r["data"];
+    print("hello " + user["name"]);
+}
+```
+
+## HTTPS
+
+`https://` URLs work when Tulpar was built with OpenSSL. Without it,
+the call returns `{"ok": 0, "error": "TLS not compiled in (build Tulpar
+with OpenSSL to enable https://)"}`.
+
+To enable TLS on MSYS2:
+
+```bash
+pacman -S mingw-w64-x86_64-openssl
+# then rebuild Tulpar
+./build.sh
+```
+
+The CMake configuration auto-detects OpenSSL via `find_package(OpenSSL)`
+and toggles the `TULPAR_HAS_TLS=1` define. SNI is set automatically,
+certificate verification is currently `SSL_VERIFY_NONE` until a
+configurable trust-store path lands.
+
+## Limits & roadmap
+
+Today:
+
+- Plain HTTP/1.0 (no keep-alive on the client side)
+- HTTPS via OpenSSL when compiled in
+- 8 MB response cap to avoid runaway memory on misbehaving servers
+- No automatic redirect following
+- No chunked transfer-encoding support
+
+Roadmap:
+
+- HTTP/1.1 keep-alive on the client (connection pool)
+- Redirect following with cycle detection
+- Chunked transfer-encoding
+- Configurable trust-store path for production TLS verification

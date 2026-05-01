@@ -1,0 +1,68 @@
+---
+title: Araçlar — LSP / Formatter / VS Code
+description: tulpar --lsp dil sunucusu, tulpar fmt formatlayıcı ve resmi VS Code eklentisi.
+---
+
+Tulpar kendi editor tooling'ini ile gelir — ayrı "language plugin"
+projesi clone'lamak yok, node tabanlı shim yok. Üç parça:
+
+1. **`tulpar --lsp`** — C++'ta yazılmış stdio JSON-RPC üzerinden konuşan
+   bir Language Server Protocol implementasyonu.
+2. **`tulpar fmt`** — gofmt-stil idempotent formatlayıcı.
+3. **VS Code eklentisi** — ikisini de saran önceden yapılandırılmış istemci.
+
+## Language Server (`tulpar --lsp`)
+
+Bugün advertise edilen capability'ler:
+
+| Yetenek                               | Verdiği                                              |
+| ------------------------------------- | ---------------------------------------------------- |
+| `textDocument/publishDiagnostics`     | Parser + codegen hataları, structured range, "did you mean" hint. |
+| `textDocument/hover`                  | Fonksiyon imzaları + leading-comment doc string'leri (user funcs + 80+ builtin). |
+| `textDocument/completion`             | User fonksiyonları, builtin'ler, keyword'ler, lib modülleri. |
+| `textDocument/definition`             | Çağrı sitesinden tanıma atla.                        |
+| `textDocument/references`             | Bir sembolün her çağrı sitesini bul.                |
+| `textDocument/rename`                 | Tanım + her çağrıda atomik yeniden adlandırma.       |
+
+## Formatter (`tulpar fmt`)
+
+```bash
+tulpar fmt path/to/file.tpr            # stdout'a formatlanmış sürüm
+tulpar fmt path/to/file.tpr --write    # dosyayı yerinde güncelle
+```
+
+İki pas:
+
+**Indent pas** — `{` / `}` derinliğine göre. 4 boşluk indent. Kapanan
+brace'ler açanla hizalanır. Trailing whitespace silinir. 2+ boş satır
+1'e düşer. Tam olarak bir trailing newline.
+
+**Token-spacing pas** — string literal ve yorumun içeriğine
+dokunmaz, gerisini normalize eder:
+
+- `,` ve `;`: öncesi boşluk yok, sonrası tek boşluk.
+- `:` (return type / object key): öncesi boşluk yok, sonrası tek boşluk.
+- Binary operatörler (`+`, `-`, `*`, `/`, `==`, `!=`, ...): iki yanı tek boşluk.
+- Unary `-`: sıkı tutulur (`-x`, `return -1`).
+- `(` ve `[`: iç padding yok.
+- Keyword'ler: `if(...)` → `if (...)`, `}else{` → `} else {`.
+
+Idempotent: `fmt(fmt(s)) == fmt(s)`.
+
+## VS Code eklentisi
+
+Paketlenmiş `.vsix`'i kur:
+
+```bash
+code --install-extension vscode-tulpar-0.3.0.vsix
+```
+
+Eklenti workspace başına otomatik `tulpar --lsp` spawn'lar. Ek olarak:
+
+- Status bar düğmeleri: ▶ Tulpar Run, 📦 Tulpar Build.
+- Komutlar: `Tulpar: Run File`, `Tulpar: Build (AOT)`, `Tulpar: Open REPL`, …
+- 30+ snippet: Wings, ORM, http_client, OpenAPI, regex, datetime, paket manifest, …
+- Tam Tulpar grammar'ı için syntax highlighting (typed-return form dahil).
+
+`tulpar.executablePath` veya `tulpar.diagnostics.enabled` değişince
+LSP otomatik restart — pencere reload gerekmez.
