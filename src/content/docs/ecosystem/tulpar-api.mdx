@@ -1,0 +1,144 @@
+---
+title: TulparAPI (lib/tulpar_api)
+description: A FastAPI-style micro-framework for building JSON APIs in Tulpar — decorators, middleware, response helpers.
+---
+
+`lib/tulpar_api` is a higher-level wrapper over the [Wings HTTP
+server](/ecosystem/http-server/) tuned for the
+JSON-API-with-decorators feel of Python's FastAPI. If Wings is the
+"low-level routing primitives", TulparAPI is the "batteries-included
+defaults".
+
+## Hello, API
+
+```tulpar
+import "lib/tulpar_api.tpr";
+
+api_init("Hello API", "1.0.0");
+
+func say_hello(json req) {
+    return api_json_response({
+        "message": "Hello from Tulpar!"
+    });
+}
+
+api_get("/", "say_hello");
+api_run(8080);
+```
+
+`tulpar hello.tpr` and you've got a JSON API on port 8080. No build
+step, no codegen, no extra config files.
+
+## Routes
+
+The four HTTP verbs each have a registration helper. The path supports
+`:param` placeholders the same way Wings does.
+
+| Helper | HTTP method |
+|--------|-------------|
+| `api_get(path, handler_name)` | GET |
+| `api_post(path, handler_name)` | POST |
+| `api_put(path, handler_name)` | PUT |
+| `api_delete(path, handler_name)` | DELETE |
+
+Handler signature: `func name(json req) { ... }` returning a response.
+
+The `req` JSON contains:
+
+- `req["method"]` — `"GET"`, `"POST"`, …
+- `req["path"]` — `"/users/42"`
+- `req["params"]` — path parameters (`req["params"]["id"]` for `:id`)
+- `req["query"]` — parsed query string
+- `req["body"]` — parsed JSON body (POST/PUT only)
+- `req["headers"]` — request headers as JSON
+
+## Response helpers
+
+| Helper | Use it for |
+|--------|------------|
+| `api_json_response(obj)` | 200 with JSON body |
+| `api_json_response_status(obj, status)` | Custom status code with JSON body |
+| `api_success_response(message, data)` | Conventional `{ok, message, data}` envelope, status 200 |
+| `api_error_response(message, status)` | Conventional `{error, message}` envelope, custom status |
+
+## Middleware
+
+`api_use(name)` registers a built-in middleware. The shipping ones:
+
+| Name | Effect |
+|------|--------|
+| `"logger"` | Logs `method path status time_ms` for every request |
+| `"cors"` | Adds permissive `Access-Control-*` headers |
+| `"auth"` | Bearer-token validation (configurable) |
+| `"rate-limit"` | Per-IP throttling |
+
+```tulpar
+api_init("My API", "1.0.0");
+api_use("logger");
+api_use("cors");
+```
+
+## Worked example: user CRUD
+
+```tulpar
+import "lib/tulpar_api.tpr";
+
+api_init("User Management API", "1.0.0");
+api_use("logger");
+api_use("cors");
+
+json _users = [];
+int _next_id = 0;
+
+func list_users(json req) {
+    return api_json_response({
+        "users": _users,
+        "count": len(_users)
+    });
+}
+
+func get_user(json req) {
+    int id = toInt(req["params"]["id"]);
+    for (int i = 0; i < len(_users); i++) {
+        if (_users[i]["id"] == id) {
+            return api_json_response(_users[i]);
+        }
+    }
+    return api_error_response("User not found", 404);
+}
+
+func create_user(json req) {
+    _next_id = _next_id + 1;
+    json u = {
+        "id": _next_id,
+        "name": req["body"]["name"],
+        "email": req["body"]["email"]
+    };
+    push(_users, u);
+    return api_json_response_status({
+        "message": "User created",
+        "user": u
+    }, 201);
+}
+
+api_get("/users", "list_users");
+api_get("/users/:id", "get_user");
+api_post("/users", "create_user");
+
+api_run(8080);
+```
+
+`curl http://localhost:8080/users` returns `{"users":[],"count":0}`.
+
+## TulparAPI vs Wings — which to use?
+
+| | Wings | TulparAPI |
+|--|-------|-----------|
+| Style | Low-level primitives | FastAPI-style decorators |
+| Default response shape | You build the HTTP string | JSON envelope helpers |
+| Middleware | Manual mutex pattern | `api_use("name")` |
+| Best for | Custom protocols, fine-grained control | JSON APIs, prototypes |
+
+Both run on the same underlying socket loop and thread model.
+TulparAPI delegates to Wings internally — pick the one that matches
+the layer you want to think at.

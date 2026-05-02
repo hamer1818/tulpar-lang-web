@@ -1,0 +1,70 @@
+---
+title: Tarih & Zaman
+description: Yerleşik zaman fonksiyonları — zaman damgaları, ISO 8601 metinleri, monotonik saatler ve sleep.
+---
+
+import TulparPlayground from '../../../../components/TulparPlayground.astro';
+
+Tulpar'ın tarih/zaman API'si bilinçli olarak küçüktür. Ayrı bir
+`datetime` modülü yoktur — bu fonksiyonlar doğrudan çalışma zamanına
+gömülüdür.
+
+## Günün zamanı
+
+| Fonksiyon | Döner | Ne için |
+|-----------|-------|---------|
+| `timestamp()` | `int` — 1970-01-01 UTC'den beri saniye | Veritabanına kaydetme, yaş karşılaştırmaları |
+| `time_ms()` | `int` — 1970-01-01 UTC'den beri milisaniye | Daha yüksek çözünürlüklü duvar saati |
+| `now_iso8601()` | `str` — `"2026-05-02T14:33:09Z"` | Loglama, JSON gövde, HTTP başlığı |
+
+<TulparPlayground
+	title="Duvar saati"
+	code={String.raw`print("Unix saniye:   ", timestamp());
+print("Unix milisaniye:", time_ms());
+print("ISO 8601:       ", now_iso8601());`}
+/>
+
+## Geçen süreyi ölçme
+
+Performans ölçümleri için `clock_ms()` kullanın. Monotoniktir — sistem
+saati ayarlansa bile (NTP, yaz saati, elle değişiklik) geriye gitmez.
+Süreyi milisaniye olarak almak için iki okumayı çıkarın.
+
+<TulparPlayground
+	title="Bir bloğu zamanla"
+	code={String.raw`int basla = clock_ms();
+
+// iş yapıyormuş gibi
+int toplam = 0;
+for (int i = 0; i < 1000000; i++) {
+    toplam = toplam + i;
+}
+
+int gecen = clock_ms() - basla;
+print("toplam =", toplam, "süre", gecen, "ms");`}
+/>
+
+## Uyutma
+
+`sleep(ms)` mevcut thread'i en az istenen milisaniye kadar bloklar.
+Milisaniye altı uyutma yoktur.
+
+<TulparPlayground
+	title="Sleep"
+	code={String.raw`print("önce");
+sleep(500);     // yarım saniye
+print("sonra, yarım saniye sonra");`}
+/>
+
+`sleep` bir senkronizasyon primitivi **değildir** — uygun thread'ler
+arası koordinasyon için
+[Eşzamanlılık](/tr/guide/concurrency/) sayfasına bakın.
+
+## Doğru saati seçme
+
+| İhtiyaç | Kullanın |
+|---------|----------|
+| "Bu ne zaman oldu?" (loglu, kalıcı, ağ üzerinden gönderilen) | `now_iso8601()` veya `timestamp()` |
+| "Bu ne kadar sürdü?" | İki `clock_ms()` çağrısı, çıkarın |
+| "Biraz dur" | `sleep(ms)` |
+| "Sonrası için bir şey planla" | Worker thread'inde `sleep`, ya da `lib/async.tpr`'deki `setTimeout` |

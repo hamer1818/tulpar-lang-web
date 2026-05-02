@@ -62,6 +62,8 @@ export default defineConfig({
 						{ label: 'Arrays & JSON', translations: { tr: 'Diziler ve JSON' }, slug: 'guide/arrays-json' },
 						{ label: 'Structs', translations: { tr: 'Yapılar (Structs)' }, slug: 'guide/structs' },
 						{ label: 'Modules & Imports', translations: { tr: 'Modüller ve İçe Aktarma' }, slug: 'guide/modules' },
+						{ label: 'Error Handling', translations: { tr: 'Hata Yönetimi' }, slug: 'guide/error-handling' },
+						{ label: 'Concurrency (Threads)', translations: { tr: 'Eşzamanlılık (Thread\'ler)' }, slug: 'guide/concurrency' },
 						{ label: 'Tulpar vs C', translations: { tr: 'Tulpar ve C Karşılaştırma' }, slug: 'guide/tulpar-vs-c' },
 					],
 				},
@@ -72,9 +74,11 @@ export default defineConfig({
 						{ label: 'Built-in Functions', translations: { tr: 'Yerleşik Fonksiyonlar' }, slug: 'stdlib/builtins' },
 						{ label: 'Math Functions', translations: { tr: 'Matematik Fonksiyonları' }, slug: 'stdlib/math' },
 						{ label: 'String Functions', translations: { tr: 'Metin Fonksiyonları' }, slug: 'stdlib/string' },
+						{ label: 'Date & Time', translations: { tr: 'Tarih & Zaman' }, slug: 'stdlib/datetime' },
 						{ label: 'File I/O', translations: { tr: 'Dosya İşlemleri' }, slug: 'stdlib/file-io' },
 						{ label: 'Network (Sockets)', translations: { tr: 'Ağ (Socket)' }, slug: 'stdlib/network' },
 						{ label: 'Database (SQLite)', translations: { tr: 'Veritabanı (SQLite)' }, slug: 'stdlib/database' },
+						{ label: 'Testing (lib/test)', translations: { tr: 'Test (lib/test)' }, slug: 'stdlib/testing' },
 					],
 				},
 				{
@@ -83,10 +87,18 @@ export default defineConfig({
 					items: [
 						{ label: 'Package Manager', translations: { tr: 'Paket Yöneticisi' }, slug: 'ecosystem/package-manager' },
 						{ label: 'HTTP Server (Wings)', translations: { tr: 'HTTP Sunucusu (Wings)' }, slug: 'ecosystem/http-server' },
+						{ label: 'TulparAPI (FastAPI-style)', translations: { tr: 'TulparAPI (FastAPI tarzı)' }, slug: 'ecosystem/tulpar-api' },
 						{ label: 'HTTP Client', translations: { tr: 'HTTP İstemcisi' }, slug: 'ecosystem/http-client' },
 						{ label: 'ORM (lib/orm)', translations: { tr: 'ORM (lib/orm)' }, slug: 'ecosystem/orm' },
 						{ label: 'Tooling — LSP / Formatter / VS Code', translations: { tr: 'Araçlar — LSP / Formatter / VS Code' }, slug: 'ecosystem/tooling' },
 						{ label: 'Benchmarks', translations: { tr: 'Benchmark Sonuçları' }, slug: 'ecosystem/benchmarks' },
+					],
+				},
+				{
+					label: 'Reference',
+					translations: { tr: 'Referans' },
+					items: [
+						{ label: 'CLI Reference', translations: { tr: 'CLI Referansı' }, slug: 'reference/cli' },
 					],
 				},
 				{

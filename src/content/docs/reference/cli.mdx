@@ -1,0 +1,141 @@
+---
+title: CLI Reference
+description: Every tulpar command and flag — run modes, REPL, build, fmt, pkg, lsp, version, update, help.
+---
+
+The `tulpar` binary bundles the compiler, runtime, package manager,
+formatter, and language server in a single executable. This page is
+the exhaustive reference; the [Getting
+Started](/intro/getting-started/) guide is a friendlier introduction.
+
+## Running a program
+
+```bash
+tulpar <source.tpr>          # AOT compile + run (default; native speed)
+tulpar --vm <source.tpr>     # Bytecode VM (instant startup, dev loop)
+tulpar --legacy <source.tpr> # Tree-walk interpreter (slowest, debug)
+```
+
+Without flags, `tulpar` runs the AOT pipeline (LLVM → native binary →
+exec). If the AOT path fails for an *infrastructure* reason (clang
+missing, runtime archive not linkable) it silently falls back to the
+VM. Source-level errors (parse, codegen) **do not** fall back — you
+get the diagnostic once, not twice.
+
+| Mode | Startup | Throughput | When to use |
+|------|---------|------------|-------------|
+| AOT (default) | ~200 ms cold | Native (≈ Rust) | Production, benchmarks, deploys |
+| `--vm` | < 10 ms | ~3-5× slower than AOT | Edit-run loop, CI test runs |
+| `--legacy` | < 10 ms | ~50× slower | Last-resort debugging only |
+
+## Building a standalone binary
+
+```bash
+tulpar build <source.tpr> [output_name]
+```
+
+Same as the default run path, but **keeps the produced binary** at
+`output_name` (or `<source>` without `.tpr` if omitted). Subsequent
+`tulpar build` calls skip recompilation if the output is newer than
+the source and the driver. Set `TULPAR_AOT_NOCACHE=1` to force a
+rebuild.
+
+```bash
+tulpar build hello.tpr           # produces ./hello (./hello.exe on Windows)
+tulpar build hello.tpr myapp     # produces ./myapp
+TULPAR_AOT_NOCACHE=1 tulpar build hello.tpr   # always recompile
+```
+
+## REPL
+
+```bash
+tulpar --repl       # or: tulpar -i
+```
+
+Interactive read-eval-print loop, backed by the legacy interpreter
+(starts instantly, runs each line as you press enter). Built-in
+commands inside the REPL:
+
+| Command | Effect |
+|---------|--------|
+| `exit`, `quit` | Leave the REPL |
+| `help` | Show the REPL command list |
+| `clear` | Clear the screen |
+
+## Formatter
+
+```bash
+tulpar fmt <source.tpr>
+```
+
+Re-emits the source with normalised indentation and operator spacing.
+Idempotent (running it twice produces the same output as once). No
+config file — the rules are baked in.
+
+## Package manager
+
+```bash
+tulpar pkg init                  # create a new tulpar.toml in the cwd
+tulpar pkg add <name>            # add a dependency
+tulpar pkg install               # install everything in tulpar.toml
+```
+
+See the [Package Manager](/ecosystem/package-manager/) page for the
+manifest format and dependency specs.
+
+## Language server (LSP)
+
+```bash
+tulpar --lsp
+```
+
+Speaks LSP over stdio — wire it into your editor (VS Code extension,
+Vim/Neovim LSP client, etc.) and it owns stdin/stdout for the JSON-RPC
+transport. Don't run it manually except for testing.
+
+Capabilities: completion, hover, diagnostics, go-to-definition,
+"did-you-mean" suggestions for typos. See [Tooling — LSP / Formatter
+/ VS Code](/ecosystem/tooling/).
+
+## Version & update
+
+```bash
+tulpar version          # or: tulpar --version, tulpar -v
+tulpar update           # download & install the latest release
+tulpar update --check   # only report whether an update is available
+```
+
+`tulpar update` shells out to the platform's installer script
+(`https://tulparlang.dev/install.{ps1,sh}`) and replaces the running
+binary with the latest published release. On Windows it uses the
+rename-then-replace dance because Windows can't overwrite a running
+`.exe` directly.
+
+`--check` is non-destructive — it queries GitHub for the latest tag,
+prints the comparison, and exits.
+
+## Help
+
+```bash
+tulpar --help          # or: tulpar -h, tulpar help, tulpar ?
+```
+
+Prints the same command reference shown when you run `tulpar` with no
+arguments. Output language follows the system locale (Turkish on TR
+locale, English elsewhere).
+
+## Environment variables
+
+| Variable | Effect |
+|----------|--------|
+| `TULPAR_LANG=tr` / `en` | Override the system locale for diagnostic messages |
+| `TULPAR_AOT_NOCACHE=1` | Force `tulpar build` to recompile even if the output is up-to-date |
+| `TULPAR_INSTALL_DIR` | Where `install.sh` puts the binary (default: `~/.local/bin`) |
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Source-level failure (parse / codegen / runtime error) |
+| 2 | CLI usage error (unknown flag, bad combination) |

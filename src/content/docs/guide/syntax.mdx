@@ -43,6 +43,56 @@ x++;      // x = 31
 x--;      // x = 30`}
 />
 
+## Number Literals
+
+Integers can be written in four bases. Underscores are not allowed —
+keep large numbers readable with comments instead.
+
+| Form | Example | Decimal value |
+|------|---------|---------------|
+| Decimal | `255` | 255 |
+| Hexadecimal | `0xFF` | 255 |
+| Octal | `0o755` | 493 |
+| Binary | `0b1010` | 10 |
+
+Floating-point numbers accept the standard C-style forms:
+
+```tulpar
+float pi      = 3.14;
+float small   = 1.0e-5;
+float large   = 6.02e23;
+```
+
+Integers above `i64` range trigger a compile-time warning and are
+clamped to `INT64_MAX` (2^63 − 1).
+
+## Operator Precedence
+
+Operators are listed from **lowest to highest** precedence. Operators
+on the same row have equal precedence and associate left-to-right
+unless noted.
+
+| Tier | Operators | Associativity |
+|------|-----------|---------------|
+| 1 (lowest) | `=` `+=` `-=` `*=` `/=` | right |
+| 2 | `\|\|` | left |
+| 3 | `&&` | left |
+| 4 | `==` `!=` | left |
+| 5 | `<` `>` `<=` `>=` | left |
+| 6 | `+` `-` (binary) | left |
+| 7 | `*` `/` `%` | left |
+| 8 | `-` (unary), `!` | right |
+| 9 (highest) | `++` `--` (postfix), `()` call, `[]` index, `.` member | left |
+
+Use parentheses when in doubt — they read better than relying on
+precedence rules across more than one tier:
+
+```tulpar
+// Both compile, but the parenthesised form is clearer.
+int score = a + b * c;        // = a + (b * c)
+int score = a + (b * c);
+```
+
 ## Comments
 
 Tulpar supports single-line and multi-line comments:
