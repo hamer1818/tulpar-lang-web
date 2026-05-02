@@ -45,24 +45,47 @@ function Write-Warn($msg)    { Write-Host "[!]  $msg" -ForegroundColor Yellow }
 
 # Stylized winged-horse (Tulpar) silhouette printed as a "completion
 # flourish" on success — same idea as Claude Code dropping its robot
-# logo at the end. Single-quoted here-string keeps every backslash and
-# tilde literal; closing '@ MUST be at column 0.
+# logo at the end. Single-quoted here-string keeps every character
+# literal; the art uses only +/=/- so no escaping concerns. Closing
+# '@ MUST be at column 0.
 function Show-TulparArt {
     $art = @'
-            ,~~~,
-        ,~~'     `~,
-     ,~'   ___      `~,
-   ,'   ,~'   `,       `,
-  /  ,~'   o    `,       \,
- / ,~'            `,       \,
-/_~'                `,       \,
-                      `,       \,___
-                        `,           \,
-                          `,           \,
-                            `,___________\,
-                                /\      /\
-                               /  \    /  \
-                              /____\  /____\
+                      =++
+                      +++++
+                      -=++++=+
+                       +++ =+++=                                           +=++
+                       ++++  =+++++=                                  +==++++=
+                        =+++    +++++++                          =+==+++++  +=
+                         ===+=      +++++++=                   ++++++      +=+==
+                        == +++++        =+++++==             +++=+           ++++
+                        =++++++++++          =+++++         ++++      =++     ++==
+                         ++++++++++++++=        ==++=      +++        ++=      =+++
+                          +++=   ++++++++=++      ++=+    +++         =++++     ++=+
+                           +++=         =++++=      =++  =+=         +++==+++++   +++
+                             +=+++           ++-     ++=  +          +++     ++=++++=
+                               +=+++++==              ++=            ==+      =+=++
+                                   +==+++++++-        -++=+++=-      +++
+                                         +++=++++-     =+++++++++==   =+=
+                                              ==+=++    ++=    =++++= +++
+                                         =+++=   +++=+   ++=      ==++++=
+                                     =+++++=++=+   -+++=  =+        ++=++
+                             +++++++++++=    +++     +++++          =+++=
+                          -+++++==++++       +++       +++++        ++++     +=
+                         ++++++  ==++       =++=         ++==++          +++++++
+                       =+++++=   +++        +=+            =++++++++++++++++=+=
+               =    ++++++++    +++        +++=                =+++=+++=   +++
+                ==+++++++=+     +++       +++=                            +++
+                  ==+++=+       +++      +++=                           ++++
+                               +++     ++++                         +=+++==
+                              +++= -+++++=                          +++++
+                           =++++++++++=
+                          +++++++++
+                          +++++=
+                         ++++=
+                         +++=
+                        =+++
+                       =++=
+                       +++
 '@
     Write-Host ""
     Write-Host $art -ForegroundColor Cyan
