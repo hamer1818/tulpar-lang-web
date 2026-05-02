@@ -43,6 +43,54 @@ function Write-Success($msg) { Write-Host "[OK] $msg" -ForegroundColor Green }
 function Write-Note($msg)    { Write-Host "     $msg" -ForegroundColor DarkGray }
 function Write-Warn($msg)    { Write-Host "[!]  $msg" -ForegroundColor Yellow }
 
+# Stylized winged-horse (Tulpar) silhouette printed as a "completion
+# flourish" on success — same idea as Claude Code dropping its robot
+# logo at the end. Single-quoted here-string keeps every character
+# literal; the art uses only +/=/- so no escaping concerns. Closing
+# '@ MUST be at column 0.
+function Show-TulparArt {
+    $art = @'
+                      =++
+                      +++++
+                      -=++++=+
+                       +++ =+++=                                           +=++
+                       ++++  =+++++=                                  +==++++=
+                        =+++    +++++++                          =+==+++++  +=
+                         ===+=      +++++++=                   ++++++      +=+==
+                        == +++++        =+++++==             +++=+           ++++
+                        =++++++++++          =+++++         ++++      =++     ++==
+                         ++++++++++++++=        ==++=      +++        ++=      =+++
+                          +++=   ++++++++=++      ++=+    +++         =++++     ++=+
+                           +++=         =++++=      =++  =+=         +++==+++++   +++
+                             +=+++           ++-     ++=  +          +++     ++=++++=
+                               +=+++++==              ++=            ==+      =+=++
+                                   +==+++++++-        -++=+++=-      +++
+                                         +++=++++-     =+++++++++==   =+=
+                                              ==+=++    ++=    =++++= +++
+                                         =+++=   +++=+   ++=      ==++++=
+                                     =+++++=++=+   -+++=  =+        ++=++
+                             +++++++++++=    +++     +++++          =+++=
+                          -+++++==++++       +++       +++++        ++++     +=
+                         ++++++  ==++       =++=         ++==++          +++++++
+                       =+++++=   +++        +=+            =++++++++++++++++=+=
+               =    ++++++++    +++        +++=                =+++=+++=   +++
+                ==+++++++=+     +++       +++=                            +++
+                  ==+++=+       +++      +++=                           ++++
+                               +++     ++++                         +=+++==
+                              +++= -+++++=                          +++++
+                           =++++++++++=
+                          +++++++++
+                          +++++=
+                         ++++=
+                         +++=
+                        =+++
+                       =++=
+                       +++
+'@
+    Write-Host ""
+    Write-Host $art -ForegroundColor Cyan
+}
+
 Write-Host ""
 Write-Host "TulparLang installer" -ForegroundColor Cyan
 Write-Host "===================="
@@ -121,6 +169,7 @@ if (-not $version) { $version = $tag }
 
 Write-Host ""
 Write-Success "TulparLang $tag kuruldu -> $BinaryPath"
+Show-TulparArt
 Write-Host ""
 Write-Host "Deneme:" -ForegroundColor Cyan
 Write-Host "  tulpar --version"

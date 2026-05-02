@@ -29,6 +29,53 @@ success() { printf "%s✓ %s%s\n" "$c_green" "$*" "$c_reset"; }
 note()    { printf "%s  %s%s\n" "$c_dim"   "$*" "$c_reset"; }
 warn()    { printf "%s! %s%s\n" "$c_yellow" "$*" "$c_reset"; }
 
+# Stylized winged-horse (Tulpar) silhouette printed as a "completion
+# flourish" on success — same idea as Claude Code dropping its robot
+# logo at the end. Single-quoted heredoc (<<'__ART__') keeps every
+# character literal; the art uses only +/=/- so no escaping concerns.
+show_art() {
+    printf "\n%s" "$c_cyan"
+    cat <<'__ART__'
+                      =++
+                      +++++
+                      -=++++=+
+                       +++ =+++=                                           +=++
+                       ++++  =+++++=                                  +==++++=
+                        =+++    +++++++                          =+==+++++  +=
+                         ===+=      +++++++=                   ++++++      +=+==
+                        == +++++        =+++++==             +++=+           ++++
+                        =++++++++++          =+++++         ++++      =++     ++==
+                         ++++++++++++++=        ==++=      +++        ++=      =+++
+                          +++=   ++++++++=++      ++=+    +++         =++++     ++=+
+                           +++=         =++++=      =++  =+=         +++==+++++   +++
+                             +=+++           ++-     ++=  +          +++     ++=++++=
+                               +=+++++==              ++=            ==+      =+=++
+                                   +==+++++++-        -++=+++=-      +++
+                                         +++=++++-     =+++++++++==   =+=
+                                              ==+=++    ++=    =++++= +++
+                                         =+++=   +++=+   ++=      ==++++=
+                                     =+++++=++=+   -+++=  =+        ++=++
+                             +++++++++++=    +++     +++++          =+++=
+                          -+++++==++++       +++       +++++        ++++     +=
+                         ++++++  ==++       =++=         ++==++          +++++++
+                       =+++++=   +++        +=+            =++++++++++++++++=+=
+               =    ++++++++    +++        +++=                =+++=+++=   +++
+                ==+++++++=+     +++       +++=                            +++
+                  ==+++=+       +++      +++=                           ++++
+                               +++     ++++                         +=+++==
+                              +++= -+++++=                          +++++
+                           =++++++++++=
+                          +++++++++
+                          +++++=
+                         ++++=
+                         +++=
+                        =+++
+                       =++=
+                       +++
+__ART__
+    printf "%s" "$c_reset"
+}
+
 echo ""
 printf "%sTulparLang installer%s\n" "$c_cyan" "$c_reset"
 echo "===================="
@@ -88,6 +135,7 @@ esac
 
 echo ""
 success "TulparLang $tag kuruldu → $BINARY_PATH"
+show_art
 echo ""
 printf "%sDeneme:%s\n" "$c_cyan" "$c_reset"
 echo "  tulpar --version"
