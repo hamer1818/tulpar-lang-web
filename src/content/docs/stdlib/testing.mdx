@@ -1,0 +1,92 @@
+---
+title: Testing (lib/test)
+description: Jest-style assertion framework that ships with Tulpar — assert, assert_eq_int, assert_throws, and a suite runner.
+---
+
+import TulparPlayground from '../../../components/TulparPlayground.astro';
+
+`lib/test` is a small assertion + runner module included with Tulpar.
+There is no separate test binary — your test suite is just a `.tpr`
+file you run with `tulpar`.
+
+## A minimal suite
+
+```tulpar
+import "test";
+
+func basic_addition() {
+    assert_eq_int(1 + 1, 2);
+    assert_eq_str(upper("hi"), "HI");
+}
+
+test("addition works", "basic_addition");
+test_summary();
+```
+
+Run it:
+
+```bash
+$ tulpar tests.tpr
+  PASS addition works
+
+Tests: 1 | Pass: 1 | Fail: 0
+```
+
+`test_summary()` exits non-zero if any test failed, so it plays nicely
+with CI.
+
+## Assertions
+
+| Function | Use it for |
+|----------|------------|
+| `assert(cond, msg)` | Generic boolean check; `cond` is truthy or the test fails with `msg` |
+| `assert_eq_int(actual, expected)` | Integer equality |
+| `assert_eq_str(actual, expected)` | String equality (byte-exact, with helpful diff in the message) |
+| `assert_eq_bool(actual, expected)` | Boolean (0/1) equality |
+| `assert_contains(haystack, needle)` | Substring check on a string or stringified value |
+| `assert_throws(handler_name, expected_msg_substring)` | Asserts the named function throws; optionally checks the message |
+| `assert_status(http_response, expected_status)` | Asserts a numeric HTTP status appears in a raw response string |
+
+Each test runs in isolation — the failure flag is reset before every
+`test(...)` call, so one bad test does not hide the rest.
+
+## Testing the unhappy path
+
+`assert_throws` invokes a function by name (via `call()`) and asserts
+it raises. Useful for input validation, parse errors, auth failures.
+
+```tulpar
+import "test";
+
+func bad_input() {
+    throw "missing required field 'email'";
+}
+
+func test_validation_error() {
+    assert_throws("bad_input", "email");
+}
+
+test("rejects empty email", "test_validation_error");
+test_summary();
+```
+
+## Why type-specialised assertions?
+
+You'll notice there's no generic `assert_eq` — only
+`assert_eq_int`, `assert_eq_str`, `assert_eq_bool`. This is
+deliberate: Tulpar's AOT codegen has a known limitation where
+`json`-typed parameters can lose string identity after a `toJson`
+round-trip when the call goes through the dynamic dispatcher
+(`call()`). The specialised forms compare values directly without
+the round-trip and behave identically on AOT and VM.
+
+## Tips
+
+- Name handler functions whatever you like — `test()` looks them up
+  by string. A common convention is `t_foo` / `t_bar` so they sort
+  together.
+- Group related assertions in one handler; one `test(...)` call per
+  scenario keeps the output readable.
+- Keep network / database / filesystem tests in a separate suite from
+  pure-logic tests — they're slower and more flaky, and you'll want
+  to skip them locally sometimes.

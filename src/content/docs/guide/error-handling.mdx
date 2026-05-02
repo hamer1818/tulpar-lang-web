@@ -1,0 +1,94 @@
+---
+title: Error Handling
+description: Throw, catch, and clean up exceptions in Tulpar with try / catch / finally.
+---
+
+import TulparPlayground from '../../../components/TulparPlayground.astro';
+
+Tulpar uses familiar `try` / `catch` / `finally` blocks combined with the
+`throw` statement. Anything you can store in a variable can be thrown —
+strings, numbers, JSON objects.
+
+## Basic try / catch
+
+A `throw` inside a `try` block transfers control immediately to the
+matching `catch` clause. The thrown value is bound to the catch
+parameter (`e` below).
+
+<TulparPlayground
+	title="Throw and catch"
+	code={String.raw`try {
+    print("Inside try block");
+    throw "This is an error!";
+    print("This should NOT print");
+} catch (e) {
+    print("Caught exception: " + e);
+}
+print("After try-catch");`}
+/>
+
+## Throwing structured errors
+
+You aren't limited to strings — throwing a JSON object is the common way
+to attach a `code`, a `message`, and any extra context the caller needs.
+
+<TulparPlayground
+	title="Object throw"
+	code={String.raw`try {
+    arrayJson error = {
+        "message": "Something went wrong",
+        "code": 500
+    };
+    throw error;
+} catch (err) {
+    print("Caught error object:");
+    print("Message: " + err["message"]);
+    print("Code: " + toString(err["code"]));
+}`}
+/>
+
+## finally — always run cleanup
+
+`finally` runs whether the `try` block completed normally, threw, or
+the `catch` itself re-threw. Use it for releasing files, sockets, or
+mutexes — anything that must execute regardless of the exit path.
+
+<TulparPlayground
+	title="finally always runs"
+	code={String.raw`try {
+    print("Try block executing");
+    throw "Error with finally";
+} catch (e) {
+    print("Caught: " + e);
+} finally {
+    print("Finally block - always executes");
+}`}
+/>
+
+When no exception is thrown, `catch` is skipped but `finally` still
+runs:
+
+<TulparPlayground
+	title="No exception path"
+	code={String.raw`try {
+    print("Try block - no error");
+    int x = 5 + 3;
+    print("Result: " + toString(x));
+} catch (e) {
+    print("This should NOT print");
+} finally {
+    print("Finally runs anyway");
+}`}
+/>
+
+## When to use it
+
+Tulpar does not use exceptions for normal control flow — the standard
+library returns sentinel values (`-1`, empty strings, JSON `null`) for
+expected failure paths. Reserve `throw` / `catch` for genuine
+error conditions that the caller cannot reasonably anticipate, such as:
+
+- I/O failures that escaped a higher-level retry loop
+- Programmer errors detected at runtime (bad input shape, contract
+  violations)
+- Wrapping panics from native code or third-party modules

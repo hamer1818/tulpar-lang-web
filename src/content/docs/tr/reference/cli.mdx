@@ -1,0 +1,141 @@
+---
+title: CLI Referansı
+description: Her tulpar komutu ve bayrağı — çalıştırma modları, REPL, build, fmt, pkg, lsp, version, update, help.
+---
+
+`tulpar` ikilisi derleyiciyi, çalışma zamanını, paket yöneticisini,
+formatlayıcıyı ve dil sunucusunu tek bir çalıştırılabilir dosyada
+toplar. Bu sayfa kapsamlı referanstır; daha samimi bir giriş için
+[Başlarken](/tr/intro/getting-started/) sayfasına bakın.
+
+## Program çalıştırma
+
+```bash
+tulpar <kaynak.tpr>          # AOT derle + çalıştır (varsayılan; native hız)
+tulpar --vm <kaynak.tpr>     # Bytecode VM (anlık başlangıç, dev döngüsü)
+tulpar --legacy <kaynak.tpr> # Tree-walk yorumlayıcı (en yavaş, debug)
+```
+
+Bayrak olmadan `tulpar` AOT pipeline'ını çalıştırır (LLVM → native
+ikili → exec). AOT yolu *altyapı* nedeniyle başarısız olursa (clang
+yok, runtime arşivi link edilemiyor) sessizce VM'e düşer. Kaynak
+seviyesi hatalar (parse, codegen) **düşmez** — tanılamayı bir kez
+alırsınız, iki kez değil.
+
+| Mod | Başlangıç | Verim | Ne zaman |
+|-----|-----------|-------|----------|
+| AOT (varsayılan) | ~200 ms soğuk | Native (≈ Rust) | Üretim, benchmark, deploy |
+| `--vm` | < 10 ms | AOT'tan ~3-5× yavaş | Edit-çalıştır döngüsü, CI test |
+| `--legacy` | < 10 ms | ~50× yavaş | Sadece son çare debug |
+
+## Bağımsız ikili oluşturma
+
+```bash
+tulpar build <kaynak.tpr> [çıktı_adı]
+```
+
+Varsayılan run yoluyla aynı, ama üretilen ikiliyi `çıktı_adı`
+konumunda **saklar** (verilmezse `<kaynak>`'in `.tpr`'siz hâli).
+Sonraki `tulpar build` çağrıları çıktı kaynaktan ve sürücüden
+yeniyse derlemeyi atlar. Yeniden derlemeye zorlamak için
+`TULPAR_AOT_NOCACHE=1` ayarlayın.
+
+```bash
+tulpar build merhaba.tpr           # ./merhaba üretir (Windows'ta ./merhaba.exe)
+tulpar build merhaba.tpr uygulamam # ./uygulamam üretir
+TULPAR_AOT_NOCACHE=1 tulpar build merhaba.tpr   # her zaman derle
+```
+
+## REPL
+
+```bash
+tulpar --repl       # veya: tulpar -i
+```
+
+Etkileşimli oku-değerlendir-yazdır döngüsü, eski yorumlayıcı tarafından
+desteklenir (anında başlar, her satırı enter'a bastığınızda çalıştırır).
+REPL içinde yerleşik komutlar:
+
+| Komut | Etkisi |
+|-------|--------|
+| `exit`, `quit` | REPL'den çık |
+| `help` | REPL komut listesini göster |
+| `clear` | Ekranı temizle |
+
+## Formatlayıcı
+
+```bash
+tulpar fmt <kaynak.tpr>
+```
+
+Kaynağı normalleştirilmiş girinti ve operatör boşluklarıyla yeniden
+yazar. Idempotent (iki kez çalıştırmak bir kezle aynı çıktıyı verir).
+Yapılandırma dosyası yok — kurallar gömülü.
+
+## Paket yöneticisi
+
+```bash
+tulpar pkg init                  # cwd'de yeni bir tulpar.toml oluştur
+tulpar pkg add <isim>            # bağımlılık ekle
+tulpar pkg install               # tulpar.toml'daki her şeyi yükle
+```
+
+Manifest formatı ve bağımlılık belirtimleri için
+[Paket Yöneticisi](/tr/ecosystem/package-manager/) sayfasına bakın.
+
+## Dil sunucusu (LSP)
+
+```bash
+tulpar --lsp
+```
+
+stdio üzerinden LSP konuşur — editörünüze (VS Code uzantısı,
+Vim/Neovim LSP istemcisi, vb.) bağlayın; JSON-RPC iletimi için
+stdin/stdout'a sahip olur. Test dışında elle çalıştırmayın.
+
+Yetenekler: tamamlama, hover, tanılama, tanıma git, yazım yanlışları
+için "şunu mu demek istediniz" önerileri. Ayrıntı için
+[Araçlar — LSP / Formatlayıcı / VS Code](/tr/ecosystem/tooling/).
+
+## Sürüm & güncelleme
+
+```bash
+tulpar version          # veya: tulpar --version, tulpar -v
+tulpar update           # son sürümü indir & yükle
+tulpar update --check   # sadece güncelleme var mı diye bildir
+```
+
+`tulpar update` platformun kurulum scriptine
+(`https://tulparlang.dev/install.{ps1,sh}`) çağrı yapar ve çalışan
+ikiliyi yayınlanan en son sürümle değiştirir. Windows'ta yeniden
+adlandır-ardından-değiştir dansını kullanır çünkü Windows çalışan
+bir `.exe`'yi doğrudan üzerine yazamaz.
+
+`--check` zarar vermez — GitHub'dan en son tag'ı sorar, karşılaştırmayı
+yazdırır ve çıkar.
+
+## Yardım
+
+```bash
+tulpar --help          # veya: tulpar -h, tulpar help, tulpar ?
+```
+
+`tulpar`'ı hiç argümansız çalıştırdığınızda gördüğünüz aynı komut
+referansını yazdırır. Çıktı dili sistem locale'ini takip eder
+(TR locale'inde Türkçe, başka yerde İngilizce).
+
+## Ortam değişkenleri
+
+| Değişken | Etkisi |
+|----------|--------|
+| `TULPAR_LANG=tr` / `en` | Tanılama mesajları için sistem locale'ini geçersiz kıl |
+| `TULPAR_AOT_NOCACHE=1` | Çıktı güncel olsa bile `tulpar build`'i yeniden derlemeye zorla |
+| `TULPAR_INSTALL_DIR` | `install.sh`'nin ikiliyi koyduğu yer (varsayılan: `~/.local/bin`) |
+
+## Çıkış kodları
+
+| Kod | Anlamı |
+|-----|--------|
+| 0 | Başarılı |
+| 1 | Kaynak seviyesi hata (parse / codegen / runtime hatası) |
+| 2 | CLI kullanım hatası (bilinmeyen bayrak, kötü kombinasyon) |

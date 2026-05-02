@@ -1,0 +1,71 @@
+---
+title: Date & Time
+description: Built-in time functions — timestamps, ISO 8601 strings, monotonic clocks, and sleep.
+---
+
+import TulparPlayground from '../../../components/TulparPlayground.astro';
+
+Tulpar's date/time API is intentionally small. There is no separate
+`datetime` module — these functions are built directly into the
+runtime.
+
+## Time of day
+
+| Function | Returns | Use it for |
+|----------|---------|------------|
+| `timestamp()` | `int` — seconds since 1970-01-01 UTC | Storing in a database, age comparisons |
+| `time_ms()` | `int` — milliseconds since 1970-01-01 UTC | Higher-resolution wall-clock time |
+| `now_iso8601()` | `str` — `"2026-05-02T14:33:09Z"` | Logging, JSON payloads, HTTP headers |
+
+<TulparPlayground
+	title="Wall clock"
+	code={String.raw`print("Unix seconds:    ", timestamp());
+print("Unix milliseconds:", time_ms());
+print("ISO 8601:         ", now_iso8601());`}
+/>
+
+## Measuring elapsed time
+
+For performance measurements, use `clock_ms()`. It is monotonic — it
+never goes backwards, even if the system clock is adjusted (NTP,
+daylight saving, manual change). Subtract two readings to get a
+duration in milliseconds.
+
+<TulparPlayground
+	title="Time a block"
+	code={String.raw`int start = clock_ms();
+
+// pretend work
+int total = 0;
+for (int i = 0; i < 1000000; i++) {
+    total = total + i;
+}
+
+int elapsed = clock_ms() - start;
+print("sum =", total, "took", elapsed, "ms");`}
+/>
+
+## Sleeping
+
+`sleep(ms)` blocks the current thread for at least the requested
+number of milliseconds. There is no sub-millisecond sleep.
+
+<TulparPlayground
+	title="Sleep"
+	code={String.raw`print("before");
+sleep(500);     // half a second
+print("after, half a second later");`}
+/>
+
+`sleep` is **not** a synchronization primitive — see the
+[Concurrency](/guide/concurrency/) page for proper inter-thread
+coordination.
+
+## Choosing the right clock
+
+| Need | Use |
+|------|-----|
+| "When did this happen?" (logged, persisted, sent over the wire) | `now_iso8601()` or `timestamp()` |
+| "How long did this take?" | Two `clock_ms()` calls, subtract |
+| "Pause for a bit" | `sleep(ms)` |
+| "Schedule something for later" | `sleep` in a worker thread, or `setTimeout` from `lib/async.tpr` |

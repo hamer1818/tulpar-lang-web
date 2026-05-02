@@ -1,0 +1,102 @@
+---
+title: Eşzamanlılık (Thread'ler & Mutex'ler)
+description: thread_create ile işi paralel yürütün, mutex_lock / mutex_unlock ile paylaşılan durumu koruyun.
+---
+
+import TulparPlayground from '../../../../components/TulparPlayground.astro';
+
+Tulpar OS thread'lerini doğrudan üç yerleşik fonksiyon üzerinden
+sunar: `thread_create`, `mutex_create` ve `mutex_lock` /
+`mutex_unlock` çifti. Yeşil-thread çalışma zamanı yoktur — her
+`thread_create` çağrısı gerçek bir OS thread'i başlatır, dolayısıyla
+kilitlerle iş birliği sizin sorumluluğunuzdadır.
+
+:::caution
+Web playground tek-thread'li WASM'de çalışır. Bu sayfadaki örnekler
+yerel kuruluma ihtiyaç duyar — bir `.tpr` dosyasına kopyalayıp
+`tulpar dosya.tpr` ile çalıştırın.
+:::
+
+## Thread başlatma
+
+`thread_create(handler_adi, arg)` ilk argümanın adıyla belirtilen
+fonksiyonu çağıran yeni bir thread başlatır ve ikinci argümanı tek bir
+değer olarak ona iletir. Dönüş bir thread id'sidir (`int`); join
+etmeyecekseniz `thread_detach(id)` ile eşleştirin.
+
+```tulpar
+func isci(arg) {
+    print("Isçi çalışıyor, arg =", arg);
+}
+
+int t = thread_create("isci", 42);
+thread_detach(t);
+```
+
+Handler ilk çalıştığında **ada** (string) göre aranır ve önbelleğe
+alınır, dolayısıyla AOT pipeline'ının dışa aktardığı bir üst seviye
+fonksiyon olmalıdır (her `func` tanımı için varsayılan).
+
+## Paylaşılan durumu koruma
+
+Birden fazla thread'in mutasyona uğrattığı bir sayaç klasik yarış
+durumudur. Oku-değiştir-yaz bölgesini `mutex_lock` / `mutex_unlock`
+ile sarın:
+
+```tulpar
+int sayac = 0;
+int mu = mutex_create();
+
+func arttir(arg) {
+    mutex_lock(mu);
+    sayac = sayac + 1;
+    mutex_unlock(mu);
+}
+
+for (int i = 0; i < 100; i++) {
+    int t = thread_create("arttir", i);
+    thread_detach(t);
+}
+
+sleep(100);   // thread'lerin bitmesi için biraz zaman ver
+print("sayac =", sayac);
+```
+
+Kilidi tutabildiğiniz **en kısa** bölge için tutun — tipik olarak
+sadece paylaşılan duruma yazma. `lib/wings.tpr` içindeki HTTP sunucusu
+tam bu deseni kullanır: handler dispatch çevresinde kilitler, response
+inşa edilip gönderilmeden önce kilidi açar.
+
+## Çalışan örnek: thread'li HTTP sunucusu
+
+`lib/wings.tpr` (Wings framework'u) ana döngüsünde yeni TCP
+bağlantılarını kabul eder ve her bağlantıyı bir worker thread'ine
+verir. Çekirdek deyim şöyle görünür:
+
+```tulpar
+import "wings";
+
+func handle_root() {
+    return wings_text("merhaba thread " + toString(thread_id()));
+}
+
+get("/", "handle_root");
+listen(8080);   // wings dahili olarak bağlantı başına thread başlatır
+```
+
+Tüm framework için [HTTP Sunucusu (Wings)](/tr/ecosystem/http-server/)
+sayfasına bakın — thread'leme `listen` içinde gerçekleşir, yaygın
+durum için bunu kendiniz bağlamak zorunda değilsiniz.
+
+## Pratik kurallar
+
+- **Küçük değer iletin.** `thread_create` tek arg alır. Daha fazla
+  bağlam için bir `arrayJson` içine paketleyip worker'da çıkartın.
+- **Sadece paylaşılan yazma çevresinde kilit.** Değişmez verilerin
+  okunması kilit gerektirmez; tek global kilit yerine kaynak başına
+  mutex kullanın.
+- **Join etmiyorsanız detach edin.** Sızdırılmış thread handle'ı asla
+  geri alınmayacak gerçek bir OS thread'idir.
+- **Sleep senkronizasyon değildir.** `sleep(ms)` koşul beklemek için
+  değil, hız ayarlamak içindir. Bir koşul beklemek için mutex + worker'ın
+  set ettiği bir bayrak kullanın.
