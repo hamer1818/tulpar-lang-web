@@ -20,6 +20,12 @@
 #Requires -Version 5
 $ErrorActionPreference = 'Stop'
 
+# CRITICAL for download speed: Invoke-WebRequest's progress bar re-renders
+# on every chunk and tanks throughput by 10-50x on Windows PowerShell 5.1.
+# Suppressing it here turns a ~30s download into ~2s on a fast connection.
+# This MUST be set before any Invoke-WebRequest call below.
+$ProgressPreference = 'SilentlyContinue'
+
 # Belt-and-suspenders: try to set UTF-8 anyway in case the host honours
 # it. Safe to fail silently — we use ASCII-only characters below either way.
 try {
@@ -71,7 +77,21 @@ if (Test-Path $BinaryPath) {
     }
 }
 try {
-    Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $BinaryPath -UseBasicParsing
+    # Prefer curl.exe (bundled with Windows 10 1803+ and all Windows 11)
+    # for the actual binary download — it's typically 5-10x faster than
+    # Invoke-WebRequest even with the progress bar suppressed, because it
+    # uses a tighter HTTP stack and doesn't materialise the response in
+    # PowerShell's pipeline. We fall back to IWR for older systems.
+    $curlExe = Get-Command curl.exe -ErrorAction SilentlyContinue
+    if ($curlExe) {
+        & curl.exe --fail --location --silent --show-error --retry 3 `
+            --output $BinaryPath $asset.browser_download_url
+        if ($LASTEXITCODE -ne 0) {
+            throw "curl.exe exit $LASTEXITCODE"
+        }
+    } else {
+        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $BinaryPath -UseBasicParsing
+    }
 } catch {
     # Restore previous on download failure so the user isn't left without a tulpar.
     if (Test-Path $oldPath) { Move-Item -Path $oldPath -Destination $BinaryPath -Force }
