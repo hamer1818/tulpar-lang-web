@@ -1,14 +1,22 @@
 ---
 title: Başlarken
-description: İlk Tulpar programınızı nasıl yazacağınızı öğrenin.
+description: İlk Tulpar programınızı bir dakikadan kısa sürede yazıp çalıştırın.
 ---
 
-## İlk Programınız
+import TulparPlayground from '../../../../components/TulparPlayground.astro';
 
-`merhaba.tpr` adında bir dosya oluşturun:
+Bu sayfa Tulpar'ı zaten kurduğunuzu varsayar — kurmadıysanız tek
+satırlık installer için [Kurulum](/tr/intro/installation/) sayfasına
+göz atın.
 
-```tulpar
-// UTF-8 desteği ile Merhaba Dünya
+## Tarayıcıda deneyin
+
+Aşağıdaki örneği bu sayfanın içinde düzenleyip **Çalıştır**'a
+tıklayabilirsiniz — kurulum gerekmez:
+
+<TulparPlayground
+	title="İlk Programınız"
+	code={String.raw`// UTF-8 desteği ile Merhaba Dünya
 str selamlama = "Merhaba Dünya!";
 print(selamlama);
 
@@ -19,37 +27,48 @@ func kare(int n) {
 
 // Kullanım
 int sonuc = kare(5);
-print("5'in karesi:", sonuc);
-```
+print("5'in karesi:", sonuc);`}
+/>
 
-## Programı Çalıştırma
+## Yerel olarak çalıştırma
 
-Tulpar programınızı komut satırını kullanarak çalıştırabilirsiniz:
-
-### Linux / macOS
-
-```bash
-./tulpar merhaba.tpr
-```
-
-### Windows (WSL)
+Programı `merhaba.tpr` adında bir dosyaya kaydedip terminalden
+çalıştırın — kurulum sonrası `tulpar` komutu `PATH`'inizdedir:
 
 ```bash
-wsl ./tulpar merhaba.tpr
+tulpar merhaba.tpr
 ```
 
-### Windows (Native)
-
-```cmd
-tulpar.exe merhaba.tpr
-```
-
-## Etkileşimli REPL Modu
-
-Tulpar ayrıca etkileşimli Oku-Değerlendir-Yazdır Döngüsü (REPL) modunu da destekler. Başlatmak için yorumlayıcıyı herhangi bir argüman olmadan çalıştırın:
+Varsayılan `tulpar <dosya>` çağrısı LLVM ile AOT derler ve oluşan native
+binary'yi çalıştırır. Anlık başlatma için bytecode VM'i tercih edebilirsiniz
+(çok küçük bir runtime maliyeti karşılığında):
 
 ```bash
-./tulpar
+tulpar --vm merhaba.tpr
 ```
 
-REPL modunda, Tulpar kodunu yazabilir ve sonuçları hemen görebilirsiniz.
+Tulpar toolchain'i olmadan dağıtabileceğiniz tek başına bir native
+executable üretmek için:
+
+```bash
+tulpar build merhaba.tpr      # → ./merhaba (Windows'ta merhaba.exe)
+```
+
+## Etkileşimli REPL
+
+Tulpar'ın bir REPL'i (Oku-Değerlendir-Yazdır Döngüsü) de var.
+Argümansız çağırın:
+
+```bash
+tulpar --repl
+```
+
+Yazdığınız ifadeleri / komutları anında değerlendirir. Çıkmak için
+`Ctrl+D` (Linux/macOS) ya da `Ctrl+Z` (Windows) kullanın.
+
+## Sıradaki adımlar
+
+- [Söz Dizimi & Değişkenler](/tr/guide/syntax/) — tipler, literaller, operatörler.
+- [Akış Kontrolü](/tr/guide/control-flow/) — `if`, `while`, `for`.
+- [Fonksiyonlar](/tr/guide/functions/) — tanım, recursion, return.
+- [Örnekler](/tr/examples/basic/) — çalışan örnek programlar.

@@ -1,6 +1,4 @@
 ---
-const playgroundScript = new URL('../scripts/tulpar-playground-init.ts', import.meta.url).pathname;
-
 export interface Props {
 	/** Başlangıç Tulpar kodu */
 	code: string;
@@ -39,4 +37,6 @@ const { code, title, rows = 10 } = Astro.props;
 	</div>
 </div>
 
-<script type="module" src={playgroundScript}></script>
+<script>
+	import '../scripts/tulpar-playground-init';
+</script>

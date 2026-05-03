@@ -3,6 +3,8 @@ title: Tulpar vs C Language
 description: Compare the Tulpar language with C side by side using practical examples.
 ---
 
+import TulparPlayground from '../../../components/TulparPlayground.astro';
+
 import TulparTabs from '../../../components/TulparTabs.astro';
 import TulparTabItem from '../../../components/TulparTabItem.astro';
 
@@ -11,12 +13,13 @@ import TulparTabItem from '../../../components/TulparTabItem.astro';
 <TulparTabs>
   <TulparTabItem label="Tulpar" icon="tulpar">
 
-```tulpar
-arrayJson user = {"name": "Hamza", "age": 27};
+<TulparPlayground
+	title="JSON vs Struct Usage"
+	code={String.raw`arrayJson user = {"name": "Hamza", "age": 27};
 
 print(user.name);
-print(user.age);
-```
+print(user.age);`}
+/>
 
   </TulparTabItem>
   <TulparTabItem label="C Language">
@@ -48,13 +51,14 @@ int main(void) {
 <TulparTabs>
   <TulparTabItem label="Tulpar" icon="tulpar">
 
-```tulpar
-arrayInt numbers = [1, 2, 3, 4, 5];
+<TulparPlayground
+	title="Arrays and Loops"
+	code={String.raw`arrayInt numbers = [1, 2, 3, 4, 5];
 
 for (int i = 0; i < length(numbers); i++) {
     print("Item:", numbers[i]);
-}
-```
+}`}
+/>
 
   </TulparTabItem>
   <TulparTabItem label="C Language">
@@ -82,15 +86,16 @@ int main(void) {
 <TulparTabs>
   <TulparTabItem label="Tulpar" icon="tulpar">
 
-```tulpar
-str input = "  TULPAR LANG  ";
+<TulparPlayground
+	title="String Processing"
+	code={String.raw`str input = "  TULPAR LANG  ";
 
 str cleaned = lower(trim(input));
 arrayStr parts = split(cleaned, " ");
 
 print("Cleaned:", cleaned);
-print("First word:", parts[0]);
-```
+print("First word:", parts[0]);`}
+/>
 
   </TulparTabItem>
   <TulparTabItem label="C Language">

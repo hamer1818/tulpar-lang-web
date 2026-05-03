@@ -3,6 +3,8 @@ title: Modüller ve İçe Aktarma
 description: Tulpar'da kodunuzu modüller halinde nasıl organize edeceğinizi öğrenin.
 ---
 
+import TulparPlayground from '../../../../components/TulparPlayground.astro';
+
 ## İçe Aktarma (Import)
 
 `import` anahtar kelimesi, diğer Tulpar dosyalarını mevcut dosyanıza dahil etmek için kullanılır.
@@ -20,14 +22,15 @@ print("Sonuç:", sonuc);
 
 İçe aktarılan dosyalar aynı global durumu paylaşır. Bu, bir dosyada tanımlanan değişkenlerin ve fonksiyonların içe aktarıldığı yerde kullanılabileceği anlamına gelir.
 
-```tulpar
-// utils.tpr
+<TulparPlayground
+	title="Paylaşılan Durum"
+	code={String.raw`// utils.tpr
 int globalDeger = 100;
 
 func yazdir() {
     print("Global Değer:", globalDeger);
-}
-```
+}`}
+/>
 
 ```tulpar
 // main.tpr

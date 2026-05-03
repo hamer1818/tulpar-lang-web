@@ -1,4 +1,4 @@
-import { runTulparCode } from './tulpar-wasm';
+import { runTulparCode } from './tulpar-interpreter';
 
 function initOne(root: HTMLElement) {
 	const editor = root.querySelector<HTMLTextAreaElement>('.tulpar-playground__editor');
@@ -37,18 +37,12 @@ function initOne(root: HTMLElement) {
 
 			if (error) {
 				setOutputMode(true);
-				if (!text) {
-					text = error;
-				}
+				text = text ? text.replace(/\n?$/, '\n') + error : error;
 
-				// Parser Error durumunda kullanıcıya noktalı virgül ipucu ver
-				if (text.includes('Parser Error: Unexpected token after expression')) {
+				// Parser hatalarında kullanıcıya noktalı virgül ipucu ver
+				if (/Parser error/i.test(error) && /'.+'/.test(error)) {
 					text += '\n\nİpucu: Bu hata çoğu zaman satır sonunda unutulan noktalı virgülden (;) kaynaklanır.';
 				}
-			}
-
-			if (!text) {
-				text = '';
 			}
 
 			setOutput(text);

@@ -3,6 +3,8 @@ title: Tulpar ve C Dili Karşılaştırmaları
 description: Tulpar dilini C ile yan yana örnekler üzerinden karşılaştırın.
 ---
 
+import TulparPlayground from '../../../../components/TulparPlayground.astro';
+
 import TulparTabs from '../../../../components/TulparTabs.astro';
 import TulparTabItem from '../../../../components/TulparTabItem.astro';
 
@@ -11,12 +13,13 @@ import TulparTabItem from '../../../../components/TulparTabItem.astro';
 <TulparTabs>
   <TulparTabItem label="Tulpar" icon="tulpar">
 
-```tulpar
-arrayJson user = {"name": "Hamza", "age": 27};
+<TulparPlayground
+	title="JSON ve Struct Kullanımı"
+	code={String.raw`arrayJson user = {"name": "Hamza", "age": 27};
 
 print(user.name);
-print(user.age);
-```
+print(user.age);`}
+/>
 
   </TulparTabItem>
   <TulparTabItem label="C Dili">
@@ -48,13 +51,14 @@ int main(void) {
 <TulparTabs>
   <TulparTabItem label="Tulpar" icon="tulpar">
 
-```tulpar
-arrayInt sayilar = [1, 2, 3, 4, 5];
+<TulparPlayground
+	title="Diziler ve Döngüler"
+	code={String.raw`arrayInt sayilar = [1, 2, 3, 4, 5];
 
 for (int i = 0; i < length(sayilar); i++) {
     print("Eleman:", sayilar[i]);
-}
-```
+}`}
+/>
 
   </TulparTabItem>
   <TulparTabItem label="C Dili">
@@ -82,15 +86,16 @@ int main(void) {
 <TulparTabs>
   <TulparTabItem label="Tulpar" icon="tulpar">
 
-```tulpar
-str giris = "  Tulpar DILI  ";
+<TulparPlayground
+	title="Metin İşleme"
+	code={String.raw`str giris = "  Tulpar DILI  ";
 
 str temiz = lower(trim(giris));
 arrayStr parcali = split(temiz, " ");
 
 print("Temiz:", temiz);
-print("İlk kelime:", parcali[0]);
-```
+print("İlk kelime:", parcali[0]);`}
+/>
 
   </TulparTabItem>
   <TulparTabItem label="C Dili">

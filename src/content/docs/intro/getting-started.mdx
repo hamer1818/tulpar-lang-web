@@ -1,14 +1,21 @@
 ---
 title: Getting Started
-description: Learn how to write your first Tulpar program.
+description: Write and run your first Tulpar program in under a minute.
 ---
 
-## Your First Program
+import TulparPlayground from '../../../components/TulparPlayground.astro';
 
-Create a file named `hello.tpr`:
+This page assumes you've already installed Tulpar — if not, head to
+[Installation](/intro/installation/) for the one-line installer.
 
-```tulpar
-// Hello World with UTF-8 support
+## Try it in the browser
+
+You can play with Tulpar directly in this page. Edit the snippet below
+and hit **Run** — no installation required:
+
+<TulparPlayground
+	title="Your First Program"
+	code={String.raw`// Hello World with UTF-8 support
 str greeting = "Merhaba Dünya!";
 print(greeting);
 
@@ -19,37 +26,48 @@ func square(int n) {
 
 // Usage
 int result = square(5);
-print("5'in karesi:", result);
-```
+print("5'in karesi:", result);`}
+/>
 
-## Run the Program
+## Run a file locally
 
-You can run your Tulpar program using the command line:
-
-### Linux / macOS
-
-```bash
-./tulpar hello.tpr
-```
-
-### Windows (WSL)
+Save the program to a file named `hello.tpr`, then run it from any
+terminal — `tulpar` is on your `PATH` after installation:
 
 ```bash
-wsl ./tulpar hello.tpr
+tulpar hello.tpr
 ```
 
-### Windows (Native)
-
-```cmd
-tulpar.exe hello.tpr
-```
-
-## Interactive REPL Mode
-
-Tulpar also supports an interactive Read-Eval-Print Loop (REPL) mode. Run the interpreter without any arguments to start it:
+The default `tulpar <file>` invocation AOT-compiles via LLVM and runs
+the resulting native binary. For instant startup at the cost of a small
+runtime overhead, use the bytecode VM instead:
 
 ```bash
-./tulpar
+tulpar --vm hello.tpr
 ```
 
-In REPL mode, you can type Tulpar code and see the results immediately.
+To produce a standalone native executable you can ship without the
+Tulpar toolchain:
+
+```bash
+tulpar build hello.tpr        # → ./hello (or hello.exe on Windows)
+```
+
+## Interactive REPL
+
+Tulpar also has a Read-Eval-Print Loop. Run the binary with no arguments
+to start it:
+
+```bash
+tulpar --repl
+```
+
+Type expressions or statements and see results immediately. Use
+`Ctrl+D` (Linux/macOS) or `Ctrl+Z` (Windows) to exit.
+
+## Where to go next
+
+- [Syntax & Variables](/guide/syntax/) — types, literals, operators.
+- [Control Flow](/guide/control-flow/) — `if`, `while`, `for`.
+- [Functions](/guide/functions/) — definition, recursion, return.
+- [Examples](/examples/basic/) — runnable sample programs.
