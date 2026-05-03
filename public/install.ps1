@@ -33,10 +33,16 @@ try {
     $OutputEncoding           = [System.Text.Encoding]::UTF8
 } catch {}
 
-$Repo       = 'hamer1818/TulparLang'
-$AssetName  = 'tulpar-windows-x64.exe'
-$InstallDir = Join-Path $env:LOCALAPPDATA 'Programs\Tulpar'
-$BinaryPath = Join-Path $InstallDir 'tulpar.exe'
+$Repo            = 'hamer1818/TulparLang'
+$AssetName       = 'tulpar-windows-x64.exe'
+$RuntimeAssetName = 'libtulpar_runtime-windows-x64.a'
+$InstallDir      = Join-Path $env:LOCALAPPDATA 'Programs\Tulpar'
+$BinaryPath      = Join-Path $InstallDir 'tulpar.exe'
+# AOT (`tulpar build` and the default `tulpar file.tpr` pipeline) links
+# user binaries against this archive at runtime. The compiler probes the
+# directory of the running tulpar.exe first, so dropping it next to the
+# binary is enough — no extra LIB/PATH switches needed.
+$RuntimePath     = Join-Path $InstallDir 'libtulpar_runtime.a'
 
 function Write-Step($msg)    { Write-Host "==> $msg" -ForegroundColor Cyan }
 function Write-Success($msg) { Write-Host "[OK] $msg" -ForegroundColor Green }
@@ -108,6 +114,10 @@ $asset = $release.assets | Where-Object { $_.name -eq $AssetName } | Select-Obje
 if (-not $asset) {
     throw "Release '$tag' icinde '$AssetName' bulunamadi."
 }
+# Runtime archive is shipped from v2.1.0.x onwards. Older tags don't
+# have it — leave $runtimeAsset null and skip the runtime install in
+# that case (only `tulpar build` / AOT will be unavailable then).
+$runtimeAsset = $release.assets | Where-Object { $_.name -eq $RuntimeAssetName } | Select-Object -First 1
 Write-Note "Son surum: $tag"
 
 # 2. Download the binary. Windows can't overwrite a running .exe, so if a
@@ -147,6 +157,33 @@ try {
 }
 if (Test-Path $oldPath) { Remove-Item $oldPath -Force -ErrorAction SilentlyContinue }
 
+# 2b. Download the runtime archive next to tulpar.exe. Required for
+#     `tulpar build` / AOT; harmless to omit for `--vm` users. We
+#     download to a sibling .new file first and only swap on success
+#     so an HTTP failure can't leave a stale archive in place.
+if ($runtimeAsset) {
+    Write-Step "Runtime kutuphanesi indiriliyor: $RuntimePath"
+    $runtimeTmp = "$RuntimePath.new"
+    if (Test-Path $runtimeTmp) { Remove-Item $runtimeTmp -Force -ErrorAction SilentlyContinue }
+    try {
+        if ($curlExe) {
+            & curl.exe --fail --location --silent --show-error --retry 3 `
+                --output $runtimeTmp $runtimeAsset.browser_download_url
+            if ($LASTEXITCODE -ne 0) {
+                throw "curl.exe exit $LASTEXITCODE"
+            }
+        } else {
+            Invoke-WebRequest -Uri $runtimeAsset.browser_download_url -OutFile $runtimeTmp -UseBasicParsing
+        }
+        Move-Item -Path $runtimeTmp -Destination $RuntimePath -Force
+    } catch {
+        if (Test-Path $runtimeTmp) { Remove-Item $runtimeTmp -Force -ErrorAction SilentlyContinue }
+        Write-Warn "Runtime kutuphanesi indirilemedi (sadece VM modu calisir): $_"
+    }
+} else {
+    Write-Warn "Runtime kutuphanesi bu surumde yok; sadece VM modu kullanilabilir."
+}
+
 # 3. Wire the install dir into the user PATH if it isn't already there.
 #    We deliberately use the User scope (no admin needed) and update the
 #    persistent registry value AND the current-session $env:Path so the
@@ -169,6 +206,9 @@ if (-not $version) { $version = $tag }
 
 Write-Host ""
 Write-Success "TulparLang $tag kuruldu -> $BinaryPath"
+if (Test-Path $RuntimePath) {
+    Write-Note "Runtime kutuphanesi -> $RuntimePath"
+}
 Show-TulparArt
 Write-Host ""
 Write-Host "Deneme:" -ForegroundColor Cyan
