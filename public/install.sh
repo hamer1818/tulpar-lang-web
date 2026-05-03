@@ -17,6 +17,11 @@ set -euo pipefail
 REPO="hamer1818/TulparLang"
 INSTALL_DIR="${TULPAR_INSTALL_DIR:-${HOME}/.local/bin}"
 BINARY_PATH="${INSTALL_DIR}/tulpar"
+# AOT (`tulpar build` and the default `tulpar file.tpr` pipeline) links
+# user binaries against this archive at runtime. The compiler probes the
+# directory of the running tulpar binary first, so dropping it alongside
+# the executable is enough — no extra PATH/LD switches needed.
+RUNTIME_PATH="${INSTALL_DIR}/libtulpar_runtime.a"
 
 c_cyan="$(printf '\033[36m')"
 c_green="$(printf '\033[32m')"
@@ -82,8 +87,8 @@ echo "===================="
 
 # 1. Detect OS / asset name. Only x64 / universal builds are published.
 case "$(uname -s)" in
-    Linux)  asset="tulpar-linux-x64" ;;
-    Darwin) asset="tulpar-macos-universal" ;;
+    Linux)  asset="tulpar-linux-x64";       runtime_asset="libtulpar_runtime-linux-x64.a" ;;
+    Darwin) asset="tulpar-macos-universal"; runtime_asset="libtulpar_runtime-macos-universal.a" ;;
     *)      echo "Desteklenmeyen işletim sistemi: $(uname -s)" >&2; exit 1 ;;
 esac
 
@@ -104,18 +109,36 @@ if [ -z "$tag" ]; then
 fi
 note "Son sürüm: $tag"
 
-# 3. Download the binary into a temp file first so we never leave a
-#    half-written file at the install path on failure.
+# 3. Download the binary + runtime archive into temp files first so we
+#    never leave half-written artifacts at the install path on failure.
 download_url="https://github.com/${REPO}/releases/download/${tag}/${asset}"
-step "İndiriliyor: $download_url"
+runtime_url="https://github.com/${REPO}/releases/download/${tag}/${runtime_asset}"
 mkdir -p "$INSTALL_DIR"
-tmp="$(mktemp "${TMPDIR:-/tmp}/tulpar.XXXXXX")"
-trap 'rm -f "$tmp"' EXIT
-curl -fsSL "$download_url" -o "$tmp" \
-    || { echo "İndirme başarısız." >&2; exit 1; }
+tmp_bin="$(mktemp "${TMPDIR:-/tmp}/tulpar.XXXXXX")"
+tmp_lib="$(mktemp "${TMPDIR:-/tmp}/tulpar-rt.XXXXXX")"
+trap 'rm -f "$tmp_bin" "$tmp_lib"' EXIT
 
-chmod +x "$tmp"
-mv -f "$tmp" "$BINARY_PATH"
+step "İndiriliyor: $download_url"
+curl -fsSL "$download_url" -o "$tmp_bin" \
+    || { echo "Binary indirme başarısız." >&2; exit 1; }
+
+# The runtime archive is consumed only by `tulpar build` / AOT, so a
+# missing asset is non-fatal for `tulpar --vm` users — but every
+# release since v2.1.0.x ships it. Warn loudly and continue if the
+# server returns 404 so older releases can still be installed.
+step "Runtime kütüphanesi indiriliyor: $runtime_url"
+if curl -fsSL "$runtime_url" -o "$tmp_lib"; then
+    install_runtime=1
+else
+    warn "Runtime kütüphanesi bulunamadı; sadece VM modu kullanılabilir olacak."
+    install_runtime=0
+fi
+
+chmod +x "$tmp_bin"
+mv -f "$tmp_bin" "$BINARY_PATH"
+if [ "$install_runtime" = "1" ]; then
+    mv -f "$tmp_lib" "$RUNTIME_PATH"
+fi
 trap - EXIT
 
 # 4. PATH advice. We don't auto-modify shell rc files — too easy to corrupt
@@ -135,6 +158,9 @@ esac
 
 echo ""
 success "TulparLang $tag kuruldu → $BINARY_PATH"
+if [ "$install_runtime" = "1" ]; then
+    note "Runtime kütüphanesi → $RUNTIME_PATH"
+fi
 show_art
 echo ""
 printf "%sDeneme:%s\n" "$c_cyan" "$c_reset"

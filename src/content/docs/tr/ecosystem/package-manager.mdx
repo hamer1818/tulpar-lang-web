@@ -9,6 +9,11 @@ ve her install'da deterministik bir kilit dosyası (`tulpar.lock`)
 yazar; böylece `tulpar_modules/` ağacı makinaler arasında tekrar
 üretilebilir kalır.
 
+Resmi paket kayıt adresi
+[**pkg.tulparlang.dev**](https://pkg.tulparlang.dev) — manifest'inizdeki
+`[registry] url`'yi buraya işaret ettirin, topluluk paketlerini
+yükleyebilirsiniz.
+
 ## Hızlı başlangıç
 
 ```bash
@@ -45,7 +50,7 @@ author = "Hamza"
 license = "MIT"
 
 [registry]
-url = "http://registry.tulparlang.org"
+url = "https://pkg.tulparlang.dev"
 
 [dependencies]
 wings   = "1.2.3"                       # registry
@@ -74,7 +79,7 @@ Her başarılı `pkg install` sonrası `tulpar.lock` yazılır:
 # DÜZENLEMEYİN. Reproducible install için tulpar.toml ile birlikte commit'le.
 
 [resolved]
-wings   = "http://registry.tulparlang.org/wings/1.2.3.tpr"
+wings   = "https://pkg.tulparlang.dev/wings/1.2.3.tpr"
 greeter = "path:../greeter"
 lodash  = "url:http://cdn/lodash.tpr"
 ```

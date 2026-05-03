@@ -8,6 +8,10 @@ project dependencies via a small TOML manifest (`tulpar.toml`) and
 writes a deterministic lockfile (`tulpar.lock`) on every install so
 your `tulpar_modules/` tree is reproducible across machines.
 
+The official package registry lives at
+[**pkg.tulparlang.dev**](https://pkg.tulparlang.dev) — point
+`[registry] url` there in your manifest to install community packages.
+
 ## Quick start
 
 ```bash
@@ -43,7 +47,7 @@ author = "Hamza"
 license = "MIT"
 
 [registry]
-url = "http://registry.tulparlang.org"
+url = "https://pkg.tulparlang.dev"
 
 [dependencies]
 wings          = "1.2.3"                       # registry
@@ -73,7 +77,7 @@ to your manifest:
 # DO NOT EDIT. Commit alongside tulpar.toml so re-installs are reproducible.
 
 [resolved]
-wings   = "http://registry.tulparlang.org/wings/1.2.3.tpr"
+wings   = "https://pkg.tulparlang.dev/wings/1.2.3.tpr"
 greeter = "path:../greeter"
 lodash  = "url:http://cdn/lodash.tpr"
 ```
