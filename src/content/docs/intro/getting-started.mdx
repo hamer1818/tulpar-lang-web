@@ -3,12 +3,15 @@ title: Getting Started
 description: Learn how to write your first Tulpar program.
 ---
 
+import TulparPlayground from '../../../components/TulparPlayground.astro';
+
 ## Your First Program
 
 Create a file named `hello.tpr`:
 
-```tulpar
-// Hello World with UTF-8 support
+<TulparPlayground
+	title="Your First Program"
+	code={String.raw`// Hello World with UTF-8 support
 str greeting = "Merhaba Dünya!";
 print(greeting);
 
@@ -19,8 +22,8 @@ func square(int n) {
 
 // Usage
 int result = square(5);
-print("5'in karesi:", result);
-```
+print("5'in karesi:", result);`}
+/>
 
 ## Run the Program
 

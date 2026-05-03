@@ -3,12 +3,15 @@ title: Başlarken
 description: İlk Tulpar programınızı nasıl yazacağınızı öğrenin.
 ---
 
+import TulparPlayground from '../../../../components/TulparPlayground.astro';
+
 ## İlk Programınız
 
 `merhaba.tpr` adında bir dosya oluşturun:
 
-```tulpar
-// UTF-8 desteği ile Merhaba Dünya
+<TulparPlayground
+	title="İlk Programınız"
+	code={String.raw`// UTF-8 desteği ile Merhaba Dünya
 str selamlama = "Merhaba Dünya!";
 print(selamlama);
 
@@ -19,8 +22,8 @@ func kare(int n) {
 
 // Kullanım
 int sonuc = kare(5);
-print("5'in karesi:", sonuc);
-```
+print("5'in karesi:", sonuc);`}
+/>
 
 ## Programı Çalıştırma
 

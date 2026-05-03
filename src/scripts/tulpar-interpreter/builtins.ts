@@ -281,6 +281,9 @@ export function registerBuiltins(env: Env, write: (s: string) => void): void {
 		unsupported(name, 'browsers have no filesystem access');
 	}
 	for (const name of [
+		'socket_create',
+		'socket_bind',
+		'socket_listen',
 		'socket_server',
 		'socket_accept',
 		'socket_connect',
@@ -289,11 +292,29 @@ export function registerBuiltins(env: Env, write: (s: string) => void): void {
 		'socket_close',
 		'http_get',
 		'http_post',
+		'http_put',
+		'http_delete',
+		'http_get_json',
+		'http_post_json',
 	]) {
 		unsupported(name, 'sockets and HTTP are blocked by browser sandboxing');
 	}
-	for (const name of ['db_open', 'db_query', 'db_exec', 'db_close']) {
-		unsupported(name, 'SQLite is not bundled in the web playground');
+	for (const name of [
+		'db_open',
+		'db_query',
+		'db_exec',
+		'db_close',
+		'orm_open',
+		'orm_close',
+		'orm_create',
+		'orm_find',
+		'orm_all',
+		'orm_update',
+		'orm_delete',
+		'orm_where',
+		'define_model',
+	]) {
+		unsupported(name, 'SQLite/ORM is not bundled in the web playground');
 	}
 	for (const name of [
 		'thread_create',
