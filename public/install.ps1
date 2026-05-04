@@ -53,23 +53,32 @@ function Write-Warn($msg)    { Write-Host "[!]  $msg" -ForegroundColor Yellow }
 # flourish" on success — same idea as Claude Code dropping its robot
 # logo at the end. Single-quoted here-string keeps every character
 # literal; the art uses only +/=/- so no escaping concerns. Closing
-# '@ MUST be at column 0. Compact (~12 lines, ~40 cols) so it fits in
-# an 80-col PowerShell window without wrapping the way the previous
-# 37-line design did.
+# '@ MUST be at column 0.
+#
+# Derived from public/favicon.svg: the SVG was rasterized to a 40x16
+# bitmap and binarized into two ink levels (`=` for edge / `+` for
+# solid stroke). Keep the silhouette in sync with the favicon when
+# either changes, otherwise the brand identity drifts. Total height
+# is ~16 lines / ~40 cols so it fits in an 80-col PowerShell window
+# without the wraparound the previous 37-line design suffered from.
 function Show-TulparArt {
     $art = @'
-                =++=
-              ===++===
-           ===++    ++===
-         ===            ===
-       ==                  ==
-        ===++=+======+=+===+
-              ++========++
-                  ====
-                +=    +=
-               +=      =+
-              ++        ++
-             +=          =+
+              ==
+              =++=
+               ++==+==             ===++=
+               =++=  ==++=       ++=   =+=
+               =+++++===  ++=  =+    +   +=
+                =++= =====  ++ +    ++=++=+=
+                  ==++====   ++     +=   =
+                       =+=++= ++==++=+
+                  ====+==+= ++==   =++
+                +++++=   +    ++=   +===+
+            ==+++  +=   ++      ======++=
+            =++=  =+  =++           ==+=
+                 =++=+=             +=
+                +++
+               ++
+               +
 '@
     Write-Host ""
     Write-Host $art -ForegroundColor Cyan
