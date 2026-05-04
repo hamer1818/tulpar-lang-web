@@ -53,45 +53,23 @@ function Write-Warn($msg)    { Write-Host "[!]  $msg" -ForegroundColor Yellow }
 # flourish" on success — same idea as Claude Code dropping its robot
 # logo at the end. Single-quoted here-string keeps every character
 # literal; the art uses only +/=/- so no escaping concerns. Closing
-# '@ MUST be at column 0.
+# '@ MUST be at column 0. Compact (~12 lines, ~40 cols) so it fits in
+# an 80-col PowerShell window without wrapping the way the previous
+# 37-line design did.
 function Show-TulparArt {
     $art = @'
-                      =++
-                      +++++
-                      -=++++=+
-                       +++ =+++=                                           +=++
-                       ++++  =+++++=                                  +==++++=
-                        =+++    +++++++                          =+==+++++  +=
-                         ===+=      +++++++=                   ++++++      +=+==
-                        == +++++        =+++++==             +++=+           ++++
-                        =++++++++++          =+++++         ++++      =++     ++==
-                         ++++++++++++++=        ==++=      +++        ++=      =+++
-                          +++=   ++++++++=++      ++=+    +++         =++++     ++=+
-                           +++=         =++++=      =++  =+=         +++==+++++   +++
-                             +=+++           ++-     ++=  +          +++     ++=++++=
-                               +=+++++==              ++=            ==+      =+=++
-                                   +==+++++++-        -++=+++=-      +++
-                                         +++=++++-     =+++++++++==   =+=
-                                              ==+=++    ++=    =++++= +++
-                                         =+++=   +++=+   ++=      ==++++=
-                                     =+++++=++=+   -+++=  =+        ++=++
-                             +++++++++++=    +++     +++++          =+++=
-                          -+++++==++++       +++       +++++        ++++     +=
-                         ++++++  ==++       =++=         ++==++          +++++++
-                       =+++++=   +++        +=+            =++++++++++++++++=+=
-               =    ++++++++    +++        +++=                =+++=+++=   +++
-                ==+++++++=+     +++       +++=                            +++
-                  ==+++=+       +++      +++=                           ++++
-                               +++     ++++                         +=+++==
-                              +++= -+++++=                          +++++
-                           =++++++++++=
-                          +++++++++
-                          +++++=
-                         ++++=
-                         +++=
-                        =+++
-                       =++=
-                       +++
+                =++=
+              ===++===
+           ===++    ++===
+         ===            ===
+       ==                  ==
+        ===++=+======+=+===+
+              ++========++
+                  ====
+                +=    +=
+               +=      =+
+              ++        ++
+             +=          =+
 '@
     Write-Host ""
     Write-Host $art -ForegroundColor Cyan
