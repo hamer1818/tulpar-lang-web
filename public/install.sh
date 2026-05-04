@@ -38,45 +38,32 @@ warn()    { printf "%s! %s%s\n" "$c_yellow" "$*" "$c_reset"; }
 # flourish" on success — same idea as Claude Code dropping its robot
 # logo at the end. Single-quoted heredoc (<<'__ART__') keeps every
 # character literal; the art uses only +/=/- so no escaping concerns.
+#
+# Derived from public/favicon.svg: the SVG was rasterized to a 40x16
+# bitmap and binarized into two ink levels (`=` for edge / `+` for
+# solid stroke). Keep the silhouette in sync with the favicon when
+# either changes, otherwise the brand identity drifts. Total height
+# is ~16 lines / ~40 cols so it fits in an 80-col terminal without
+# the wraparound the previous 37-line design suffered from.
 show_art() {
     printf "\n%s" "$c_cyan"
     cat <<'__ART__'
-                      =++
-                      +++++
-                      -=++++=+
-                       +++ =+++=                                           +=++
-                       ++++  =+++++=                                  +==++++=
-                        =+++    +++++++                          =+==+++++  +=
-                         ===+=      +++++++=                   ++++++      +=+==
-                        == +++++        =+++++==             +++=+           ++++
-                        =++++++++++          =+++++         ++++      =++     ++==
-                         ++++++++++++++=        ==++=      +++        ++=      =+++
-                          +++=   ++++++++=++      ++=+    +++         =++++     ++=+
-                           +++=         =++++=      =++  =+=         +++==+++++   +++
-                             +=+++           ++-     ++=  +          +++     ++=++++=
-                               +=+++++==              ++=            ==+      =+=++
-                                   +==+++++++-        -++=+++=-      +++
-                                         +++=++++-     =+++++++++==   =+=
-                                              ==+=++    ++=    =++++= +++
-                                         =+++=   +++=+   ++=      ==++++=
-                                     =+++++=++=+   -+++=  =+        ++=++
-                             +++++++++++=    +++     +++++          =+++=
-                          -+++++==++++       +++       +++++        ++++     +=
-                         ++++++  ==++       =++=         ++==++          +++++++
-                       =+++++=   +++        +=+            =++++++++++++++++=+=
-               =    ++++++++    +++        +++=                =+++=+++=   +++
-                ==+++++++=+     +++       +++=                            +++
-                  ==+++=+       +++      +++=                           ++++
-                               +++     ++++                         +=+++==
-                              +++= -+++++=                          +++++
-                           =++++++++++=
-                          +++++++++
-                          +++++=
-                         ++++=
-                         +++=
-                        =+++
-                       =++=
-                       +++
+              ==
+              =++=
+               ++==+==             ===++=
+               =++=  ==++=       ++=   =+=
+               =+++++===  ++=  =+    +   +=
+                =++= =====  ++ +    ++=++=+=
+                  ==++====   ++     +=   =
+                       =+=++= ++==++=+
+                  ====+==+= ++==   =++
+                +++++=   +    ++=   +===+
+            ==+++  +=   ++      ======++=
+            =++=  =+  =++           ==+=
+                 =++=+=             +=
+                +++
+               ++
+               +
 __ART__
     printf "%s" "$c_reset"
 }
