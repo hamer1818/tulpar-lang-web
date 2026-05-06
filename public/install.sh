@@ -6,8 +6,10 @@
 #
 # What this does:
 #   1. Detects OS (Linux / macOS).
-#   2. Downloads the matching binary from the latest GitHub release.
-#   3. Installs it to ~/.local/bin/tulpar (creating the dir if needed).
+#   2. Fetches SHA256SUMS.txt from the latest GitHub release and
+#      verifies every download against it.
+#   3. Installs the binary + runtime archive into ~/.local/bin (creating
+#      the dir if needed).
 #   4. Tells you how to add ~/.local/bin to PATH if it isn't already.
 #
 # Re-running this script upgrades to the latest release.
@@ -96,39 +98,132 @@ if [ -z "$tag" ]; then
 fi
 note "Son sürüm: $tag"
 
-# 3. Download the binary + runtime archive into temp files first so we
-#    never leave half-written artifacts at the install path on failure.
-download_url="https://github.com/${REPO}/releases/download/${tag}/${asset}"
-runtime_url="https://github.com/${REPO}/releases/download/${tag}/${runtime_asset}"
+# 3. Pull SHA256SUMS.txt and parse it. Format is `sha256sum -b` style:
+#    `<64 hex>  *<filename>` (binary mode) or `<64 hex>  <filename>`
+#    (text mode). When the release predates the manifest (older tags),
+#    we fall back to unverified install with a loud warning — matches
+#    the policy `tulpar update` implements on the same path.
+sums_url="https://github.com/${REPO}/releases/download/${tag}/SHA256SUMS.txt"
+manifest_file=""
+verify_enabled=0
+manifest_tmp="$(mktemp "${TMPDIR:-/tmp}/tulpar-sums.XXXXXX")"
+if curl -fsSL -o "$manifest_tmp" "$sums_url" 2>/dev/null; then
+    if [ -s "$manifest_tmp" ]; then
+        manifest_file="$manifest_tmp"
+        verify_enabled=1
+        note "Manifest doğrulaması aktif."
+    fi
+fi
+if [ "$verify_enabled" = "0" ]; then
+    rm -f "$manifest_tmp"
+    warn "SHA256SUMS.txt bulunamadı; indirmeler doğrulanmadan kurulacak."
+fi
+
+# Pick a SHA-256 implementation. macOS ships `shasum -a 256`, Linux
+# ships `sha256sum`. Both produce the same `<hex>  <name>` format.
+sha256_tool=""
+if command -v sha256sum >/dev/null 2>&1; then
+    sha256_tool="sha256sum"
+elif command -v shasum >/dev/null 2>&1; then
+    sha256_tool="shasum_a256"
+fi
+if [ "$verify_enabled" = "1" ] && [ -z "$sha256_tool" ]; then
+    warn "sha256sum / shasum bulunamadı; doğrulama atlanacak."
+    verify_enabled=0
+    rm -f "$manifest_tmp"
+    manifest_file=""
+fi
+
+# Compute SHA-256 of $1, print lowercase hex digest to stdout.
+compute_sha256() {
+    local file="$1"
+    case "$sha256_tool" in
+        sha256sum)    sha256sum "$file" | awk '{print $1}' ;;
+        shasum_a256)  shasum -a 256 "$file" | awk '{print $1}' ;;
+        *)            return 1 ;;
+    esac
+}
+
+# Look up expected hash for $1 in $manifest_file. Echoes the hash on
+# stdout, returns non-zero if not present.
+expected_sha256() {
+    local name="$1"
+    [ -n "$manifest_file" ] || return 1
+    # Match either `<hash>  <name>` or `<hash> *<name>` (binary mode).
+    awk -v want="$name" '
+        /^[0-9a-fA-F]{64}[[:space:]]+\*?[^[:space:]]/ {
+            n = $0; sub(/^[0-9a-fA-F]{64}[[:space:]]+\*?/, "", n);
+            if (n == want) { print $1; found=1; exit 0 }
+        }
+        END { if (!found) exit 1 }
+    ' "$manifest_file"
+}
+
+# Download a release asset to $1 and verify its hash. Bail on any
+# mismatch so we never stage a corrupted file into the install dir.
+download_verified() {
+    local dest="$1"
+    local name="$2"
+    local url="https://github.com/${REPO}/releases/download/${tag}/${name}"
+    if ! curl -fsSL -o "$dest" "$url"; then
+        echo "İndirme başarısız: $url" >&2
+        return 1
+    fi
+    if [ "$verify_enabled" = "1" ]; then
+        local want
+        want="$(expected_sha256 "$name")" || {
+            echo "Manifest'te yok: $name" >&2
+            return 1
+        }
+        local got
+        got="$(compute_sha256 "$dest")" || return 1
+        if [ "$got" != "$want" ]; then
+            echo "SHA-256 uyuşmazlığı: $name" >&2
+            echo "  beklenen: $want" >&2
+            echo "  bulunan : $got"  >&2
+            return 1
+        fi
+    fi
+    return 0
+}
+
+# 4. Download the binary + runtime archive into staging files. We swap
+#    them into place only after every download has been verified, so a
+#    failed integrity check leaves the existing install untouched.
 mkdir -p "$INSTALL_DIR"
 tmp_bin="$(mktemp "${TMPDIR:-/tmp}/tulpar.XXXXXX")"
 tmp_lib="$(mktemp "${TMPDIR:-/tmp}/tulpar-rt.XXXXXX")"
-trap 'rm -f "$tmp_bin" "$tmp_lib"' EXIT
+trap 'rm -f "$tmp_bin" "$tmp_lib" "$manifest_tmp"' EXIT
 
-step "İndiriliyor: $download_url"
-curl -fsSL "$download_url" -o "$tmp_bin" \
-    || { echo "Binary indirme başarısız." >&2; exit 1; }
+step "İndiriliyor: $asset"
+if ! download_verified "$tmp_bin" "$asset"; then
+    exit 1
+fi
 
 # The runtime archive is consumed only by `tulpar build` / AOT, so a
 # missing asset is non-fatal for `tulpar --vm` users — but every
 # release since v2.1.0.x ships it. Warn loudly and continue if the
 # server returns 404 so older releases can still be installed.
-step "Runtime kütüphanesi indiriliyor: $runtime_url"
-if curl -fsSL "$runtime_url" -o "$tmp_lib"; then
+step "Runtime kütüphanesi indiriliyor: $runtime_asset"
+if download_verified "$tmp_lib" "$runtime_asset"; then
     install_runtime=1
 else
-    warn "Runtime kütüphanesi bulunamadı; sadece VM modu kullanılabilir olacak."
+    warn "Runtime kütüphanesi indirilemedi veya doğrulanamadı; sadece VM modu kullanılabilir olacak."
     install_runtime=0
 fi
 
+# 5. Stage → install. POSIX rename is atomic and works while the file
+#    is open (Linux/macOS reference files by inode) so we don't need
+#    the rename-to-.old dance Windows requires.
 chmod +x "$tmp_bin"
 mv -f "$tmp_bin" "$BINARY_PATH"
 if [ "$install_runtime" = "1" ]; then
     mv -f "$tmp_lib" "$RUNTIME_PATH"
 fi
+rm -f "$manifest_tmp"
 trap - EXIT
 
-# 4. PATH advice. We don't auto-modify shell rc files — too easy to corrupt
+# 6. PATH advice. We don't auto-modify shell rc files — too easy to corrupt
 #    them and too easy to surprise the user. Just print the line they need.
 case ":${PATH}:" in
     *":${INSTALL_DIR}:"*)
@@ -147,6 +242,9 @@ echo ""
 success "TulparLang $tag kuruldu → $BINARY_PATH"
 if [ "$install_runtime" = "1" ]; then
     note "Runtime kütüphanesi → $RUNTIME_PATH"
+fi
+if [ "$verify_enabled" = "1" ]; then
+    note "Tüm indirmeler SHA256SUMS.txt ile doğrulandı."
 fi
 show_art
 echo ""

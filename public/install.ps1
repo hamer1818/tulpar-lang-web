@@ -5,8 +5,11 @@
 #
 # What this does:
 #   1. Queries the latest GitHub release.
-#   2. Downloads tulpar-windows-x64.exe to %LOCALAPPDATA%\Programs\Tulpar\tulpar.exe.
-#   3. Adds that directory to the user-level PATH (no admin required).
+#   2. Fetches SHA256SUMS.txt and verifies every download against it.
+#   3. Downloads tulpar-windows-x64.exe + libtulpar_runtime-windows-x64.a +
+#      the three MinGW runtime DLLs (libwinpthread-1.dll, zlib1.dll,
+#      libzstd.dll) into %LOCALAPPDATA%\Programs\Tulpar\.
+#   4. Adds that directory to the user-level PATH (no admin required).
 #
 # Re-running this script upgrades the installed tulpar to the latest release.
 #
@@ -36,6 +39,17 @@ try {
 $Repo            = 'hamer1818/TulparLang'
 $AssetName       = 'tulpar-windows-x64.exe'
 $RuntimeAssetName = 'libtulpar_runtime-windows-x64.a'
+# MinGW / LLVM runtime DLLs that don't ship with stock Windows. Tulpar's
+# Inno Setup installer bundles these too (see Tulpar PR #52); the
+# one-line `iwr | iex` path used to skip them, so users who installed
+# this way still hit STATUS_DLL_NOT_FOUND on a fresh box. Listed by the
+# filename Windows expects at runtime (loaded from tulpar.exe's own
+# directory before walking PATH).
+$DllNames        = @(
+    'libwinpthread-1.dll',
+    'zlib1.dll',
+    'libzstd.dll'
+)
 $InstallDir      = Join-Path $env:LOCALAPPDATA 'Programs\Tulpar'
 $BinaryPath      = Join-Path $InstallDir 'tulpar.exe'
 # AOT (`tulpar build` and the default `tulpar file.tpr` pipeline) links
@@ -105,73 +119,181 @@ if (-not $asset) {
 # have it — leave $runtimeAsset null and skip the runtime install in
 # that case (only `tulpar build` / AOT will be unavailable then).
 $runtimeAsset = $release.assets | Where-Object { $_.name -eq $RuntimeAssetName } | Select-Object -First 1
+$dllAssets = @{}
+foreach ($n in $DllNames) {
+    $a = $release.assets | Where-Object { $_.name -eq $n } | Select-Object -First 1
+    if ($a) { $dllAssets[$n] = $a }
+}
+$sumsAsset = $release.assets | Where-Object { $_.name -eq 'SHA256SUMS.txt' } | Select-Object -First 1
 Write-Note "Son surum: $tag"
 
-# 2. Download the binary. Windows can't overwrite a running .exe, so if a
-#    previous install is on-disk we rename it out of the way first; that
-#    rename works even while the process is running, and the .old file is
-#    removed on success.
-Write-Step "Indiriliyor: $BinaryPath"
-New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
-$oldPath = "$BinaryPath.old"
-if (Test-Path $oldPath) { Remove-Item $oldPath -Force -ErrorAction SilentlyContinue }
-if (Test-Path $BinaryPath) {
-    try { Move-Item -Path $BinaryPath -Destination $oldPath -Force }
-    catch {
-        throw "Mevcut tulpar.exe tasinamadi (baska bir process tarafindan kilitleniyor olabilir): $_"
+# Probe for curl.exe once — we use it for the actual binary downloads
+# (5-10x faster than IWR even with the progress bar suppressed because
+# its HTTP stack is tighter and it doesn't materialise the response in
+# PowerShell's pipeline). IWR is the fallback for legacy systems.
+$curlExe = Get-Command curl.exe -ErrorAction SilentlyContinue
+
+# 2. Pull SHA256SUMS.txt and parse it. Each line is `<64 hex>  *<name>`
+#    (`sha256sum -b` format) or `<64 hex>  <name>` (text mode). When the
+#    release predates the manifest (older tags), we fall back to
+#    unverified install with a loud warning — matches the policy the
+#    `tulpar update` command implements on the same path.
+$expected = @{}
+$verifyEnabled = $false
+if ($sumsAsset) {
+    Write-Step "Imza listesi indiriliyor (SHA256SUMS.txt)..."
+    try {
+        $sumsResp = Invoke-WebRequest -Uri $sumsAsset.browser_download_url `
+            -UseBasicParsing -Headers @{ 'User-Agent' = 'tulpar-installer' }
+        $sumsContent = $sumsResp.Content
+        if ($sumsContent -is [byte[]]) {
+            $sumsContent = [System.Text.Encoding]::UTF8.GetString($sumsContent)
+        }
+        foreach ($line in ($sumsContent -split "`r?`n")) {
+            $line = $line.Trim()
+            if (-not $line -or $line.StartsWith('#')) { continue }
+            if ($line -match '^([0-9a-fA-F]{64})\s+\*?(.+)$') {
+                $expected[$matches[2]] = $matches[1].ToLower()
+            }
+        }
+        if ($expected.Count -gt 0) {
+            $verifyEnabled = $true
+            Write-Note "Manifest dogrulamasi aktif ($($expected.Count) dosya)."
+        }
+    } catch {
+        Write-Warn "SHA256SUMS.txt indirilemedi: $_"
     }
 }
-try {
-    # Prefer curl.exe (bundled with Windows 10 1803+ and all Windows 11)
-    # for the actual binary download — it's typically 5-10x faster than
-    # Invoke-WebRequest even with the progress bar suppressed, because it
-    # uses a tighter HTTP stack and doesn't materialise the response in
-    # PowerShell's pipeline. We fall back to IWR for older systems.
-    $curlExe = Get-Command curl.exe -ErrorAction SilentlyContinue
+if (-not $verifyEnabled) {
+    Write-Warn "Bu surumde dogrulama yapilamiyor; indirmeler dogrudan kurulacak."
+}
+
+# Helper: download a release asset to $DestPath and (when the manifest
+# is available) verify its SHA-256. Throws on any failure so the caller
+# never moves a corrupted file into the install dir.
+function Download-Verified {
+    param(
+        [string]$Url,
+        [string]$DestPath,
+        [string]$AssetName
+    )
+    if (Test-Path $DestPath) {
+        Remove-Item $DestPath -Force -ErrorAction SilentlyContinue
+    }
     if ($curlExe) {
         & curl.exe --fail --location --silent --show-error --retry 3 `
-            --output $BinaryPath $asset.browser_download_url
+            --output $DestPath $Url
         if ($LASTEXITCODE -ne 0) {
-            throw "curl.exe exit $LASTEXITCODE"
+            throw "curl.exe exit $LASTEXITCODE ($AssetName)"
         }
     } else {
-        Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $BinaryPath -UseBasicParsing
+        Invoke-WebRequest -Uri $Url -OutFile $DestPath -UseBasicParsing `
+            -Headers @{ 'User-Agent' = 'tulpar-installer' }
     }
-} catch {
-    # Restore previous on download failure so the user isn't left without a tulpar.
-    if (Test-Path $oldPath) { Move-Item -Path $oldPath -Destination $BinaryPath -Force }
-    throw "Indirme basarisiz: $_"
-}
-if (Test-Path $oldPath) { Remove-Item $oldPath -Force -ErrorAction SilentlyContinue }
-
-# 2b. Download the runtime archive next to tulpar.exe. Required for
-#     `tulpar build` / AOT; harmless to omit for `--vm` users. We
-#     download to a sibling .new file first and only swap on success
-#     so an HTTP failure can't leave a stale archive in place.
-if ($runtimeAsset) {
-    Write-Step "Runtime kutuphanesi indiriliyor: $RuntimePath"
-    $runtimeTmp = "$RuntimePath.new"
-    if (Test-Path $runtimeTmp) { Remove-Item $runtimeTmp -Force -ErrorAction SilentlyContinue }
-    try {
-        if ($curlExe) {
-            & curl.exe --fail --location --silent --show-error --retry 3 `
-                --output $runtimeTmp $runtimeAsset.browser_download_url
-            if ($LASTEXITCODE -ne 0) {
-                throw "curl.exe exit $LASTEXITCODE"
-            }
-        } else {
-            Invoke-WebRequest -Uri $runtimeAsset.browser_download_url -OutFile $runtimeTmp -UseBasicParsing
+    if ($verifyEnabled) {
+        if (-not $expected.ContainsKey($AssetName)) {
+            throw "Manifest'te yok: $AssetName"
         }
-        Move-Item -Path $runtimeTmp -Destination $RuntimePath -Force
-    } catch {
-        if (Test-Path $runtimeTmp) { Remove-Item $runtimeTmp -Force -ErrorAction SilentlyContinue }
-        Write-Warn "Runtime kutuphanesi indirilemedi (sadece VM modu calisir): $_"
+        $want   = $expected[$AssetName]
+        $actual = (Get-FileHash -Path $DestPath -Algorithm SHA256).Hash.ToLower()
+        if ($actual -ne $want) {
+            throw "SHA-256 uyusmazligi: $AssetName`n  beklenen: $want`n  bulunan : $actual"
+        }
     }
+}
+
+# Helper: move $SrcPath into place at $DestPath. For files Windows holds
+# open while tulpar.exe runs (the exe itself + any of its loaded DLLs)
+# we rename the existing file to .old first — Windows allows
+# rename-while-loaded but rejects overwrite-while-loaded. Same dance as
+# `tulpar update` uses; mirrored here so the one-line installer stays
+# robust if the user re-runs it while another tulpar.exe process holds
+# the directory open.
+function Install-FileAtomic {
+    param(
+        [string]$SrcPath,
+        [string]$DestPath,
+        [bool]$LoadLocked
+    )
+    if ($LoadLocked) {
+        $oldPath = "$DestPath.old"
+        if (Test-Path $oldPath) {
+            Remove-Item $oldPath -Force -ErrorAction SilentlyContinue
+        }
+        if (Test-Path $DestPath) {
+            try { Move-Item -Path $DestPath -Destination $oldPath -Force }
+            catch {
+                throw "Mevcut dosya .old olarak tasinamadi ($DestPath): $_"
+            }
+        }
+    }
+    Move-Item -Path $SrcPath -Destination $DestPath -Force
+    if ($LoadLocked) {
+        # Best-effort cleanup; harmless if still mapped (we'll get it
+        # next run).
+        if (Test-Path "$DestPath.old") {
+            Remove-Item "$DestPath.old" -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+# 3. Download every artifact into a per-tag staging dir under TEMP and
+#    verify each one BEFORE touching the install dir. A failed
+#    verification here aborts cleanly — we never partial-install.
+$staging = Join-Path $env:TEMP ("tulpar-install-" + ($tag -replace '[^A-Za-z0-9_.-]','_'))
+New-Item -ItemType Directory -Path $staging -Force | Out-Null
+New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
+
+Write-Step "Indiriliyor: $($asset.name)"
+$stagedBin = Join-Path $staging $asset.name
+Download-Verified -Url $asset.browser_download_url -DestPath $stagedBin -AssetName $asset.name
+
+if ($runtimeAsset) {
+    Write-Step "Runtime kutuphanesi indiriliyor: $($runtimeAsset.name)"
+    $stagedRt = Join-Path $staging $runtimeAsset.name
+    Download-Verified -Url $runtimeAsset.browser_download_url -DestPath $stagedRt -AssetName $runtimeAsset.name
 } else {
     Write-Warn "Runtime kutuphanesi bu surumde yok; sadece VM modu kullanilabilir."
+    $stagedRt = $null
 }
 
-# 3. Wire the install dir into the user PATH if it isn't already there.
+$stagedDlls = @{}
+$missingDlls = @()
+foreach ($n in $DllNames) {
+    if ($dllAssets.ContainsKey($n)) {
+        Write-Step "DLL indiriliyor: $n"
+        $stagedDlls[$n] = Join-Path $staging $n
+        Download-Verified -Url $dllAssets[$n].browser_download_url -DestPath $stagedDlls[$n] -AssetName $n
+    } else {
+        $missingDlls += $n
+    }
+}
+if ($missingDlls.Count -gt 0) {
+    Write-Warn "Bu surumde bazi DLL'ler yok: $($missingDlls -join ', ')"
+    Write-Note "Eski bir release'den kurum yapiyorsunuz; daha yeni bir release'e gecmek icin tekrar deneyin."
+}
+
+# 4. Place verified files into the install dir. Order: tulpar.exe first
+#    (so a failure here aborts before we touch the runtime archive); DLLs
+#    next; runtime archive last (it's not load-locked, fast to swap).
+Write-Step "Yerlestiriliyor: $InstallDir"
+Install-FileAtomic -SrcPath $stagedBin -DestPath $BinaryPath -LoadLocked $true
+Write-Note "  + tulpar.exe"
+foreach ($n in $DllNames) {
+    if ($stagedDlls.ContainsKey($n)) {
+        Install-FileAtomic -SrcPath $stagedDlls[$n] -DestPath (Join-Path $InstallDir $n) -LoadLocked $true
+        Write-Note "  + $n"
+    }
+}
+if ($stagedRt) {
+    Install-FileAtomic -SrcPath $stagedRt -DestPath $RuntimePath -LoadLocked $false
+    Write-Note "  + libtulpar_runtime.a"
+}
+
+# Cleanup staging dir (best effort — leftover files are harmless).
+try { Remove-Item $staging -Recurse -Force -ErrorAction SilentlyContinue } catch {}
+
+# 5. Wire the install dir into the user PATH if it isn't already there.
 #    We deliberately use the User scope (no admin needed) and update the
 #    persistent registry value AND the current-session $env:Path so the
 #    user can immediately run `tulpar` without restarting their terminal.
@@ -187,7 +309,7 @@ if ($entries -notcontains $InstallDir) {
     Write-Step "PATH zaten ayarli."
 }
 
-# 4. Smoke test.
+# 6. Smoke test.
 $version = & $BinaryPath --version 2>$null
 if (-not $version) { $version = $tag }
 
@@ -195,6 +317,9 @@ Write-Host ""
 Write-Success "TulparLang $tag kuruldu -> $BinaryPath"
 if (Test-Path $RuntimePath) {
     Write-Note "Runtime kutuphanesi -> $RuntimePath"
+}
+if ($verifyEnabled) {
+    Write-Note "Tum indirmeler SHA256SUMS.txt ile dogrulandi."
 }
 Show-TulparArt
 Write-Host ""
