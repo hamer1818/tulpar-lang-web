@@ -39,16 +39,24 @@ try {
 $Repo            = 'hamer1818/TulparLang'
 $AssetName       = 'tulpar-windows-x64.exe'
 $RuntimeAssetName = 'libtulpar_runtime-windows-x64.a'
-# MinGW / LLVM runtime DLLs that don't ship with stock Windows. Tulpar's
-# Inno Setup installer bundles these too (see Tulpar PR #52); the
-# one-line `iwr | iex` path used to skip them, so users who installed
-# this way still hit STATUS_DLL_NOT_FOUND on a fresh box. Listed by the
-# filename Windows expects at runtime (loaded from tulpar.exe's own
-# directory before walking PATH).
+# Non-system DLLs Tulpar's Windows binary loads at startup. Tulpar's
+# Inno Setup installer bundles the same set; the one-line `iwr | iex`
+# path used to skip them, so users who installed this way hit
+# STATUS_DLL_NOT_FOUND on a fresh box. Listed by the filename Windows
+# expects at runtime (loaded from tulpar.exe's own directory before
+# walking PATH).
+#   * libwinpthread-1.dll, zlib1.dll, libzstd.dll — MinGW + LLVM
+#     transitive deps (PR #52, PR #54).
+#   * libssl-3-x64.dll, libcrypto-3-x64.dll — OpenSSL 3, linked into
+#     tulpar.exe so `tulpar update`, `tulpar pkg install`, and
+#     `http_client` can talk HTTPS. Discovered missing on a fresh
+#     Win10 box where the binary refused to start at all.
 $DllNames        = @(
     'libwinpthread-1.dll',
     'zlib1.dll',
-    'libzstd.dll'
+    'libzstd.dll',
+    'libssl-3-x64.dll',
+    'libcrypto-3-x64.dll'
 )
 $InstallDir      = Join-Path $env:LOCALAPPDATA 'Programs\Tulpar'
 $BinaryPath      = Join-Path $InstallDir 'tulpar.exe'
@@ -338,9 +346,65 @@ if ($entries -notcontains $InstallDir) {
     Write-Step "PATH zaten ayarli."
 }
 
-# 6. Smoke test.
-$version = & $BinaryPath --version 2>$null
-if (-not $version) { $version = $tag }
+# 6. Smoke test — actually verify the installed binary loads. The old
+#    version of this block did `& $BinaryPath --version 2>$null` and
+#    fell back to `$tag` on empty output, which silently masked
+#    STATUS_DLL_NOT_FOUND: a fresh Windows box without the right MinGW
+#    DLLs would print "kuruldu" while the binary couldn't even start.
+#    Now we capture stdout+stderr, check the exit code, and decode the
+#    well-known NTSTATUS values. Failure here aborts loudly so the user
+#    knows to re-run / file a report instead of sitting on a broken
+#    install. We don't try to repair — the install dir is already in
+#    place and our caller can re-run the same one-liner.
+Write-Step "Kurulum dogrulaniyor (smoke test)..."
+$smokeOutput = ''
+$smokeExit   = 0
+try {
+    $smokeOutput = & $BinaryPath --version 2>&1 | Out-String
+    $smokeExit   = $LASTEXITCODE
+} catch {
+    # `& $exe` throws when the OS refuses to launch the process at all
+    # (e.g. STATUS_DLL_NOT_FOUND on systems where ntdll's loader fails
+    # before we can attach the standard streams). Surface the underlying
+    # exception so the user sees it.
+    $smokeOutput = "$_"
+    $smokeExit   = -1
+}
+$smokeText = $smokeOutput.Trim()
+
+# NTSTATUS values surfaced as PowerShell exit codes (high bit makes
+# them negative as signed int32):
+#   0xC0000135 = -1073741515  STATUS_DLL_NOT_FOUND
+#   0xC0000139 = -1073741511  STATUS_ENTRYPOINT_NOT_FOUND
+#   0xC000007B = -1073741701  STATUS_INVALID_IMAGE_FORMAT
+$ntDetail = switch ($smokeExit) {
+    -1073741515 { 'STATUS_DLL_NOT_FOUND (0xC0000135) — bir DLL eksik / yuklenemedi.' }
+    -1073741511 { 'STATUS_ENTRYPOINT_NOT_FOUND (0xC0000139) — bir DLL eski surum.' }
+    -1073741701 { 'STATUS_INVALID_IMAGE_FORMAT (0xC000007B) — 32/64-bit uyumsuzluk.' }
+    default     { $null }
+}
+
+if ($smokeExit -ne 0 -or [string]::IsNullOrWhiteSpace($smokeText)) {
+    Write-Host ""
+    Write-Warn "tulpar.exe baslatilamadi."
+    if ($ntDetail) {
+        Write-Host "  Hata: $ntDetail" -ForegroundColor Red
+    } else {
+        Write-Host "  Cikis kodu: $smokeExit" -ForegroundColor Red
+    }
+    if ($smokeText) {
+        Write-Host "  Cikti: $smokeText" -ForegroundColor DarkGray
+    }
+    Write-Host ""
+    Write-Host "Bu kurulum bozuk: ikili dosya yuklendi ama acilmiyor." -ForegroundColor Yellow
+    Write-Host "Cozum onerileri:" -ForegroundColor Yellow
+    Write-Host "  * Komutu yeniden calistirin (eksik bir indirme olmus olabilir)."
+    Write-Host "  * Sorun devam ederse github.com/hamer1818/TulparLang/issues"
+    Write-Host "    adresine bu cikis kodunu ($smokeExit) ile birlikte rapor edin."
+    throw "Kurulum dogrulamasi basarisiz."
+}
+
+$version = $smokeText
 
 Write-Host ""
 Write-Success "TulparLang $tag kuruldu -> $BinaryPath"

@@ -238,6 +238,31 @@ case ":${PATH}:" in
         ;;
 esac
 
+# Smoke test — actually verify the binary loads. Surfaces missing
+# shared libraries (libssl.so.3, glibc version skew, ...) instead of
+# letting the user discover them on their first `tulpar` invocation.
+# Failure aborts loudly so the user knows the install is broken.
+step "Kurulum doğrulanıyor (smoke test)..."
+smoke_output=$("$BINARY_PATH" --version 2>&1) || smoke_exit=$?
+smoke_exit=${smoke_exit:-0}
+if [ "$smoke_exit" -ne 0 ] || [ -z "$smoke_output" ]; then
+    echo ""
+    warn "tulpar başlatılamadı."
+    if [ "$smoke_exit" -ne 0 ]; then
+        echo "  Çıkış kodu: $smoke_exit" >&2
+    fi
+    if [ -n "$smoke_output" ]; then
+        echo "  Çıktı: $smoke_output" >&2
+    fi
+    echo "" >&2
+    echo "Bu kurulum bozuk: ikili dosya yüklendi ama açılmıyor." >&2
+    echo "Olası sebep: eksik sistem kütüphanesi (libssl.so.3, glibc sürüm)." >&2
+    echo "  * Linux: dağıtım paket yöneticinizle openssl/libssl3 yükleyin." >&2
+    echo "  * macOS: brew install openssl@3" >&2
+    echo "  * Sorun devamsa: github.com/hamer1818/TulparLang/issues" >&2
+    exit 1
+fi
+
 echo ""
 success "TulparLang $tag kuruldu → $BINARY_PATH"
 if [ "$install_runtime" = "1" ]; then
