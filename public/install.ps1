@@ -63,6 +63,35 @@ function Write-Success($msg) { Write-Host "[OK] $msg" -ForegroundColor Green }
 function Write-Note($msg)    { Write-Host "     $msg" -ForegroundColor DarkGray }
 function Write-Warn($msg)    { Write-Host "[!]  $msg" -ForegroundColor Yellow }
 
+# Compute SHA-256 of a file via the .NET BCL directly. We avoid
+# `Get-FileHash` because it's been observed to fail with
+# `CommandNotFoundException` in restricted PowerShell sessions —
+# Constrained Language Mode, AppLocker / WDAC policies, and some
+# image-locked corp builds where Microsoft.PowerShell.Utility is
+# stripped or its commands aren't whitelisted. The BCL types loaded
+# here are part of mscorlib and are always available, so this path
+# stays robust regardless of the host's cmdlet inventory.
+function Get-Sha256Hex {
+    param([string]$Path)
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $stream = [System.IO.File]::OpenRead($Path)
+        try {
+            $bytes = $sha.ComputeHash($stream)
+        } finally {
+            $stream.Dispose()
+        }
+    } finally {
+        $sha.Dispose()
+    }
+    # PS 5.1's StringBuilder is the simplest portable hex encoder.
+    $sb = New-Object System.Text.StringBuilder ($bytes.Length * 2)
+    foreach ($b in $bytes) {
+        [void]$sb.AppendFormat('{0:x2}', $b)
+    }
+    return $sb.ToString()
+}
+
 # Stylized winged-horse (Tulpar) silhouette printed as a "completion
 # flourish" on success — same idea as Claude Code dropping its robot
 # logo at the end. Single-quoted here-string keeps every character
@@ -195,7 +224,7 @@ function Download-Verified {
             throw "Manifest'te yok: $AssetName"
         }
         $want   = $expected[$AssetName]
-        $actual = (Get-FileHash -Path $DestPath -Algorithm SHA256).Hash.ToLower()
+        $actual = (Get-Sha256Hex -Path $DestPath).ToLower()
         if ($actual -ne $want) {
             throw "SHA-256 uyusmazligi: $AssetName`n  beklenen: $want`n  bulunan : $actual"
         }
