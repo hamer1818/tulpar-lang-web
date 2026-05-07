@@ -1,0 +1,245 @@
+---
+title: Dil Referansı
+description: Tulpar'ın sözdizimi, tipleri, operatörleri, kontrol akışı ve modül sistemi için tek sayfalık özet referans. Göz at veya Ctrl+F.
+---
+
+Bu sayfa, Tulpar parser'ının kabul ettiği her formun tek yerde
+toplanmış halidir. [Dil Rehberi](/tr/guide/syntax/) her konuyu
+örneklerle anlatır; burası "ne aradığımı zaten biliyorum" durumu için
+tutulan spec-vari özet.
+
+## Dosya yapısı
+
+Bir `.tpr` dosyası top-level statement'ların sıralı listesidir:
+import'lar, fonksiyon tanımları, struct (`type`) tanımları, ve
+program başlar başlamaz çalışan herhangi bir ifade veya kontrol-akışı
+statement'ı. `main()` zorunluluğu yok — top-level statement'lar kaynak
+sırasına göre çalışır.
+
+```tpr
+import "wings";          // import (yalnızca top-level)
+
+type Point {             // struct tanımı
+    int x;
+    int y;
+}
+
+func origin(): Point {   // fonksiyon tanımı
+    Point p = { x: 0, y: 0 };
+    return p;
+}
+
+print(origin());         // top-level ifade — başlangıçta çalışır
+```
+
+## Tipler
+
+| Tip            | Literal örneği                            | Notlar                                              |
+| -------------- | ----------------------------------------- | --------------------------------------------------- |
+| `int`          | `42`, `-1`, `0xff`                        | 64-bit signed.                                      |
+| `float`        | `3.14`, `2.0`, `-0.5`                     | 64-bit IEEE 754.                                    |
+| `bool`         | `true`, `false`                           |                                                     |
+| `str`          | `"merhaba"`, `"a\nb"`                     | UTF-8. Sadece çift tırnak.                          |
+| `json`         | `{"k": 1}`, `[1, 2, 3]`                   | Runtime'da object/array/scalar tagged-union.        |
+| `array<T>`     | `[1, 2, 3]`                               | `T` ∈ `int / float / str / bool / json`.            |
+| `void`         | —                                         | Sadece dönüş tipi olabilir — `void` değer yok.      |
+| `<TipAdı>`     | `Point p = { x: 1, y: 2 };`               | Kullanıcı `type` ile tanımlar.                      |
+
+`var` (tipsiz) ve `null` da rezerve. `var` tipi inferer'a bırakır,
+`null` ise atanmamış slot/değişkenin "yokluk" değeridir.
+
+## Değişkenler
+
+```tpr
+int x = 10;              // tipli, başlangıç değerli
+str name = "Hamza";
+bool flag;               // tipli, varsayılan (0 / "" / false / null)
+var n = 7;               // tip başlangıç değerinden çıkarılır
+let count = 0;           // `var` ile aynı
+```
+
+`let` ve `var` birbirinin yerine geçer — `let` "değişmeyecek" niyetini
+belirtir ama dil bunu zorunlu kılmaz.
+
+## Operatörler
+
+| Kategori    | Operatörler                                                |
+| ----------- | ---------------------------------------------------------- |
+| Aritmetik   | `+`, `-`, `*`, `/`, `%`, tekli `-`                         |
+| Karşılaş.   | `==`, `!=`, `<`, `<=`, `>`, `>=`                           |
+| Mantıksal   | `&&`, `\|\|`, tekli `!`                                    |
+| Atama       | `=`, `+=`, `-=`, `*=`, `/=`                                |
+| Artır/azalt | `x++`, `x--` (sadece statement; ifade değil)               |
+| Subscript   | `arr[i]`, `obj["key"]`, `obj.key` (`["key"]` sugar'ı)      |
+| Çağrı       | `f(args)`, `mod.func(args)` (alias'lı import)              |
+
+Öncelik (yüksekten düşüğe):
+
+1. Postfix: çağrı `(...)`, subscript `[...]`, üye `.`, artır `++`/`--`
+2. Tekli: `-`, `!`
+3. `*`, `/`, `%`
+4. `+`, `-`
+5. `<`, `<=`, `>`, `>=`
+6. `==`, `!=`
+7. `&&`
+8. `||`
+9. Atama: `=`, `+=`, ...
+
+## Kontrol akışı
+
+```tpr
+if (kosul) { ... }
+if (kosul) { ... } else if (digeri) { ... } else { ... }
+
+while (kosul) { ... }
+
+for (int i = 0; i < n; i = i + 1) { ... }
+// `i = i + 1` yerine `i++` ya da `i += 1` da geçerli
+
+break;       // en içteki döngüden çık
+continue;    // bir sonraki iterasyona atla
+return;      // void fonksiyondan çık
+return ifade; // değerle çık
+```
+
+`for x in koleksiyon` formu henüz yok — index ile döngü yazın.
+
+## Fonksiyonlar
+
+```tpr
+// Pozisyonel parametreler; tip isimden önce.
+func add(int a, int b): int {
+    return a + b;
+}
+
+// Dönüş tipi yoksa = void (veya json döndürürseniz json).
+func greet(str name) {
+    print("Merhaba, " + name);
+}
+
+// Recursive çağrılar destekleniyor (forward reference otomatik çözülür).
+func fib(int n): int {
+    if (n <= 1) { return n; }
+    return fib(n - 1) + fib(n - 2);
+}
+```
+
+`call("name")` ile isimle çağrı yapılır; router / handler tablolarında
+işe yarar.
+
+## Struct (`type`)
+
+```tpr
+type Point {
+    int x;
+    int y;
+}
+
+// Literal başlangıç.
+Point p = { x: 3, y: 4 };
+print(p.x);              // 3
+
+// Değer ile geçer; kopya üzerinde değiştir.
+func translate(Point p, int dx, int dy): Point {
+    Point q = { x: p.x + dx, y: p.y + dy };
+    return q;
+}
+```
+
+Struct alanlarına `.` ile erişilir (`["alan"]` sugar'ı). Struct'ta
+`==` şu an alan-bazlı (json davranışı).
+
+## JSON / array
+
+```tpr
+json o = { "name": "Hamza", "age": 24, "tags": ["admin", "user"] };
+print(o["name"]);                // "Hamza"
+print(o.tags[0]);                // "admin"
+o["age"] = 25;                   // değiştir
+o["yeni_alan"] = true;           // ekle
+push(o.tags, "verified");        // yardımcı builtin
+
+// Array:
+array<int> nums = [1, 2, 3];
+push(nums, 4);
+int n = length(nums);            // 4
+```
+
+`json` runtime tagged-union'dur — aynı değer bir object, array, string,
+sayı veya null olabilir.
+
+## Modüller ve import
+
+```tpr
+import "wings";              // tüm top-level fonksiyonları scope'a getirir
+import "wings" as w;         // namespace'li — `w.listen(...)` ya da `w__listen(...)`
+import "./local/util.tpr";   // path import (kaynağa göre relative)
+```
+
+Çözüm sırası: literal path → `path.tpr` →
+`tulpar_modules/<name>/<name>.tpr` → `tulpar_modules/<name>.tpr` →
+embedded stdlib. Lockfile + sürüm spesleri için
+[Paket Yöneticisi](/tr/ecosystem/package-manager/) sayfasına bakın.
+
+## Hata yönetimi
+
+```tpr
+try {
+    riskli();
+} catch (e) {
+    print("hata: " + toString(e));
+} finally {
+    temizle();
+}
+
+throw "hata mesajı";
+throw {"code": 500, "msg": "patladı"};
+```
+
+`catch (e)` fırlatılan değeri `e`'ye bağlar (json olarak). `finally`
+yakalanmamış throw'da bile çalışır.
+
+## Yorumlar
+
+```tpr
+// Tek satır — satır sonuna kadar.
+/* Blok yorum — iç içe geçmez. */
+```
+
+## Rezerve edilmiş anahtar kelimeler
+
+```
+break       catch       continue    do          else        false
+finally     for         func        if          import      in
+let         null        return      throw       true        try
+type        var         void        while
+```
+
+Tip-adı keyword'leri (`int`, `float`, `str`, `bool`, `json`, `array`)
+de tip olarak kullanıldığında rezervedir; identifier içinde
+underscore ile geçebilir (`int_value`, `array_size`).
+
+## CLI özet tablosu
+
+| Komut                          | Etki                                                       |
+| ------------------------------ | ---------------------------------------------------------- |
+| `tulpar foo.tpr`               | AOT derle + çalıştır, hata olursa VM'e düşer.              |
+| `tulpar --vm foo.tpr`          | Bytecode VM — hızlı başlangıç, yavaş steady-state.         |
+| `tulpar build foo.tpr [out]`   | Standalone native binary.                                  |
+| `tulpar --repl`                | İnteraktif prompt (VM destekli).                           |
+| `tulpar fmt foo.tpr [-w]`      | Kaynak formatlayıcı.                                       |
+| `tulpar pkg <subcmd>`          | Paket yöneticisi — bkz. [Paket Yöneticisi](/tr/ecosystem/package-manager/). |
+| `tulpar --lsp`                 | stdio üzerinde LSP server (editör eklentileri kullanır).   |
+| `tulpar typecheck foo.tpr`     | Standalone tip kontrolcüsü (build pre-pass olarak da çalışır). |
+| `tulpar update [--check]`      | Resmi sürümden self-update.                                |
+
+Tam CLI referansı (env değişkenleri dahil)
+[CLI Referansı](/tr/reference/cli/) sayfasında.
+
+## Bu sayfa rehberden nasıl ayrılır
+
+[Dil Rehberi](/tr/guide/syntax/) aynı yüzeyi çalıştırılabilir
+örneklerle ve motivasyonla anlatır; burası başka bir sekmede açık
+tuttuğun lookup tablosu. Burada bir şey yanlış görünüyorsa rehber
+sayfaları ve kaynak (`src/parser/parser.cpp` + `src/lexer/lexer.cpp`)
+kesin cevaptır.
