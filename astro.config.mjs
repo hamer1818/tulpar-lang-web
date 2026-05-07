@@ -98,6 +98,7 @@ export default defineConfig({
 					label: 'Reference',
 					translations: { tr: 'Referans' },
 					items: [
+						{ label: "Language Reference", translations: { tr: "Dil Referansı" }, slug: "reference/language" },
 						{ label: 'CLI Reference', translations: { tr: 'CLI Referansı' }, slug: 'reference/cli' },
 					],
 				},
