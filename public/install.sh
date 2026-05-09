@@ -74,6 +74,44 @@ echo ""
 printf "%sTulparLang installer%s\n" "$c_cyan" "$c_reset"
 echo "===================="
 
+# 0. Pre-flight detection — surface whether tulpar is already on this
+#    box BEFORE we hit the network. The user sees "fresh install" vs
+#    "upgrading X.Y.Z" in the very first few lines, so re-running the
+#    one-liner is never a silent action. We probe two locations: the
+#    install dir we'd write to (so a previous run of this same
+#    installer is detected even when not on PATH), and `command -v
+#    tulpar` (so a binary placed manually somewhere else still gets
+#    reported). `--version` is the source of truth for the version
+#    string.
+probe_tulpar_version() {
+    local p="$1"
+    [ -x "$p" ] || return 1
+    local out
+    if out="$("$p" --version 2>&1)" && [ -n "$out" ]; then
+        printf '%s' "$out"
+        return 0
+    fi
+    printf '%s' '<bilinmeyen sürüm>'
+}
+
+existing_path=""
+existing_version=""
+if [ -x "$BINARY_PATH" ]; then
+    existing_path="$BINARY_PATH"
+    existing_version="$(probe_tulpar_version "$BINARY_PATH")"
+elif command -v tulpar >/dev/null 2>&1; then
+    existing_path="$(command -v tulpar)"
+    existing_version="$(probe_tulpar_version "$existing_path")"
+fi
+if [ -n "$existing_path" ]; then
+    step "Mevcut TulparLang tespit edildi"
+    note "Konum: $existing_path"
+    note "Sürüm: $existing_version"
+    note "Bu kurulum mevcut sürümü son release ile değiştirecek."
+else
+    step "TulparLang sistemde bulunamadı — yeni kurulum yapılacak"
+fi
+
 # 1. Detect OS / asset name. Only x64 / universal builds are published.
 case "$(uname -s)" in
     Linux)  asset="tulpar-linux-x64";       runtime_asset="libtulpar_runtime-linux-x64.a" ;;
