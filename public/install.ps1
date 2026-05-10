@@ -6,10 +6,14 @@
 # What this does:
 #   1. Queries the latest GitHub release.
 #   2. Fetches SHA256SUMS.txt and verifies every download against it.
-#   3. Downloads tulpar-windows-x64.exe + libtulpar_runtime-windows-x64.a +
+#   3. (Optional) If `gpg` is available (Git for Windows ships it) AND the
+#      TulparLang Release public key is already in your keyring, verifies
+#      the manifest's detached signature (SHA256SUMS.txt.asc) too. Skipped
+#      silently otherwise — SHA-256 verification is unaffected.
+#   4. Downloads tulpar-windows-x64.exe + libtulpar_runtime-windows-x64.a +
 #      the three MinGW runtime DLLs (libwinpthread-1.dll, zlib1.dll,
 #      libzstd.dll) into %LOCALAPPDATA%\Programs\Tulpar\.
-#   4. Adds that directory to the user-level PATH (no admin required).
+#   5. Adds that directory to the user-level PATH (no admin required).
 #
 # Re-running this script upgrades the installed tulpar to the latest release.
 #
@@ -203,6 +207,57 @@ if ($sumsAsset) {
 }
 if (-not $verifyEnabled) {
     Write-Warn "Bu surumde dogrulama yapilamiyor; indirmeler dogrudan kurulacak."
+}
+
+# Optional GPG verification of SHA256SUMS.txt. Strictly additive: SHA-256
+# still gates each downloaded asset. This block only adds a stronger
+# attestation that the manifest itself is authentic.
+#
+# We deliberately don't auto-import the public key — if the key isn't
+# already in the local keyring, "imza gecerli" would be meaningless
+# because both files would have come over the same channel. Users who
+# want this layer import the key out-of-band:
+#   curl -fsSL https://raw.githubusercontent.com/hamer1818/TulparLang/main/release-public.asc | gpg --import
+$TulparReleaseKeyFp = "CE5C22BDEA6158BC82213A7E439641B30E8DFDEE"
+$gpgVerifyEnabled = $false
+$gpgExe = Get-Command gpg -ErrorAction SilentlyContinue
+if ($verifyEnabled -and $gpgExe) {
+    $ascAsset = $release.assets | Where-Object { $_.name -eq 'SHA256SUMS.txt.asc' } | Select-Object -First 1
+    if ($ascAsset) {
+        $sumsTmp = New-TemporaryFile
+        $ascTmp  = New-TemporaryFile
+        try {
+            # Persist both files for gpg --verify to read off disk; in-memory
+            # piping is fragile across PS / Git-Bash gpg invocations.
+            [System.IO.File]::WriteAllText($sumsTmp.FullName, $sumsContent, [System.Text.UTF8Encoding]::new($false))
+            $ascResp = Invoke-WebRequest -Uri $ascAsset.browser_download_url `
+                -UseBasicParsing -Headers @{ 'User-Agent' = 'tulpar-installer' }
+            $ascContent = $ascResp.Content
+            if ($ascContent -is [byte[]]) {
+                $ascContent = [System.Text.Encoding]::UTF8.GetString($ascContent)
+            }
+            [System.IO.File]::WriteAllText($ascTmp.FullName, $ascContent, [System.Text.UTF8Encoding]::new($false))
+            $gpgOut = & $gpgExe.Source --status-fd 1 --verify $ascTmp.FullName $sumsTmp.FullName 2>&1
+            $gpgText = ($gpgOut | Out-String)
+            if ($gpgText -match "VALIDSIG\s+$TulparReleaseKeyFp") {
+                $gpgVerifyEnabled = $true
+                Write-Note "GPG imzasi dogrulandi (anahtar $TulparReleaseKeyFp)."
+            } elseif ($gpgText -match "NO_PUBKEY") {
+                Write-Warn "GPG anahtari yerel keyring'de yok; release-public.asc'i import edip yeniden calistirin."
+            } elseif ($gpgText -match "GOODSIG") {
+                Write-Warn "GPG imzasi gecerli ama beklenen TulparLang Release anahtarindan degil."
+            } else {
+                Write-Warn "GPG dogrulamasi basarisiz; SHA-256 ile devam edilecek."
+            }
+        } catch {
+            Write-Warn "GPG dogrulamasi sirasinda hata: $_"
+        } finally {
+            Remove-Item $sumsTmp.FullName -Force -ErrorAction SilentlyContinue
+            Remove-Item $ascTmp.FullName -Force -ErrorAction SilentlyContinue
+        }
+    }
+} elseif ($verifyEnabled -and -not $gpgExe) {
+    Write-Note "GPG bulunamadi; SHA-256 dogrulamasi yine de uygulanacak. Daha guclu dogrulama icin gpg yukleyin (Git for Windows ile gelir)."
 }
 
 # Helper: download a release asset to $DestPath and (when the manifest
@@ -412,7 +467,11 @@ if (Test-Path $RuntimePath) {
     Write-Note "Runtime kutuphanesi -> $RuntimePath"
 }
 if ($verifyEnabled) {
-    Write-Note "Tum indirmeler SHA256SUMS.txt ile dogrulandi."
+    if ($gpgVerifyEnabled) {
+        Write-Note "Tum indirmeler SHA256SUMS.txt ile dogrulandi (manifest GPG imzali)."
+    } else {
+        Write-Note "Tum indirmeler SHA256SUMS.txt ile dogrulandi."
+    }
 }
 Show-TulparArt
 Write-Host ""

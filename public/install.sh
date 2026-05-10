@@ -8,9 +8,13 @@
 #   1. Detects OS (Linux / macOS).
 #   2. Fetches SHA256SUMS.txt from the latest GitHub release and
 #      verifies every download against it.
-#   3. Installs the binary + runtime archive into ~/.local/bin (creating
+#   3. (Optional) If `gpg` is available AND the TulparLang Release public
+#      key is already in your keyring, verifies the manifest's detached
+#      signature (SHA256SUMS.txt.asc) too. Skipped silently otherwise —
+#      SHA-256 verification is unaffected.
+#   4. Installs the binary + runtime archive into ~/.local/bin (creating
 #      the dir if needed).
-#   4. Tells you how to add ~/.local/bin to PATH if it isn't already.
+#   5. Tells you how to add ~/.local/bin to PATH if it isn't already.
 #
 # Re-running this script upgrades to the latest release.
 
@@ -132,6 +136,39 @@ if [ "$verify_enabled" = "1" ] && [ -z "$sha256_tool" ]; then
     verify_enabled=0
     rm -f "$manifest_tmp"
     manifest_file=""
+fi
+
+# Optional GPG verification of SHA256SUMS.txt. Strictly additive: the
+# SHA-256 manifest gates every download regardless. This step only adds
+# a stronger attestation that the manifest itself is authentic — useful
+# when the user already trusts the release-signing key.
+#
+# We do NOT auto-import the public key. If the key isn't already in the
+# local keyring, "imza geçerli" would mean nothing because the script
+# could be downloading a forged key over the same channel as everything
+# else. Users who want this layer import the key out-of-band:
+#   curl -fsSL https://raw.githubusercontent.com/hamer1818/TulparLang/main/release-public.asc | gpg --import
+TULPAR_RELEASE_KEY_FP="CE5C22BDEA6158BC82213A7E439641B30E8DFDEE"
+gpg_verify_enabled=0
+if [ "$verify_enabled" = "1" ] && command -v gpg >/dev/null 2>&1; then
+    asc_url="https://github.com/${REPO}/releases/download/${tag}/SHA256SUMS.txt.asc"
+    asc_tmp="$(mktemp "${TMPDIR:-/tmp}/tulpar-sums.asc.XXXXXX")"
+    if curl -fsSL -o "$asc_tmp" "$asc_url" 2>/dev/null && [ -s "$asc_tmp" ]; then
+        gpg_out="$(gpg --status-fd 1 --verify "$asc_tmp" "$manifest_file" 2>/dev/null || true)"
+        if echo "$gpg_out" | grep -q "VALIDSIG ${TULPAR_RELEASE_KEY_FP}"; then
+            gpg_verify_enabled=1
+            note "GPG imzası doğrulandı (anahtar ${TULPAR_RELEASE_KEY_FP})."
+        elif echo "$gpg_out" | grep -q "NO_PUBKEY"; then
+            warn "GPG anahtarı yerel keyring'de yok; release-public.asc'i import edip yeniden çalıştırın."
+        elif echo "$gpg_out" | grep -q "GOODSIG"; then
+            warn "GPG imzası geçerli ama beklenen TulparLang Release anahtarından değil."
+        else
+            warn "GPG doğrulaması başarısız; SHA-256 ile devam edilecek."
+        fi
+    fi
+    rm -f "$asc_tmp"
+elif [ "$verify_enabled" = "1" ]; then
+    note "GPG bulunamadı; SHA-256 doğrulaması yine de uygulanacak. Daha güçlü doğrulama için gpg yükleyin."
 fi
 
 # Compute SHA-256 of $1, print lowercase hex digest to stdout.
@@ -269,7 +306,11 @@ if [ "$install_runtime" = "1" ]; then
     note "Runtime kütüphanesi → $RUNTIME_PATH"
 fi
 if [ "$verify_enabled" = "1" ]; then
-    note "Tüm indirmeler SHA256SUMS.txt ile doğrulandı."
+    if [ "$gpg_verify_enabled" = "1" ]; then
+        note "Tüm indirmeler SHA256SUMS.txt ile doğrulandı (manifest GPG imzalı)."
+    else
+        note "Tüm indirmeler SHA256SUMS.txt ile doğrulandı."
+    fi
 fi
 show_art
 echo ""
