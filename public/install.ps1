@@ -139,6 +139,46 @@ Write-Host ""
 Write-Host "TulparLang installer" -ForegroundColor Cyan
 Write-Host "===================="
 
+# 0. Pre-flight detection — surface whether tulpar is already on this
+#    box BEFORE we hit the network. The user sees "fresh install" vs
+#    "upgrading X.Y.Z" in the very first few lines, so re-running the
+#    one-liner is never a silent action. We probe two locations: the
+#    install dir we'd write to (so a previous run of this same
+#    installer is detected even when not on PATH), and `where tulpar`
+#    (so a binary placed manually somewhere else still gets reported).
+#    `--version` resolves through the binary's own console setup and
+#    is the source of truth for the installed version string.
+function Probe-InstalledTulpar {
+    param([string]$Path)
+    if (-not (Test-Path $Path)) { return $null }
+    try {
+        $out = & $Path --version 2>&1 | Out-String
+        if ($LASTEXITCODE -eq 0) { return $out.Trim() }
+    } catch {}
+    return '<bilinmeyen surum>'
+}
+
+$existingPath    = $null
+$existingVersion = $null
+if (Test-Path $BinaryPath) {
+    $existingPath    = $BinaryPath
+    $existingVersion = Probe-InstalledTulpar $BinaryPath
+} else {
+    $cmd = Get-Command tulpar -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($cmd) {
+        $existingPath    = $cmd.Source
+        $existingVersion = Probe-InstalledTulpar $cmd.Source
+    }
+}
+if ($existingPath) {
+    Write-Step "Mevcut TulparLang tespit edildi"
+    Write-Note "Konum: $existingPath"
+    Write-Note "Surum: $existingVersion"
+    Write-Note "Bu kurulum mevcut surumu son release ile degistirecek."
+} else {
+    Write-Step "TulparLang sistemde bulunamadi — yeni kurulum yapilacak"
+}
+
 # 1. Find the latest release.
 Write-Step "GitHub'dan son surum sorgulaniyor..."
 $apiUrl = "https://api.github.com/repos/$Repo/releases/latest"
