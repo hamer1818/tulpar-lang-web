@@ -156,3 +156,77 @@ func download_handler() {
 `http_create_response(status, content_type, body, headers, keep_alive)`
 is the underlying primitive Wings uses internally; calling it directly
 gives you complete control over the response.
+
+## HTTPS (Wings TLS)
+
+Wings ships an HTTPS listener alongside the plain-HTTP one. Same
+handler API, same routing — only the listen call changes:
+
+```tulpar
+import "wings";
+import "wings_tls";
+
+func home() {
+    return {"message": "Hello over TLS", "secure": true};
+}
+
+get("/", "home");
+
+wings_tls(8443, "./server.crt", "./server.key");
+```
+
+That's a complete HTTPS server. Every accepted connection runs
+through `SSL_accept` → `SSL_read` → handler dispatch → `SSL_write`
+→ `SSL_shutdown`. The `SSL_CTX` is built once at startup; cert and
+key files are read at the point of `wings_tls(...)`, not on every
+request.
+
+### Cert + key
+
+For local dev, generate a self-signed cert valid for a year:
+
+```bash
+openssl req -x509 -newkey rsa:2048 \
+    -keyout server.key -out server.crt \
+    -days 365 -nodes \
+    -subj "/CN=localhost" \
+    -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+```
+
+Client side, `curl --insecure https://127.0.0.1:8443/` trusts the
+self-signed cert; browsers will show a warning and let you click
+through.
+
+For production, point at your real cert chain — Let's Encrypt's
+`/etc/letsencrypt/live/<domain>/fullchain.pem` and `privkey.pem`
+are the canonical pair, and `wings_tls` reads them like any other
+PEM file:
+
+```tulpar
+wings_tls(443,
+    "/etc/letsencrypt/live/tulparlang.dev/fullchain.pem",
+    "/etc/letsencrypt/live/tulparlang.dev/privkey.pem");
+```
+
+### Build requirement
+
+`wings_tls` is OpenSSL-backed. Tulpar's `find_package(OpenSSL)`
+must have succeeded at CMake time — on Linux that means `apt
+install libssl-dev` before building, on MSYS2 Windows it's
+`pacman -S mingw-w64-x86_64-openssl`, and macOS picks it up from
+`brew install openssl`. If OpenSSL wasn't linked in, `tls_init`
+returns 0 and `wings_tls` prints an error and exits before binding
+the socket.
+
+### What's not in v1 yet
+
+- **TLS keep-alive.** Each accepted TLS connection serves one
+  request and closes. The plain-HTTP `listen()` does multi-request
+  keep-alive; the TLS path will pick that up as part of the
+  partial-read state machine work that lands alongside
+  `_wings_serve_one_request`-style splitting.
+- **Client-cert verification (mTLS).** The TLS context is
+  configured for server-auth-only today. Adding `SSL_CTX_set_verify`
+  + CA bundle loading is a small follow-up.
+- **HTTP/2 + ALPN.** The framework speaks HTTP/1.1 over TLS;
+  HTTP/2 negotiation via ALPN is a future addition.

@@ -1,0 +1,132 @@
+---
+title: Hata Ayıklayıcı
+description: VS Code ya da DAP destekli bir istemciden Tulpar kodunu adım adım çalıştır — breakpoint, stack frame, değişken inceleme.
+---
+
+Tulpar Debug Adapter Protocol (DAP) sunucusuyla geliyor: `tulpar
+debug <dosya.tpr>` stdio JSON-RPC adaptörünü açar, DAP destekli
+istemci yönlendirir. Resmi VS Code eklentisiyle birlikte tanıdık
+**Run and Debug** panelini kullanabilirsin — `.tpr` dosyasında
+breakpoint koy, F5'e bas, satır satır geç, local'leri incele;
+hepsi AOT pipeline'ının `--debug` ile yazdığı gerçek DWARF debug
+info üstüne çalışır.
+
+Arka planda: `tulpar debug` programını `--debug` ile AOT-build
+eder (tam source-level DWARF), sonra `gdb --interpreter=mi3`
+spawn eder, DAP istekleri ile gdb/MI komutları arasında çeviri
+yapar. Sonuç: gdb stabilitesi + VS Code arayüzü.
+
+## Gereksinimler
+
+- **Tulpar**, DAP sunucusu içerikli (`tulpar debug` komutu, Plan
+  07 Parça B sonrası).
+- **gdb** `PATH`'te. Linux dağıtımları gönderiyor; Windows'ta
+  MSYS2 üzerinden (`pacman -S mingw-w64-x86_64-gdb`); macOS'ta
+  `brew install gdb`. gdb yoksa adaptör `launch` üzerinde
+  structured "gdb spawn'lanamadı" hatası döner.
+- **VS Code** + [`vscode-tulpar`](https://marketplace.visualstudio.com/items?itemName=hamer1818.vscode-tulpar)
+  v0.4.0 veya üstü (ayrıca [Open VSX](https://open-vsx.org/extension/hamer1818/vscode-tulpar)
+  üzerinde).
+
+## VS Code: 30 saniyede F5
+
+1. **Tulpar** eklentisini Marketplace veya Open VSX'ten yükle.
+2. VS Code'da herhangi bir `.tpr` dosyası aç.
+3. Satır numarasının solundaki gutter'a tıklayıp breakpoint koy.
+4. **F5**'e bas (veya Command Palette'tan **`Tulpar: Debug File`**
+   komutunu çağır). Eklenti dosyayı debug info ile AOT-build
+   eder, DAP sunucusunu spawn eder, breakpoint'e ulaşır.
+
+Kalıcı bir launch config istiyorsan `.vscode/launch.json` ekle —
+eklenti **Add Configuration… → Tulpar Debug** snippet'ini sunuyor:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "tulpar",
+      "request": "launch",
+      "name": "Tulpar: Debug Active File",
+      "program": "${file}",
+      "stopOnEntry": false
+    }
+  ]
+}
+```
+
+## Şu an çalışan özellikler
+
+| DAP özelliği          | Durum  | Notlar                                                      |
+| --------------------- | :----: | ----------------------------------------------------------- |
+| Line breakpoints      |   ✅   | Gutter tıklaması veya DAP `setBreakpoints`.                 |
+| Run to completion     |   ✅   | `configurationDone` → `-exec-run` → `terminated` event.    |
+| Stop on breakpoint    |   ✅   | `*stopped,reason=breakpoint-hit` → DAP `stopped` event.    |
+| Stack trace           |   ✅   | `-stack-list-frames` → DAP `StackFrame[]` file/line ile.   |
+| Locals / parametreler |   ✅   | `-stack-list-variables --simple-values`. Yaprak değerler.   |
+| Continue              |   ✅   | `-exec-continue` → devam + `stopped`/`terminated`.          |
+| Step over             |   ✅   | `next` → `-exec-next`.                                      |
+| Step into             |   ✅   | `stepIn` → `-exec-step`.                                    |
+| Step out              |   ✅   | `stepOut` → `-exec-finish`.                                 |
+| Pause                 |   ✅   | `pause` → `-exec-interrupt` (SIGINT → `reason=pause`).      |
+| Konsol çıktısı        |   ✅   | gdb `~"..."` console + `@"..."` target → DAP `output`.      |
+| Terminate / disconnect|   ✅   | `-gdb-exit` gönderir, subprocess'i reap eder.               |
+
+## Henüz desteklenmeyenler
+
+| DAP özelliği                         | Neden ertelendi                                                  |
+| ------------------------------------ | ---------------------------------------------------------------- |
+| `evaluate` / watch                   | Per-frame expression evaluator (`-data-evaluate-expression`).   |
+| `setVariable`                        | Aynı evaluate makinesi + `-gdb-set var`.                        |
+| Conditional / log breakpoints        | `-break-insert` condition kabul ediyor; UI / wiring eksik.       |
+| Function / data / instruction breakpoints | Az kullanılan kategoriler; line breakpoint F5 akışını taşıyor. |
+| Struct / array drill-down            | Variables şu an gdb-printed string. `-var-create` per-leaf sonraki adım. |
+| `restart` request                    | VS Code şu an teardown + relaunch yapıyor; explicit `restart` ek round-trip'i atlardı. |
+
+## Adaptörü doğrudan çalıştırmak
+
+VS Code dışı bir DAP istemcisiyle entegre ediyorsan, adaptör
+şekli:
+
+```bash
+tulpar debug yol/program.tpr
+```
+
+stdin ve stdout DAP teline ait (`Content-Length: N\r\n\r\n<json>`
+framing, LSP ile aynı). Her diagnostic satır sadece stderr'e
+gider. Adaptör `initialize` üzerinde capability listesini ve
+`setBreakpoints` için hazır olduğunda `initialized` event'ini
+yayınlar.
+
+## Diagnostic + sorun giderme
+
+Adaptör her satırı stderr'e `[dap]` prefix'iyle log'lar:
+
+```
+[dap] tulpar debug adapter starting (program: hello.tpr)
+[dap] launch: building hello.tpr with debug info...
+[dap] launch: build OK, binary=hello.exe
+[dap] gdb<< (gdb)
+[dap] gdb<< 1^done,bkpt={number="1",...}
+[dap] request 'evaluate' rejected: not implemented yet
+[dap] adapter shutting down
+```
+
+Adaptörün kendisini debug ederken stderr'i bir dosyaya yönlendir
+— stdout DAP'ye ait, sızan tek bir byte framing'i bozar.
+
+## Diğer araçlarla ilişki
+
+- **`tulpar build --debug`** — LLVM IR'a `!DICompileUnit` +
+  per-function `DISubprogram` + per-statement `DILocation` +
+  per-variable `DILocalVariable` / `DIGlobalVariableExpression`
+  emit eder. Optimizer `verify` pipeline'ı (`-O0`) çalıştırır,
+  source mapping 1:1 kalır.
+- **`tulpar debug`** — DAP sunucusu. AOT pipeline'ını `--debug`
+  ile içerden çağırır, sonucu gdb'ye besler.
+- **`vscode-tulpar` eklentisi** — DAP istemci tarafı.
+  `DebugAdapterDescriptorFactory` kayıt eder, `.tpr` dosyasında
+  F5'e basıldığında `tulpar debug <program>` spawn eder.
+
+Üç parça tek DWARF emit pipeline'ını paylaşıyor; `gdb ./binary`
+`.tpr` satırlarını gösteriyorsa VS Code deneyimi de çalışıyor.

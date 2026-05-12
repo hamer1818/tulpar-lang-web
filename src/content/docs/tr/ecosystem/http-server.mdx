@@ -112,3 +112,73 @@ log_error("ödeme başarısız: " + toString(code));
 
 Wings'in kendi access log'u da bu formatı kullanır. Benchmark / production
 yolda satırı susturmak için `TULPAR_HTTP_QUIET=1`.
+
+## HTTPS (Wings TLS)
+
+Wings, plain-HTTP listener'ın yanında HTTPS listener'ı da içeriyor.
+Aynı handler API'si, aynı routing — sadece listen çağrısı değişir:
+
+```tulpar
+import "wings";
+import "wings_tls";
+
+func home() {
+    return {"message": "TLS üzerinden Merhaba", "secure": true};
+}
+
+get("/", "home");
+
+wings_tls(8443, "./server.crt", "./server.key");
+```
+
+Bu satırlar tam bir HTTPS sunucu. Her kabul edilen connection
+`SSL_accept` → `SSL_read` → handler dispatch → `SSL_write` →
+`SSL_shutdown` üzerinden geçer. `SSL_CTX` startup'ta bir kere
+kurulur; cert ve key dosyaları `wings_tls(...)` çağrısında okunur,
+her request'te değil.
+
+### Cert + key
+
+Local dev için bir yıl geçerli self-signed cert üret:
+
+```bash
+openssl req -x509 -newkey rsa:2048 \
+    -keyout server.key -out server.crt \
+    -days 365 -nodes \
+    -subj "/CN=localhost" \
+    -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+```
+
+İstemci tarafında `curl --insecure https://127.0.0.1:8443/`
+self-signed cert'i kabul eder; tarayıcılar uyarı göstereceği için
+tıklayıp geçmek gerek.
+
+Production için gerçek cert chain'ini göster — Let's Encrypt'in
+`/etc/letsencrypt/live/<domain>/fullchain.pem` + `privkey.pem`
+çifti standart, `wings_tls` da diğer PEM dosyaları gibi okur:
+
+```tulpar
+wings_tls(443,
+    "/etc/letsencrypt/live/tulparlang.dev/fullchain.pem",
+    "/etc/letsencrypt/live/tulparlang.dev/privkey.pem");
+```
+
+### Build gereksinimi
+
+`wings_tls` OpenSSL-tabanlı. Tulpar build'inde
+`find_package(OpenSSL)` başarılı olmalı — Linux için `apt install
+libssl-dev`, MSYS2 Windows için `pacman -S
+mingw-w64-x86_64-openssl`, macOS için `brew install openssl`.
+OpenSSL link edilmemişse `tls_init` 0 döner, `wings_tls` hata
+yazıp socket bind'lamadan çıkar.
+
+### v1'de henüz olmayanlar
+
+- **TLS keep-alive.** Şu an kabul edilen her TLS connection bir
+  request servis edip kapanıyor. Plain-HTTP `listen()` multi-request
+  keep-alive yapıyor; TLS yolu bunu `_wings_serve_one_request`
+  tarzı partial-read state machine işiyle kazanacak.
+- **mTLS (client-cert doğrulama).** TLS context şimdilik server-auth
+  only. `SSL_CTX_set_verify` + CA bundle yükleme küçük bir follow-up.
+- **HTTP/2 + ALPN.** Framework TLS üstü HTTP/1.1 konuşuyor; HTTP/2
+  ALPN müzakeresi sonraki adım.
