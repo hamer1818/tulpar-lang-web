@@ -1,0 +1,154 @@
+---
+title: Debugger
+description: Step through Tulpar code with breakpoints, stack frames, and variable inspection — straight from VS Code or any DAP-aware client.
+---
+
+Tulpar ships a Debug Adapter Protocol (DAP) server: `tulpar debug
+<file.tpr>` opens a stdio JSON-RPC adapter that any DAP client can
+drive. Pair it with the official VS Code extension and you get the
+familiar **Run and Debug** panel — set breakpoints in `.tpr` files,
+hit F5, step through statements, inspect locals, all backed by
+real DWARF debug info that the AOT pipeline emits when you pass
+`--debug`.
+
+Under the hood: `tulpar debug` AOT-builds your program with
+`--debug` (full source-level DWARF), spawns `gdb
+--interpreter=mi3` against the resulting binary, and translates
+between DAP requests and gdb/MI commands. The result is a debugger
+backed by gdb's stability while the front-end uses VS Code's UI.
+
+## Requirements
+
+- **Tulpar** with the DAP server (`tulpar debug` command, available
+  since Plan 07 Part B).
+- **gdb** on your `PATH`. Linux distros ship it; on Windows install
+  via MSYS2 (`pacman -S mingw-w64-x86_64-gdb`); on macOS install
+  via `brew install gdb`. If `gdb` is missing the adapter returns
+  a structured "failed to spawn gdb" failure on `launch` so the
+  client sees a clear error instead of a hang.
+- **VS Code** with the [`vscode-tulpar`](https://marketplace.visualstudio.com/items?itemName=hamer1818.vscode-tulpar)
+  extension v0.4.0 or newer (also on [Open VSX](https://open-vsx.org/extension/hamer1818/vscode-tulpar)).
+
+## VS Code: F5 in 30 seconds
+
+1. Install the **Tulpar** extension from the Marketplace or Open VSX.
+2. Open any `.tpr` file in VS Code.
+3. Click the gutter next to a line number to set a breakpoint.
+4. Press **F5** (or run the **`Tulpar: Debug File`** command from
+   the Command Palette). The extension AOT-builds your file with
+   debug info, spawns the DAP server, and hits your breakpoint.
+
+You can also drop a permanent launch config under
+`.vscode/launch.json` — the extension contributes a snippet under
+**Add Configuration… → Tulpar Debug**:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "tulpar",
+      "request": "launch",
+      "name": "Tulpar: Debug Active File",
+      "program": "${file}",
+      "stopOnEntry": false
+    }
+  ]
+}
+```
+
+## What works today
+
+| DAP feature           | Status | Notes                                                      |
+| --------------------- | :----: | ---------------------------------------------------------- |
+| Line breakpoints      |   ✅   | Click the gutter or use `setBreakpoints` over DAP.         |
+| Run to completion     |   ✅   | `configurationDone` → `-exec-run` → `terminated` event.    |
+| Stop on breakpoint    |   ✅   | `*stopped,reason=breakpoint-hit` → DAP `stopped` event.    |
+| Stack trace           |   ✅   | `-stack-list-frames` → DAP `StackFrame[]` with file/line.  |
+| Locals / parameters   |   ✅   | `-stack-list-variables --simple-values`. Leaf values only. |
+| Continue              |   ✅   | `-exec-continue` → resume + downstream `stopped`/`terminated`. |
+| Step over             |   ✅   | `next` → `-exec-next`.                                     |
+| Step into             |   ✅   | `stepIn` → `-exec-step`.                                   |
+| Step out              |   ✅   | `stepOut` → `-exec-finish`.                                |
+| Pause                 |   ✅   | `pause` → `-exec-interrupt` (SIGINT → DAP `reason=pause`). |
+| Console output        |   ✅   | gdb `~"..."` console + `@"..."` target streams → DAP `output`. |
+| Terminate / disconnect|   ✅   | Sends `-gdb-exit`, reaps subprocess.                       |
+
+## What's not wired up yet
+
+| DAP feature                | Why deferred                                                   |
+| -------------------------- | -------------------------------------------------------------- |
+| `evaluate` / watch         | Needs a per-frame expression evaluator over `-data-evaluate-expression`. |
+| `setVariable`              | Same machinery as evaluate, plus `-gdb-set var`.               |
+| Conditional / log breakpoints | `-break-insert` accepts conditions, but the result wiring + UI fields aren't plumbed. |
+| Function / data / instruction breakpoints | Less-used categories; ordinary line breakpoints carry the F5 workflow today. |
+| Struct / array drill-down  | Variables currently surface as the gdb-printed string. Switching to per-leaf `-var-create` is the next iteration. |
+| `restart` request          | VS Code tears down + relaunches today, which works; the explicit `restart` DAP command would skip the extra round-trip. |
+
+## Running the adapter directly
+
+If you're integrating with a non-VS Code DAP client, the adapter
+shape is:
+
+```bash
+tulpar debug path/to/program.tpr
+```
+
+stdin and stdout are owned by the DAP wire (`Content-Length:
+N\r\n\r\n<json>` framing, same as LSP). Every diagnostic line goes
+to stderr only. The adapter advertises capabilities on
+`initialize` and emits the `initialized` event when ready for
+`setBreakpoints`.
+
+The full DAP exchange shape:
+
+```
+client → initialize        → response (capabilities)
+client ←                     event(initialized)
+client → launch            → response (AOT build + gdb spawn)
+client → setBreakpoints    → response (verified Breakpoint[])
+client → configurationDone → response (-exec-run; program starts)
+client ←                     event(stopped) // breakpoint hit
+client → threads           → response ([{id:1, name:"main"}])
+client → stackTrace        → response (StackFrame[])
+client → scopes            → response ([{name:"Locals", variablesReference: …}])
+client → variables         → response (Variable[])
+client → continue          → response (allThreadsContinued=true)
+client ←                     event(terminated)
+client → disconnect        → response, adapter exits
+```
+
+## Diagnostics + troubleshooting
+
+The adapter logs every line to stderr with a `[dap]` prefix:
+
+```
+[dap] tulpar debug adapter starting (program: hello.tpr)
+[dap] launch: building hello.tpr with debug info...
+[dap] launch: build OK, binary=hello.exe
+[dap] gdb<< (gdb)
+[dap] gdb<< 1^done,bkpt={number="1",...}
+[dap] request 'evaluate' rejected: not implemented yet
+[dap] adapter shutting down
+```
+
+When debugging the debugger itself, redirect stderr to a file —
+stdout is owned by DAP and any leaked byte breaks framing.
+
+## How this fits with the rest of the toolchain
+
+- **`--debug` flag for `tulpar build`** — emits `!DICompileUnit` +
+  per-function `DISubprogram` + per-statement `DILocation` +
+  per-variable `DILocalVariable` / `DIGlobalVariableExpression`
+  into the LLVM IR. Optimizer runs the `verify` pipeline (`-O0`)
+  so the source mapping stays 1:1.
+- **`tulpar debug`** — the DAP server. Invokes the AOT pipeline
+  with `--debug` internally and feeds the resulting binary to
+  gdb.
+- **`vscode-tulpar` extension** — DAP client side. Registers a
+  `DebugAdapterDescriptorFactory` that spawns `tulpar debug
+  <program>` whenever you press F5 on a `.tpr` file.
+
+The three pieces share one DWARF emit pipeline; if you can `gdb
+./your_binary` and see your `.tpr` lines, the VS Code experience
+just works.

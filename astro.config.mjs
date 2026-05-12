@@ -91,6 +91,7 @@ export default defineConfig({
 						{ label: 'HTTP Client', translations: { tr: 'HTTP İstemcisi' }, slug: 'ecosystem/http-client' },
 						{ label: 'ORM (lib/orm)', translations: { tr: 'ORM (lib/orm)' }, slug: 'ecosystem/orm' },
 						{ label: 'Tooling — LSP / Formatter / VS Code', translations: { tr: 'Araçlar — LSP / Formatter / VS Code' }, slug: 'ecosystem/tooling' },
+						{ label: 'Debugger (DAP + VS Code F5)', translations: { tr: 'Hata Ayıklayıcı (DAP + VS Code F5)' }, slug: 'ecosystem/debugger' },
 						{ label: 'Benchmarks', translations: { tr: 'Benchmark Sonuçları' }, slug: 'ecosystem/benchmarks' },
 					],
 				},
