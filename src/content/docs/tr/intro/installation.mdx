@@ -1,0 +1,131 @@
+---
+title: Kurulum
+description: Tek satırlık kurucu ile saniyeler içinde Tulpar'ı yükleyin veya hazır binary'yi elle indirin. Derleyiciye gerek yok.
+---
+
+Tulpar'ı kurmanın en hızlı yolu tek satırlık installer'dır — derleyici,
+build araçları veya yönetici hakları gerekmez. Script en güncel hazır
+binary'yi indirir, kullanıcı dizininize bırakır ve `PATH`'inize ekler.
+
+## Tek satırlık kurulum (önerilen)
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://tulparlang.dev/install.sh | bash
+```
+
+`tulpar` binary'si `~/.local/bin/tulpar` konumuna kurulur. Bu dizin
+henüz `PATH`'inizde değilse, installer eklemeniz gereken satırı
+(`~/.bashrc`, `~/.zshrc` veya `~/.profile` için) ekrana yazar.
+
+### Windows (PowerShell)
+
+```powershell
+iwr -useb https://tulparlang.dev/install.ps1 | iex
+```
+
+`tulpar.exe`, `%LOCALAPPDATA%\Programs\Tulpar\tulpar.exe` konumuna
+kurulur ve dizin kullanıcı düzeyinde `PATH`'e eklenir. **Yönetici hakkı
+gerekmez.** Kurulumdan sonra yeni bir PowerShell ya da Komut İstemi
+penceresi açın, böylece güncel `PATH` yüklenir.
+
+Aynı komutu daha sonra tekrar çalıştırarak yerinde güncelleyebilirsiniz.
+
+## Kurulumu doğrulama
+
+Yeni bir terminal penceresinde:
+
+```bash
+tulpar --version
+```
+
+Çıktıda şuna benzer bir satır görmelisiniz: `TulparLang v2.1.0.x (LLVM)`.
+
+## Windows GUI kurucu
+
+Başlat menüsü kısayolu ve Program Ekle/Kaldır kaydı sağlayan tıkla-geç
+tarzı bir kurulum mu istiyorsunuz? Son sürümün
+[`tulpar-setup-windows-x64.exe`](https://github.com/hamer1818/TulparLang/releases/latest)
+dosyasını indirip çalıştırın. Kullanıcı düzeyinde kurulumdur, yönetici
+hakkı gerekmez.
+
+## Manuel indirme
+
+Belirli bir sürümü sabitlemek ya da binary'yi elle indirmek isterseniz
+[releases sayfasından](https://github.com/hamer1818/TulparLang/releases/latest)
+ilgili dosyayı indirin:
+
+| Platform                                  | Dosya                          |
+| ----------------------------------------- | ------------------------------ |
+| Linux x86\_64                             | `tulpar-linux-x64`             |
+| macOS (Intel + Apple Silicon)             | `tulpar-macos-universal`       |
+| Windows x86\_64 (taşınabilir binary)      | `tulpar-windows-x64.exe`       |
+| Windows x86\_64 (GUI kurucu)              | `tulpar-setup-windows-x64.exe` |
+
+Linux ve macOS'ta dosyayı çalıştırılabilir hâle getirip `PATH`'inize
+taşıyın:
+
+```bash
+chmod +x tulpar-linux-x64
+mv tulpar-linux-x64 ~/.local/bin/tulpar
+```
+
+## Güncelleme
+
+```bash
+tulpar update
+```
+
+Komut, kurulu binary'yi en güncel sürümle değiştirir. Tek satırlık
+installer'ı tekrar çalıştırmak da aynı sonucu verir.
+
+## Kaldırma
+
+- **Linux / macOS:** `rm ~/.local/bin/tulpar` çalıştırın ve isterseniz
+  shell rc dosyasından eklenmiş `PATH` satırını kaldırın.
+- **Windows (tek satırlık kurulum):**
+  `%LOCALAPPDATA%\Programs\Tulpar\` klasörünü silin ve Sistem
+  Özellikleri → Ortam Değişkenleri ekranından kullanıcı `PATH`
+  girdisini kaldırın.
+- **Windows (GUI kurulum):** **Ayarlar → Uygulamalar** ekranından
+  kaldırın.
+
+## Kaynak koddan derleme
+
+Yalnızca derleyici üzerinde çalışıyorsanız, sürüm yayınlamadığımız bir
+platform için derleme yapacaksanız ya da debug build istiyorsanız bu
+yolu kullanın. Çoğu kullanıcı yukarıdaki tek satırlık kurulumu tercih
+etmelidir.
+
+**Ön koşullar:** GCC veya Clang, **LLVM 18+**, **CMake 3.14+**.
+
+```bash
+git clone https://github.com/hamer1818/TulparLang.git
+cd TulparLang
+```
+
+**Linux / macOS:**
+
+```bash
+./build.sh
+```
+
+**Windows (native MSVC):**
+
+```powershell
+.\build.ps1
+```
+
+Sonuç olarak repo kökünde `tulpar` (Windows'ta `tulpar.exe`) ve
+AOT-derlenmiş kullanıcı binary'lerinin link ettiği
+`libtulpar_runtime.a` (Windows'ta `.lib`) üretilir.
+
+`build.sh` ve `build.ps1` her çağrıda build dizinini siler.
+Geliştirme sırasında artımlı yeniden derleme için doğrudan CMake
+kullanın:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+```

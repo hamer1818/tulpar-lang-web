@@ -1,0 +1,184 @@
+---
+title: HTTP Sunucusu (Wings)
+description: Wings — Tulpar'ın yerleşik HTTP framework'ü. Keep-alive, /healthz, /metrics, OpenAPI auto-gen, multi-thread istek işleme, structured log.
+---
+
+Wings, Tulpar ile birlikte gelen gömülü HTTP framework'üdür.
+`import "wings"` dedikten sonra 20 satırın altında production-şeklinde
+bir JSON API'ye varman için tasarlandı: health check, metrics, OpenAPI
+ve multi-thread işleme zaten bağlanmış halde.
+
+## Hello world
+
+```tulpar
+import "wings";
+
+func index_handler() {
+    return {"hello": "world"};
+}
+
+get("/", "index_handler");
+listen(8080);
+```
+
+Bu eksiksiz bir HTTP/1.1 sunucusu — keep-alive, CORS uyumlu varsayılan
+header'lar, `/healthz` + `/metrics` otomatik kayıtlı.
+
+## Routing
+
+```tulpar
+get("/users/:id", "show_user");      // path param'lar _request["params"]'da
+post("/users", "create_user");
+put("/users/:id", "update_user");
+del("/users/:id", "delete_user");
+```
+
+Handler içinde parsed request global `_request`'tedir:
+
+| Alan       | Tip   | Notlar                                |
+| ---------- | ----- | ------------------------------------- |
+| `method`   | `str` | `GET`, `POST`, `PUT`, `DELETE`, …     |
+| `path`     | `str` | URL path (query'siz).                 |
+| `raw_path` | `str` | Path + query, client'in gönderdiği.   |
+| `query`    | `json`| Parse edilmiş `?k=v&...` (URL-decoded).|
+| `headers`  | `json`| Header haritası (case-sensitive).     |
+| `body`     | `str` | Ham body byte'ları, length-bounded.   |
+
+## Tek-thread vs multi-thread
+
+```tulpar
+listen(8080);          // tek accept loop, her bağlantıda keep-alive
+listen_async(8080);    // bağlantı başına thread, paralel recv/send
+```
+
+`listen()` test edilmiş tek-thread sunucu: kabul edilen her socket'te
+çoklu keep-alive request'i seri serve eder. Throughput: **~24k req/sec**,
+Node.js seviyesi.
+
+`listen_async()` her TCP bağlantısı için detached worker spawn'lar.
+Her worker kendi `recv` / parse / `send`'ini paralel yapar; handler
+dispatch `_wings_handler_mu` mutex'i altında serileşir (LLVM
+thread-local global'leri inene kadar). Kazanç: paralel accept ve
+çoklu keep-alive bağlantısı eşzamanlı serve.
+
+## Otomatik route'lar
+
+`listen()` ve `listen_async()` çağrısında, sen kendin kayıt etmediysen
+production'ın beklediği iki route otomatik eklenir:
+
+### `/healthz`
+
+```json
+{"status":"ok","uptime_s":142,"now":"2026-05-02T18:34:21Z"}
+```
+
+Kubernetes liveness probe ile uyumlu. `listen` çağrısından önce kendi
+`GET /healthz` handler'ını kayıt edersen otomatik olan eklenmez.
+
+### `/metrics`
+
+```json
+{"uptime_s":142,"requests_total":5021,"requests_2xx":4998,
+ "requests_4xx":23,"requests_5xx":0,"routes":7}
+```
+
+Wings her response sonrası counter'ları artırır. Prometheus için
+`?format=prom` veya kendi route'unla `wings_metrics_prom()` çağır.
+
+## OpenAPI auto-gen
+
+```tulpar
+func openapi_handler() {
+    return wings_openapi("My API", "1.0.0");
+}
+get("/openapi.json", "openapi_handler");
+```
+
+Kayıtlı route'lardan OpenAPI 3.0 dokümanı üretir. Swagger UI / Postman
+direkt tüketir.
+
+## Structured logging
+
+```tulpar
+log_info("kullanıcı kayıt oldu: " + email);
+log_error("ödeme başarısız: " + toString(code));
+```
+
+Çıktı (her satır bir JSON — log aggregator-uyumlu):
+
+```json
+{"@timestamp":"2026-05-02T18:34:21Z","level":"info","msg":"kullanıcı kayıt oldu: a@b.c"}
+```
+
+Wings'in kendi access log'u da bu formatı kullanır. Benchmark / production
+yolda satırı susturmak için `TULPAR_HTTP_QUIET=1`.
+
+## HTTPS (Wings TLS)
+
+Wings, plain-HTTP listener'ın yanında HTTPS listener'ı da içeriyor.
+Aynı handler API'si, aynı routing — sadece listen çağrısı değişir:
+
+```tulpar
+import "wings";
+import "wings_tls";
+
+func home() {
+    return {"message": "TLS üzerinden Merhaba", "secure": true};
+}
+
+get("/", "home");
+
+wings_tls(8443, "./server.crt", "./server.key");
+```
+
+Bu satırlar tam bir HTTPS sunucu. Her kabul edilen connection
+`SSL_accept` → `SSL_read` → handler dispatch → `SSL_write` →
+`SSL_shutdown` üzerinden geçer. `SSL_CTX` startup'ta bir kere
+kurulur; cert ve key dosyaları `wings_tls(...)` çağrısında okunur,
+her request'te değil.
+
+### Cert + key
+
+Local dev için bir yıl geçerli self-signed cert üret:
+
+```bash
+openssl req -x509 -newkey rsa:2048 \
+    -keyout server.key -out server.crt \
+    -days 365 -nodes \
+    -subj "/CN=localhost" \
+    -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+```
+
+İstemci tarafında `curl --insecure https://127.0.0.1:8443/`
+self-signed cert'i kabul eder; tarayıcılar uyarı göstereceği için
+tıklayıp geçmek gerek.
+
+Production için gerçek cert chain'ini göster — Let's Encrypt'in
+`/etc/letsencrypt/live/<domain>/fullchain.pem` + `privkey.pem`
+çifti standart, `wings_tls` da diğer PEM dosyaları gibi okur:
+
+```tulpar
+wings_tls(443,
+    "/etc/letsencrypt/live/tulparlang.dev/fullchain.pem",
+    "/etc/letsencrypt/live/tulparlang.dev/privkey.pem");
+```
+
+### Build gereksinimi
+
+`wings_tls` OpenSSL-tabanlı. Tulpar build'inde
+`find_package(OpenSSL)` başarılı olmalı — Linux için `apt install
+libssl-dev`, MSYS2 Windows için `pacman -S
+mingw-w64-x86_64-openssl`, macOS için `brew install openssl`.
+OpenSSL link edilmemişse `tls_init` 0 döner, `wings_tls` hata
+yazıp socket bind'lamadan çıkar.
+
+### v1'de henüz olmayanlar
+
+- **TLS keep-alive.** Şu an kabul edilen her TLS connection bir
+  request servis edip kapanıyor. Plain-HTTP `listen()` multi-request
+  keep-alive yapıyor; TLS yolu bunu `_wings_serve_one_request`
+  tarzı partial-read state machine işiyle kazanacak.
+- **mTLS (client-cert doğrulama).** TLS context şimdilik server-auth
+  only. `SSL_CTX_set_verify` + CA bundle yükleme küçük bir follow-up.
+- **HTTP/2 + ALPN.** Framework TLS üstü HTTP/1.1 konuşuyor; HTTP/2
+  ALPN müzakeresi sonraki adım.

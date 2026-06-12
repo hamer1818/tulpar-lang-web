@@ -1,0 +1,18 @@
+---
+interface Props {
+	icon?: string;
+	label: string;
+}
+
+const { icon, label } = Astro.props as Props;
+
+if (!label) {
+	throw new Error('Missing prop `label` on `<TulparTabItem>` component.');
+}
+---
+
+<starlight-tab-item data-label={label} data-icon={icon}>
+	<slot />
+</starlight-tab-item>
+
+

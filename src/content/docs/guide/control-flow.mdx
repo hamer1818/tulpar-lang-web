@@ -1,0 +1,52 @@
+---
+title: Control Flow
+description: Learn about control flow statements in Tulpar.
+---
+
+import TulparPlayground from '../../../components/TulparPlayground.astro';
+
+## If-Else Statements
+
+<TulparPlayground
+	title="If / Else"
+	code={String.raw`int age = 18;
+
+if (age >= 18) {
+    print("Adult");
+} else {
+    print("Minor");
+}
+
+// Logical operators
+if (age >= 18 && age < 65) {
+    print("Working age");
+}`}
+/>
+
+## While Loop
+
+<TulparPlayground
+	title="While Loop"
+	code={String.raw`int i = 0;
+while (i < 10) {
+    print(i);
+    i++;
+}`}
+/>
+
+## For Loop
+
+Tulpar supports both C-style for loops and for-each loops:
+
+<TulparPlayground
+	title="For Loops"
+	code={String.raw`// C-style for loop
+for (int i = 0; i < 10; i++) {
+    print("i =", i);
+}
+
+// For-each with range
+for (i in range(10)) {
+    print("i =", i);
+}`}
+/>

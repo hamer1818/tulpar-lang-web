@@ -1,0 +1,125 @@
+---
+title: Installation
+description: Install Tulpar in seconds with the one-line installer, or grab a prebuilt binary by hand. No compiler required.
+---
+
+The fastest way to get Tulpar is the one-line installer — no compiler,
+no build tools, no admin rights. The script downloads the latest prebuilt
+release binary, drops it into a per-user location, and wires up your `PATH`.
+
+## One-line install (recommended)
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://tulparlang.dev/install.sh | bash
+```
+
+`tulpar` is installed to `~/.local/bin/tulpar`. If that directory is not
+already on your `PATH`, the installer prints the line to add to your
+shell rc (`~/.bashrc`, `~/.zshrc`, or `~/.profile`).
+
+### Windows (PowerShell)
+
+```powershell
+iwr -useb https://tulparlang.dev/install.ps1 | iex
+```
+
+`tulpar.exe` is installed to `%LOCALAPPDATA%\Programs\Tulpar\tulpar.exe`
+and the directory is added to the user-level `PATH`. **No administrator
+rights required.** Open a new PowerShell or Command Prompt window after
+installation so the updated `PATH` takes effect.
+
+Re-run the same command at any time to upgrade in place.
+
+## Verify the install
+
+In a fresh terminal:
+
+```bash
+tulpar --version
+```
+
+You should see something like `TulparLang v2.1.0.x (LLVM)`.
+
+## Windows GUI installer
+
+Prefer a click-through experience with a Start Menu shortcut and an
+Add/Remove Programs entry? Download
+[`tulpar-setup-windows-x64.exe`](https://github.com/hamer1818/TulparLang/releases/latest)
+from the latest release. Per-user install, no admin rights needed.
+
+## Manual download
+
+To pick a specific version, or download the binary by hand, grab an
+asset from the [releases page](https://github.com/hamer1818/TulparLang/releases/latest):
+
+| Platform                          | Asset                          |
+| --------------------------------- | ------------------------------ |
+| Linux x86\_64                     | `tulpar-linux-x64`             |
+| macOS (Intel + Apple Silicon)     | `tulpar-macos-universal`       |
+| Windows x86\_64 (portable binary) | `tulpar-windows-x64.exe`       |
+| Windows x86\_64 (GUI installer)   | `tulpar-setup-windows-x64.exe` |
+
+On Linux and macOS, mark the binary as executable and place it on
+your `PATH`:
+
+```bash
+chmod +x tulpar-linux-x64
+mv tulpar-linux-x64 ~/.local/bin/tulpar
+```
+
+## Updating
+
+```bash
+tulpar update
+```
+
+Self-updates the installed binary from the latest release. Re-running
+the install one-liner has the same effect.
+
+## Uninstalling
+
+- **Linux / macOS:** `rm ~/.local/bin/tulpar` and (optionally) remove
+  the `PATH` export line from your shell rc.
+- **Windows (one-liner install):** delete the
+  `%LOCALAPPDATA%\Programs\Tulpar\` folder and remove the entry from
+  the User `PATH` via System Properties → Environment Variables.
+- **Windows (GUI install):** uninstall from **Settings → Apps**.
+
+## Build from source
+
+You only need this if you are hacking on the compiler, building for a
+platform we don't ship a binary for, or want a debug build. Most users
+should use the one-liner installer above.
+
+**Prerequisites:** GCC or Clang, **LLVM 18+**, **CMake 3.14+**.
+
+```bash
+git clone https://github.com/hamer1818/TulparLang.git
+cd TulparLang
+```
+
+**Linux / macOS:**
+
+```bash
+./build.sh
+```
+
+**Windows (native MSVC):**
+
+```powershell
+.\build.ps1
+```
+
+The result is a `tulpar` (`tulpar.exe` on Windows) executable copied to
+the repository root, plus `libtulpar_runtime.a` (`.lib` on Windows) which
+AOT-compiled user binaries link against.
+
+`build.sh` and `build.ps1` wipe the build directory on every run.
+For incremental rebuilds during development, drive CMake directly:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+```

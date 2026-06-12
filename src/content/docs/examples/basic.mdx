@@ -1,0 +1,112 @@
+---
+title: Basic Examples
+description: Learn from example programs written in Tulpar.
+---
+
+import TulparPlayground from '../../../components/TulparPlayground.astro';
+
+## Calculator
+
+<TulparPlayground
+	title="Calculator"
+	code={String.raw`int a = 10;
+int b = 5;
+
+print("=== TulparLang Calculator ===");
+print("First:", a);
+print("Second:", b);
+
+print("Sum:", a + b);
+print("Difference:", a - b);
+print("Product:", a * b);
+print("Division:", a / b);`}
+/>
+
+> Note: The web Playground does not support interactive input functions like `inputInt` yet.  
+> To test the fully interactive version, run this example with the Tulpar CLI.
+
+## Fibonacci Sequence
+
+<TulparPlayground
+	title="Fibonacci"
+	code={String.raw`func fibonacci(int n) {
+    if (n <= 1) {
+        return n;
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+print("Fibonacci sequence:");
+for (int i = 0; i < 10; i++) {
+    print("F(" + toString(i) + ") =", fibonacci(i));
+}`}
+/>
+
+## JSON Data Processing
+
+<TulparPlayground
+	title="JSON Data Processing"
+	code={String.raw`arrayJson users = {
+    "data": [
+        {"name": "Alice", "age": 25, "role": "Developer"},
+        {"name": "Bob", "age": 30, "role": "Designer"},
+        {"name": "Charlie", "age": 35, "role": "Manager"}
+    ]
+};
+
+// Process user data
+for (int i = 0; i < length(users["data"]); i++) {
+    arrayJson user = users["data"][i];
+    str name = user["name"];
+    int age = user["age"];
+    str role = user["role"];
+    
+    print(name, "-", age, "years old -", role);
+}`}
+/>
+
+## String Processing
+
+<TulparPlayground
+	title="String Processing"
+	code={String.raw`str email = "  HAMZA@EXAMPLE.COM  ";
+
+// Clean and parse email
+str clean = lower(trim(email));
+array parts = split(clean, "@");
+
+if (length(parts) >= 2) {
+    str username = parts[0];
+    str domain = parts[1];
+
+    print("Username:", username);
+    print("Domain:", domain);
+    print("Valid:", contains(domain, "."));
+} else {
+    print("Invalid email:", clean);
+}`}
+/>
+
+## Mathematical Computation
+
+<TulparPlayground
+	title="Math Computation"
+	code={String.raw`// Calculate circle properties
+float radius = 5.0;
+float pi = 3.14159;
+
+float area = pi * pow(radius, 2.0);
+float circumference = 2.0 * pi * radius;
+
+print("Radius:", radius);
+print("Area:", area);
+print("Circumference:", circumference);
+
+// Random point in circle
+float angle = random() * 2.0 * pi;
+float r = random() * radius;
+float x = r * cos(angle);
+float y = r * sin(angle);
+
+print("Random point: (", x, ",", y, ")");`}
+/>

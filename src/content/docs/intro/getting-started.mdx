@@ -1,0 +1,73 @@
+---
+title: Getting Started
+description: Write and run your first Tulpar program in under a minute.
+---
+
+import TulparPlayground from '../../../components/TulparPlayground.astro';
+
+This page assumes you've already installed Tulpar — if not, head to
+[Installation](/intro/installation/) for the one-line installer.
+
+## Try it in the browser
+
+You can play with Tulpar directly in this page. Edit the snippet below
+and hit **Run** — no installation required:
+
+<TulparPlayground
+	title="Your First Program"
+	code={String.raw`// Hello World with UTF-8 support
+str greeting = "Merhaba Dünya!";
+print(greeting);
+
+// Function definition
+func square(int n) {
+    return n * n;
+}
+
+// Usage
+int result = square(5);
+print("5'in karesi:", result);`}
+/>
+
+## Run a file locally
+
+Save the program to a file named `hello.tpr`, then run it from any
+terminal — `tulpar` is on your `PATH` after installation:
+
+```bash
+tulpar hello.tpr
+```
+
+The default `tulpar <file>` invocation AOT-compiles via LLVM and runs
+the resulting native binary. For instant startup at the cost of a small
+runtime overhead, use the bytecode VM instead:
+
+```bash
+tulpar --vm hello.tpr
+```
+
+To produce a standalone native executable you can ship without the
+Tulpar toolchain:
+
+```bash
+tulpar build hello.tpr        # → ./hello (or hello.exe on Windows)
+```
+
+## Interactive REPL
+
+Tulpar also has a Read-Eval-Print Loop. Run the binary with no arguments
+to start it:
+
+```bash
+tulpar --repl
+```
+
+Type expressions or statements and see results immediately. Use
+`Ctrl+D` (Linux/macOS) or `Ctrl+Z` (Windows) to exit.
+
+## Where to go next
+
+- [Syntax & Variables](/guide/syntax/) — types, literals, operators.
+- [Control Flow](/guide/control-flow/) — `if`, `while`, `for`.
+- [Functions](/guide/functions/) — definition, recursion, return.
+- [Examples](/examples/basic/) — runnable sample programs.

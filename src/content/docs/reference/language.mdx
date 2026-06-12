@@ -1,0 +1,246 @@
+---
+title: Language Reference
+description: A condensed single-page reference for Tulpar's syntax, types, operators, control flow, and module system. Skim or Ctrl-F.
+---
+
+This page is the language at a glance — every form Tulpar's parser
+accepts, in one place. The [Language Guide](/guide/syntax/) walks
+through each topic with examples; this is the spec-ish summary for
+when you already know what you're looking for.
+
+## File structure
+
+A `.tpr` file is a sequence of top-level statements: imports, function
+declarations, struct (`type`) declarations, and any other expression or
+control-flow statement that runs immediately when the program starts.
+There is no `main()` requirement — top-level statements execute in
+source order.
+
+```tpr
+import "wings";          // import (top-level only)
+
+type Point {             // struct declaration
+    int x;
+    int y;
+}
+
+func origin(): Point {   // function declaration
+    Point p = { x: 0, y: 0 };
+    return p;
+}
+
+print(origin());         // top-level expression — runs at startup
+```
+
+## Types
+
+| Type           | Literal example                          | Notes                                              |
+| -------------- | ---------------------------------------- | -------------------------------------------------- |
+| `int`          | `42`, `-1`, `0xff`                       | 64-bit signed.                                     |
+| `float`        | `3.14`, `2.0`, `-0.5`                    | 64-bit IEEE 754.                                   |
+| `bool`         | `true`, `false`                          |                                                    |
+| `str`          | `"hello"`, `"a\nb"`                      | UTF-8. Double-quote only.                          |
+| `json`         | `{"k": 1}`, `[1, 2, 3]`                  | Tagged-union for objects/arrays/scalars at runtime.|
+| `array<T>`     | `[1, 2, 3]`                              | `T` ∈ `int / float / str / bool / json`.           |
+| `void`         | —                                        | Function return only — no values of type `void`.   |
+| `<TypeName>`   | `Point p = { x: 1, y: 2 };`              | User-declared via `type`.                          |
+
+`var` (untyped) and `null` are also keywords — `var` declares a binding
+the type-inferer fills in, `null` is the absence value for `json` slots
+and unset variables.
+
+## Variables
+
+```tpr
+int x = 10;              // typed, with initializer
+str name = "Hamza";
+bool flag;               // typed, default-initialised (0 / "" / false / null)
+var n = 7;               // type inferred from initializer
+let count = 0;           // synonym for `var`
+```
+
+`let` and `var` are interchangeable — `let` is conventional for
+"won't change" but the language doesn't enforce immutability.
+
+## Operators
+
+| Category   | Operators                                              |
+| ---------- | ------------------------------------------------------ |
+| Arithmetic | `+`, `-`, `*`, `/`, `%`, unary `-`                     |
+| Comparison | `==`, `!=`, `<`, `<=`, `>`, `>=`                       |
+| Logical    | `&&`, `\|\|`, unary `!`                                |
+| Assignment | `=`, `+=`, `-=`, `*=`, `/=`                            |
+| Increment  | `x++`, `x--` (statement form only — not an expression) |
+| Subscript  | `arr[i]`, `obj["key"]`, `obj.key` (sugar for `["key"]`)|
+| Call       | `f(args)`, `mod.func(args)` (mod-qualified import)     |
+
+Precedence (highest first):
+
+1. Postfix: call `(...)`, subscript `[...]`, member `.`, increment `++`/`--`
+2. Unary: `-`, `!`
+3. `*`, `/`, `%`
+4. `+`, `-`
+5. `<`, `<=`, `>`, `>=`
+6. `==`, `!=`
+7. `&&`
+8. `||`
+9. Assignment: `=`, `+=`, ...
+
+## Control flow
+
+```tpr
+if (cond) { ... }
+if (cond) { ... } else if (other) { ... } else { ... }
+
+while (cond) { ... }
+
+for (int i = 0; i < n; i = i + 1) { ... }
+// `i = i + 1` is also valid as `i++` or `i += 1`
+
+break;       // exit innermost loop
+continue;    // jump to next iteration
+return;      // exit function (void)
+return expr; // exit function with value
+```
+
+There is no `for x in collection` form yet — iterate via index.
+
+## Functions
+
+```tpr
+// Positional parameters; type before name.
+func add(int a, int b): int {
+    return a + b;
+}
+
+// Return type omitted = void (or json if you return one).
+func greet(str name) {
+    print("Hello, " + name);
+}
+
+// Recursion is supported (forward references resolved automatically).
+func fib(int n): int {
+    if (n <= 1) { return n; }
+    return fib(n - 1) + fib(n - 2);
+}
+```
+
+Function-by-name dispatch (`call("name")`) looks up the symbol at
+runtime; useful for routers / tables-of-handlers.
+
+## Structs (`type`)
+
+```tpr
+type Point {
+    int x;
+    int y;
+}
+
+// Literal initialisation.
+Point p = { x: 3, y: 4 };
+print(p.x);              // 3
+
+// Pass by value; modify a copy.
+func translate(Point p, int dx, int dy): Point {
+    Point q = { x: p.x + dx, y: p.y + dy };
+    return q;
+}
+```
+
+Struct fields are accessed with `.` (sugar for `["field"]`). `==` on
+structs is currently field-by-field (json behaviour).
+
+## JSON / arrays
+
+```tpr
+json o = { "name": "Hamza", "age": 24, "tags": ["admin", "user"] };
+print(o["name"]);                // "Hamza"
+print(o.tags[0]);                // "admin"
+o["age"] = 25;                   // mutate
+o["new_field"] = true;           // add
+push(o.tags, "verified");        // helper builtins
+
+// Arrays:
+array<int> nums = [1, 2, 3];
+push(nums, 4);
+int n = length(nums);            // 4
+```
+
+`json` is the runtime tagged-union — the same value can be an object,
+array, string, number, or null.
+
+## Modules & imports
+
+```tpr
+import "wings";              // brings every top-level func into scope
+import "wings" as w;         // namespaced — call as `w.listen(...)` or `w__listen(...)`
+import "./local/util.tpr";   // path import (resolves relative to source)
+```
+
+Resolution order: literal path → `path.tpr` →
+`tulpar_modules/<name>/<name>.tpr` → `tulpar_modules/<name>.tpr` →
+embedded stdlib. See [Package Manager](/ecosystem/package-manager/)
+for the lockfile + version specs.
+
+## Error handling
+
+```tpr
+try {
+    risky();
+} catch (e) {
+    print("oh no: " + toString(e));
+} finally {
+    cleanup();
+}
+
+throw "error message";
+throw {"code": 500, "msg": "boom"};
+```
+
+`catch (e)` binds the thrown value to `e` (a json) regardless of its
+shape. `finally` always runs, even on uncaught throws.
+
+## Comments
+
+```tpr
+// Single line — runs to EOL.
+/* Block comment — does not nest. */
+```
+
+## Reserved keywords
+
+```
+break       catch       continue    do          else        false
+finally     for         func        if          import      in
+let         null        return      throw       true        try
+type        var         void        while
+```
+
+Type-name keywords (`int`, `float`, `str`, `bool`, `json`, `array`)
+are also reserved when used as types but can appear inside identifiers
+via underscore (`int_value`, `array_size`).
+
+## CLI cheat-sheet
+
+| Command                       | Effect                                                  |
+| ----------------------------- | ------------------------------------------------------- |
+| `tulpar foo.tpr`              | AOT-compile + run, fall back to VM on AOT error.        |
+| `tulpar --vm foo.tpr`         | Bytecode VM — faster startup, slower steady-state.      |
+| `tulpar build foo.tpr [out]`  | Standalone native binary.                               |
+| `tulpar --repl`               | Interactive prompt (VM-backed).                         |
+| `tulpar fmt foo.tpr [-w]`     | Source formatter.                                       |
+| `tulpar pkg <subcmd>`         | Package manager — see [Package Manager](/ecosystem/package-manager/). |
+| `tulpar --lsp`                | LSP server on stdio (used by editor extensions).        |
+| `tulpar typecheck foo.tpr`    | Standalone type-checker (also runs as a build pre-pass).|
+| `tulpar update [--check]`     | Self-update from the official release.                  |
+
+The full CLI reference, including environment variables, lives at
+[CLI Reference](/reference/cli/).
+
+## Where this differs from the guide
+
+The [Language Guide](/guide/syntax/) covers the same surface with
+runnable examples and motivation; this page is the lookup table you
+keep open in another tab. If something here looks wrong, the guide
+pages and the source (`src/parser/parser.cpp` + `src/lexer/lexer.cpp`)
+are the authoritative answer.

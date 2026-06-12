@@ -1,0 +1,144 @@
+---
+title: TulparAPI (lib/tulpar_api)
+description: Tulpar'da JSON API'leri inşa etmek için FastAPI tarzı bir mikro-framework — dekoratörler, middleware, yanıt yardımcıları.
+---
+
+`lib/tulpar_api`, Python'un FastAPI'sinin "JSON-API-with-decorators"
+hissine ayarlanmış, [Wings HTTP sunucusu](/tr/ecosystem/http-server/)
+üzerine daha üst seviye bir sarmalayıcıdır. Wings "düşük seviyeli
+yönlendirme primitivleri" ise, TulparAPI "piller dahil varsayılanlardır".
+
+## Merhaba, API
+
+```tulpar
+import "lib/tulpar_api.tpr";
+
+api_init("Merhaba API", "1.0.0");
+
+func selam_ver(json req) {
+    return api_json_response({
+        "message": "Tulpar'dan merhaba!"
+    });
+}
+
+api_get("/", "selam_ver");
+api_run(8080);
+```
+
+`tulpar merhaba.tpr` deyin, 8080 portunda bir JSON API'niz hazır.
+Build adımı yok, codegen yok, ek yapılandırma dosyası yok.
+
+## Rotalar
+
+Dört HTTP fiilinin her birinin kayıt yardımcısı vardır. Yol Wings'in
+yaptığı gibi `:param` yer tutucularını destekler.
+
+| Yardımcı | HTTP yöntemi |
+|----------|--------------|
+| `api_get(yol, handler_adi)` | GET |
+| `api_post(yol, handler_adi)` | POST |
+| `api_put(yol, handler_adi)` | PUT |
+| `api_delete(yol, handler_adi)` | DELETE |
+
+Handler imzası: `func ad(json req) { ... }` ve bir yanıt döner.
+
+`req` JSON'u şunları içerir:
+
+- `req["method"]` — `"GET"`, `"POST"`, …
+- `req["path"]` — `"/users/42"`
+- `req["params"]` — yol parametreleri (`:id` için `req["params"]["id"]`)
+- `req["query"]` — ayrıştırılmış query string
+- `req["body"]` — ayrıştırılmış JSON gövde (yalnızca POST/PUT)
+- `req["headers"]` — JSON olarak istek başlıkları
+
+## Yanıt yardımcıları
+
+| Yardımcı | Ne için |
+|----------|---------|
+| `api_json_response(obj)` | JSON gövdeli 200 |
+| `api_json_response_status(obj, status)` | Özel durum koduyla JSON gövde |
+| `api_success_response(message, data)` | Geleneksel `{ok, message, data}` zarfı, 200 |
+| `api_error_response(message, status)` | Geleneksel `{error, message}` zarfı, özel status |
+
+## Middleware
+
+`api_use(name)` yerleşik bir middleware'i kaydeder. Gelen middleware'lar:
+
+| Ad | Etki |
+|----|------|
+| `"logger"` | Her istek için `method path status time_ms` loglar |
+| `"cors"` | Esnek `Access-Control-*` başlıkları ekler |
+| `"auth"` | Bearer-token doğrulaması (yapılandırılabilir) |
+| `"rate-limit"` | IP başına kısıtlama |
+
+```tulpar
+api_init("Benim API", "1.0.0");
+api_use("logger");
+api_use("cors");
+```
+
+## Çalışan örnek: kullanıcı CRUD
+
+```tulpar
+import "lib/tulpar_api.tpr";
+
+api_init("Kullanici Yonetimi API", "1.0.0");
+api_use("logger");
+api_use("cors");
+
+json _kullanicilar = [];
+int _sonraki_id = 0;
+
+func liste(json req) {
+    return api_json_response({
+        "kullanicilar": _kullanicilar,
+        "sayi": len(_kullanicilar)
+    });
+}
+
+func getir(json req) {
+    int id = toInt(req["params"]["id"]);
+    for (int i = 0; i < len(_kullanicilar); i++) {
+        if (_kullanicilar[i]["id"] == id) {
+            return api_json_response(_kullanicilar[i]);
+        }
+    }
+    return api_error_response("Kullanici bulunamadi", 404);
+}
+
+func olustur(json req) {
+    _sonraki_id = _sonraki_id + 1;
+    json u = {
+        "id": _sonraki_id,
+        "ad": req["body"]["ad"],
+        "email": req["body"]["email"]
+    };
+    push(_kullanicilar, u);
+    return api_json_response_status({
+        "message": "Kullanici olusturuldu",
+        "user": u
+    }, 201);
+}
+
+api_get("/kullanicilar", "liste");
+api_get("/kullanicilar/:id", "getir");
+api_post("/kullanicilar", "olustur");
+
+api_run(8080);
+```
+
+`curl http://localhost:8080/kullanicilar` çağrısı
+`{"kullanicilar":[],"sayi":0}` döner.
+
+## TulparAPI mı Wings mi?
+
+| | Wings | TulparAPI |
+|--|-------|-----------|
+| Tarz | Düşük seviye primitivler | FastAPI tarzı dekoratörler |
+| Varsayılan yanıt şekli | HTTP string'ini siz inşa edersiniz | JSON zarf yardımcıları |
+| Middleware | Elle mutex deseni | `api_use("name")` |
+| En iyi | Özel protokoller, ince taneli kontrol | JSON API'leri, prototipler |
+
+Her ikisi de aynı alttaki soket döngüsü ve thread modeli üzerinde
+çalışır. TulparAPI dahili olarak Wings'e devreder — düşünmek
+istediğiniz katmana uyanı seçin.

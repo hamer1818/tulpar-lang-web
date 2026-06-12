@@ -1,0 +1,109 @@
+---
+title: Built-in Functions
+description: Reference for Tulpar's built-in functions.
+---
+
+## Input/Output
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `print(...)` | Print values to console | `print("Hello", x, y);` |
+| `input(prompt)` | Read string from user | `str name = input("Name: ");` |
+| `inputInt(prompt)` | Read integer | `int age = inputInt("Age: ");` |
+| `inputFloat(prompt)` | Read float | `float val = inputFloat("Value: ");` |
+
+## Type Conversion
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `toInt(value)` | Convert to integer | `int x = toInt("123");` |
+| `toFloat(value)` | Convert to float | `float y = toFloat("3.14");` |
+| `toString(value)` | Convert to string | `str s = toString(42);` |
+| `toBool(value)` | Convert to boolean | `bool b = toBool(1);` |
+
+## Array Operations
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `length(arr)` | Get array/object length | `int len = length(arr);` |
+| `push(arr, value)` | Add element | `push(arr, 10);` |
+| `pop(arr)` | Remove and return last | `int x = pop(arr);` |
+| `range(n)` | Create integer range | `for (i in range(10)) {...}` |
+| `keys(obj)` | Get object keys (insertion order) | `array k = keys({a:1,b:2});` |
+
+## Datetime
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `now_iso8601()` | Current UTC time as ISO 8601 | `str now = now_iso8601();` |
+| `format_iso8601(secs)` | Unix seconds → `YYYY-MM-DDTHH:MM:SSZ` | `str s = format_iso8601(0);` |
+| `parse_iso8601(s)` | ISO 8601 → unix seconds (-1 on fail) | `int t = parse_iso8601(now);` |
+| `weekday(secs)` | Day of week (0=Sun … 6=Sat) | `int d = weekday(timestamp());` |
+| `date_add_seconds(t, d)` | Add `d` seconds to `t` | `int t2 = date_add_seconds(t, 3600);` |
+| `timestamp()` | Current Unix epoch (seconds) | `int now = timestamp();` |
+| `time_ms()` | Current Unix epoch (milliseconds) | `int ms = time_ms();` |
+| `clock_ms()` | Monotonic high-precision timer | `float t = clock_ms();` |
+| `sleep(ms)` | Sleep for `ms` milliseconds | `sleep(100);` |
+
+## Regex
+
+POSIX/ECMAScript syntax via `std::regex`.
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `regex_match(pat, s)` | 1 if `s` fully matches `pat` | `int ok = regex_match("[0-9]+", "42");` |
+| `regex_search(pat, s)` | 1 if substring of `s` matches | `int hit = regex_search("\\d+", "x42y");` |
+| `regex_capture(pat, s)` | `[whole, g1, g2, ...]` or `[]` | `array g = regex_capture("(\\w+)=(\\w+)", "a=b");` |
+| `regex_replace(pat, s, r)` | Replace all matches; `$1` etc | `str s = regex_replace("\\d", "x", "_");` |
+
+## Files
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `read_file(path)` | Read whole file | `str s = read_file("data.txt");` |
+| `write_file(path, data)` | Truncate + write | `write_file("out.txt", body);` |
+| `append_file(path, data)` | Append to existing | `append_file("log.txt", line);` |
+| `file_exists(path)` | Check existence | `bool ok = file_exists("x");` |
+| `file_glob(pattern)` | Shell-style `*` `?` glob | `array f = file_glob("./*.tpr");` |
+
+## CSV
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `csv_parse(s)` | RFC 4180 → array of rows | `array rows = csv_parse(text);` |
+| `csv_emit(rows)` | Array of rows → CSV string | `str s = csv_emit(rows);` |
+
+## Process / environment
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `env(name)` | Read env var (empty if unset) | `str dbg = env("DEBUG");` |
+| `exit(code)` | Terminate with status | `exit(1);` |
+
+## Arena (memory hygiene)
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `arena_save()` | Snapshot current arena tip | `int wm = arena_save();` |
+| `arena_restore(wm)` | Roll back allocs to that tip | `arena_restore(wm);` |
+
+Wings auto-uses these per request so long-running servers don't grow
+memory. Handlers MUST NOT stash arena pointers on globals.
+
+## Threading
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `thread_create(fn, arg)` | Spawn thread; returns thread id | `int t = thread_create(worker, x);` |
+| `thread_join(id)` | Wait for thread to finish | `thread_join(t);` |
+| `thread_detach(id)` | Detach (auto-cleanup on exit) | `thread_detach(t);` |
+| `mutex_create()` | Create a mutex | `int m = mutex_create();` |
+| `mutex_lock(m)` | Acquire lock | `mutex_lock(m);` |
+| `mutex_unlock(m)` | Release lock | `mutex_unlock(m);` |
+| `mutex_destroy(m)` | Free a mutex | `mutex_destroy(m);` |
+
+## HTTP
+
+`http_*` builtins are documented separately in
+[HTTP Server (Wings)](/ecosystem/http-server/) and
+[HTTP Client](/ecosystem/http-client/).

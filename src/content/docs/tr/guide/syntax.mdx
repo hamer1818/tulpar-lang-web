@@ -1,0 +1,108 @@
+---
+title: Sözdizimi ve Değişkenler
+description: Tulpar'ın sözdizimi, veri tipleri ve değişkenleri hakkında bilgi edinin.
+---
+
+import TulparPlayground from '../../../../components/TulparPlayground.astro';
+
+## Veri Tipleri
+
+Tulpar aşağıdaki veri tiplerini destekler:
+
+| Tip | Açıklama | Örnek |
+|------|-------------|---------|
+| `int` | Tam sayılar | `int x = 42;` |
+| `float` | Ondalıklı sayılar | `float pi = 3.14;` |
+| `str` | UTF-8 metinler | `str isim = "Hamza";` |
+| `bool` | Mantıksal değerler | `bool bayrak = true;` |
+| `array` | Karışık tipli diziler | `array karisik = [1, "metin", 3.14];` |
+| `arrayInt` | Tip güvenli tam sayı dizileri | `arrayInt sayilar = [1, 2, 3];` |
+| `arrayFloat` | Tip güvenli ondalıklı sayı dizileri | `arrayFloat degerler = [1.5, 2.5];` |
+| `arrayStr` | Tip güvenli metin dizileri | `arrayStr isimler = ["Ali", "Veli"];` |
+| `arrayBool` | Tip güvenli mantıksal diziler | `arrayBool bayraklar = [true, false];` |
+| `arrayJson` | JSON benzeri nesneler | `arrayJson nesne = {"anahtar": "değer"};` |
+
+## Değişkenler ve Sabitler
+
+Değişkenler tipleriyle birlikte tanımlanır:
+
+<TulparPlayground
+	title="Değişkenler"
+	code={String.raw`// Değişken tanımlama
+int x = 10;
+float y = 3.14;
+str isim = "TulparLang";
+bool aktif = true;
+
+// Bileşik atama
+x += 5;   // x = 15
+x *= 2;   // x = 30
+
+// Artırma/Azaltma
+x++;      // x = 31
+x--;      // x = 30`}
+/>
+
+## Sayı Literalleri
+
+Tam sayılar dört tabanda yazılabilir. Alt çizgi kullanılamaz —
+büyük sayıları yorumla okunaklı tutun.
+
+| Form | Örnek | Ondalık değer |
+|------|-------|---------------|
+| Ondalık | `255` | 255 |
+| Onaltılık | `0xFF` | 255 |
+| Sekizlik | `0o755` | 493 |
+| İkilik | `0b1010` | 10 |
+
+Ondalıklı sayılar standart C tarzı formları kabul eder:
+
+```tulpar
+float pi      = 3.14;
+float kucuk   = 1.0e-5;
+float buyuk   = 6.02e23;
+```
+
+`i64` aralığını aşan tam sayılar derleme zamanı uyarısı tetikler ve
+`INT64_MAX`'a (2^63 − 1) sıkıştırılır.
+
+## Operatör Önceliği
+
+Operatörler **en düşükten en yükseğe** önceliğe göre listelenmiştir.
+Aynı satırdaki operatörler eşit önceliğe sahiptir ve belirtilmediği
+sürece soldan sağa birleşir.
+
+| Seviye | Operatörler | Birleşme |
+|--------|-------------|----------|
+| 1 (en düşük) | `=` `+=` `-=` `*=` `/=` | sağ |
+| 2 | `\|\|` | sol |
+| 3 | `&&` | sol |
+| 4 | `==` `!=` | sol |
+| 5 | `<` `>` `<=` `>=` | sol |
+| 6 | `+` `-` (ikili) | sol |
+| 7 | `*` `/` `%` | sol |
+| 8 | `-` (tekli), `!` | sağ |
+| 9 (en yüksek) | `++` `--` (postfix), `()` çağrı, `[]` indeks, `.` üye | sol |
+
+Şüpheniz varsa parantez kullanın — birden fazla seviyedeki öncelik
+kurallarına güvenmekten daha iyi okunur:
+
+```tulpar
+// Her ikisi de derlenir, ama parantezli form daha nettir.
+int skor = a + b * c;        // = a + (b * c)
+int skor = a + (b * c);
+```
+
+## Yorum Satırları
+
+Tulpar tek satırlı ve çok satırlı yorumları destekler:
+
+<TulparPlayground
+	title="Yorum Satırları"
+	code={String.raw`// Tek satırlı yorum
+
+/*
+ Çok satırlı
+ blok yorum
+*/`}
+/>

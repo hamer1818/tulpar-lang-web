@@ -1,0 +1,74 @@
+---
+title: Başlarken
+description: İlk Tulpar programınızı bir dakikadan kısa sürede yazıp çalıştırın.
+---
+
+import TulparPlayground from '../../../../components/TulparPlayground.astro';
+
+Bu sayfa Tulpar'ı zaten kurduğunuzu varsayar — kurmadıysanız tek
+satırlık installer için [Kurulum](/tr/intro/installation/) sayfasına
+göz atın.
+
+## Tarayıcıda deneyin
+
+Aşağıdaki örneği bu sayfanın içinde düzenleyip **Çalıştır**'a
+tıklayabilirsiniz — kurulum gerekmez:
+
+<TulparPlayground
+	title="İlk Programınız"
+	code={String.raw`// UTF-8 desteği ile Merhaba Dünya
+str selamlama = "Merhaba Dünya!";
+print(selamlama);
+
+// Fonksiyon tanımı
+func kare(int n) {
+    return n * n;
+}
+
+// Kullanım
+int sonuc = kare(5);
+print("5'in karesi:", sonuc);`}
+/>
+
+## Yerel olarak çalıştırma
+
+Programı `merhaba.tpr` adında bir dosyaya kaydedip terminalden
+çalıştırın — kurulum sonrası `tulpar` komutu `PATH`'inizdedir:
+
+```bash
+tulpar merhaba.tpr
+```
+
+Varsayılan `tulpar <dosya>` çağrısı LLVM ile AOT derler ve oluşan native
+binary'yi çalıştırır. Anlık başlatma için bytecode VM'i tercih edebilirsiniz
+(çok küçük bir runtime maliyeti karşılığında):
+
+```bash
+tulpar --vm merhaba.tpr
+```
+
+Tulpar toolchain'i olmadan dağıtabileceğiniz tek başına bir native
+executable üretmek için:
+
+```bash
+tulpar build merhaba.tpr      # → ./merhaba (Windows'ta merhaba.exe)
+```
+
+## Etkileşimli REPL
+
+Tulpar'ın bir REPL'i (Oku-Değerlendir-Yazdır Döngüsü) de var.
+Argümansız çağırın:
+
+```bash
+tulpar --repl
+```
+
+Yazdığınız ifadeleri / komutları anında değerlendirir. Çıkmak için
+`Ctrl+D` (Linux/macOS) ya da `Ctrl+Z` (Windows) kullanın.
+
+## Sıradaki adımlar
+
+- [Söz Dizimi & Değişkenler](/tr/guide/syntax/) — tipler, literaller, operatörler.
+- [Akış Kontrolü](/tr/guide/control-flow/) — `if`, `while`, `for`.
+- [Fonksiyonlar](/tr/guide/functions/) — tanım, recursion, return.
+- [Örnekler](/tr/examples/basic/) — çalışan örnek programlar.

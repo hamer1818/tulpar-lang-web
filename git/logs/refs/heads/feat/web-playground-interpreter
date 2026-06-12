@@ -1,0 +1,5 @@
+0000000000000000000000000000000000000000 a69d68b569f04c1a580bf1e64526417e8b6d4dfa Hamza ORTATEPE <hortatepe2002@gmail.com> 1777800414 +0300	branch: Created from HEAD
+a69d68b569f04c1a580bf1e64526417e8b6d4dfa 8a1afab7c27635d40da6b0954d60eb4ded0caae8 Hamza ORTATEPE <hortatepe2002@gmail.com> 1777801165 +0300	commit: feat: playground'i bozuk WASM yerine TS yorumlayici ile calistir
+8a1afab7c27635d40da6b0954d60eb4ded0caae8 df2be66046f029e86524cd1f79d18b99e3441c6c Hamza ORTATEPE <hortatepe2002@gmail.com> 1777801913 +0300	commit: docs: print iceren guvenli kod bloklarini playground'a cevir
+df2be66046f029e86524cd1f79d18b99e3441c6c d198d2b7fd1ac81bc3d3ca0776d67d35c2df2a28 Hamza ORTATEPE <hortatepe2002@gmail.com> 1777802383 +0300	commit: docs: kurulum sayfasini hazir binary one plana cikar
+d198d2b7fd1ac81bc3d3ca0776d67d35c2df2a28 9258693ab576bae258e781e536cebee125809756 Hamza ORTATEPE <hortatepe2002@gmail.com> 1777805554 +0300	commit: docs: paket yoneticisi ornegine pkg.tulparlang.dev kayit URL'sini koy

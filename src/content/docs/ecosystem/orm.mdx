@@ -1,0 +1,121 @@
+---
+title: ORM (lib/orm)
+description: Active-Record style helpers over the embedded SQLite. orm_open / define_model / orm_create / orm_find / orm_all / orm_where / orm_update / orm_delete.
+---
+
+`lib/orm.tpr` is a tiny Active-Record style mini-ORM that turns
+verbose `db_execute` / `db_query` calls into something that reads
+like the rest of your code.
+
+```tulpar
+import "orm";
+
+orm_open("app.db");
+
+define_model("users", {
+    "id":   "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "name": "TEXT NOT NULL",
+    "age":  "INTEGER"
+});
+
+int id = orm_create("users", {"name": "Hamza", "age": 23});
+json u = orm_find("users", id);
+print(u["name"]);  // "Hamza"
+
+orm_update("users", id, {"age": 24});
+array adults = orm_where("users", "age >= 18");
+orm_delete("users", id);
+
+orm_close();
+```
+
+## Model definition
+
+`define_model(table, columns)` registers a table + creates it on disk
+with `CREATE TABLE IF NOT EXISTS`. The `columns` map preserves insertion
+order so the generated DDL matches what you typed:
+
+```tulpar
+define_model("posts", {
+    "id":         "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "user_id":    "INTEGER NOT NULL",
+    "title":      "TEXT NOT NULL",
+    "body":       "TEXT",
+    "created_at": "TEXT DEFAULT (datetime('now'))"
+});
+```
+
+The values are SQL type clauses passed verbatim — anything SQLite
+accepts in a `CREATE TABLE` column position works (`INTEGER`, `TEXT`,
+`REAL`, `BLOB`, `PRIMARY KEY`, `NOT NULL`, `DEFAULT (...)`, `REFERENCES
+other(id)`, …).
+
+## CRUD reference
+
+| Function                                   | Returns          | Notes                                              |
+| ------------------------------------------ | ---------------- | -------------------------------------------------- |
+| `orm_open(path)`                           | `int` handle     | `:memory:` works for tests.                        |
+| `orm_close()`                              | —                |                                                    |
+| `define_model(table, columns)`             | —                | Idempotent (uses `CREATE TABLE IF NOT EXISTS`).    |
+| `orm_create(table, attrs)`                 | `int` last id    | Truthy values only — pass `0` / `""` outside the dict. |
+| `orm_find(table, id)`                      | `json` row or `{}` |                                                  |
+| `orm_all(table)`                           | `array<json>`    | Full table dump.                                    |
+| `orm_where(table, where_sql)`              | `array<json>`    | `where_sql` is a raw fragment — sanitise input!    |
+| `orm_update(table, id, attrs)`             | `int` 1/0        | Only changes columns present in `attrs`.            |
+| `orm_delete(table, id)`                    | `int` 1          |                                                    |
+
+## SQL escaping
+
+Identifier and value escaping are both built in:
+
+- Idents go through `_orm_quote_ident` (`"col"` with `"` doubled).
+- Values go through `_orm_quote_value` — every value is rendered as a
+  single-quoted string with `'` doubled. SQLite coerces string ↔ numeric
+  on `INSERT` for typed columns, so you don't need separate `int` /
+  `float` paths.
+
+This is "safe by default" for the create / find / all / update / delete
+paths. The `orm_where(table, where_sql)` helper does **not** escape its
+SQL fragment — that's the explicit escape hatch for queries you want to
+build by hand. Sanitise user input before passing it through.
+
+## Wings + ORM example
+
+A four-route REST API in 30 lines:
+
+```tulpar
+import "wings";
+import "orm";
+
+orm_open("app.db");
+define_model("posts", {
+    "id":    "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "title": "TEXT NOT NULL",
+    "body":  "TEXT"
+});
+
+func list_posts()   { return orm_all("posts"); }
+func show_post()    { return orm_find("posts", toInt(_request["params"]["id"])); }
+func create_post()  {
+    int id = orm_create("posts", _request["body"]);
+    return orm_find("posts", id);
+}
+func delete_post()  {
+    orm_delete("posts", toInt(_request["params"]["id"]));
+    return {"ok": 1};
+}
+
+get("/posts",      "list_posts");
+get("/posts/:id",  "show_post");
+post("/posts",     "create_post");
+del("/posts/:id",  "delete_post");
+
+listen_async(8080);
+```
+
+## Roadmap
+
+- Typed query builder (`Posts.where("user_id", "=", 1).limit(10)`).
+- Migrations / schema versioning.
+- Eager-load joins (`orm_with("posts", "user")`).
+- Prepared statement reuse — currently every call rebuilds the SQL.

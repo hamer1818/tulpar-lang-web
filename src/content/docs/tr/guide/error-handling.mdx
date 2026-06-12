@@ -1,0 +1,94 @@
+---
+title: Hata Yönetimi
+description: Tulpar'da try / catch / finally ve throw ile istisnaları yakalayın, kaynakları güvenle temizleyin.
+---
+
+import TulparPlayground from '../../../../components/TulparPlayground.astro';
+
+Tulpar tanıdık `try` / `catch` / `finally` blokları ile `throw` ifadesini
+birlikte kullanır. Değişkende tutabildiğiniz her şey fırlatılabilir —
+metin, sayı, JSON nesnesi.
+
+## Temel try / catch
+
+`try` bloğu içindeki bir `throw`, kontrolü hemen eşleşen `catch` bloğuna
+aktarır. Fırlatılan değer catch parametresine bağlanır (aşağıda `e`).
+
+<TulparPlayground
+	title="Fırlat ve yakala"
+	code={String.raw`try {
+    print("Try bloğu içindeyim");
+    throw "Bu bir hata!";
+    print("Bu satır YAZDIRILMAMALI");
+} catch (e) {
+    print("İstisna yakalandı: " + e);
+}
+print("try-catch sonrası");`}
+/>
+
+## Yapılandırılmış hata fırlatma
+
+Sadece string fırlatmak zorunda değilsiniz — JSON nesnesi fırlatmak,
+çağırana `code`, `message` ve ek bağlam taşımanın olağan yoludur.
+
+<TulparPlayground
+	title="Nesne fırlatma"
+	code={String.raw`try {
+    arrayJson hata = {
+        "message": "Bir şeyler ters gitti",
+        "code": 500
+    };
+    throw hata;
+} catch (err) {
+    print("Hata nesnesi yakalandı:");
+    print("Mesaj: " + err["message"]);
+    print("Kod: " + toString(err["code"]));
+}`}
+/>
+
+## finally — temizliği her zaman çalıştır
+
+`finally` bloğu, `try` normal bittiyse de fırlattıysa da, `catch`
+kendisi yeniden fırlattıysa da çalışır. Dosya, soket veya mutex
+serbest bırakma gibi çıkış yolundan bağımsız çalışması gereken
+işler için kullanın.
+
+<TulparPlayground
+	title="finally her zaman çalışır"
+	code={String.raw`try {
+    print("Try bloğu çalışıyor");
+    throw "finally ile hata";
+} catch (e) {
+    print("Yakalandı: " + e);
+} finally {
+    print("Finally bloğu - her zaman çalışır");
+}`}
+/>
+
+İstisna fırlatılmadığında `catch` atlanır ama `finally` yine de
+çalışır:
+
+<TulparPlayground
+	title="İstisna olmayan akış"
+	code={String.raw`try {
+    print("Try bloğu - hata yok");
+    int x = 5 + 3;
+    print("Sonuç: " + toString(x));
+} catch (e) {
+    print("Bu YAZDIRILMAMALI");
+} finally {
+    print("Finally yine çalışır");
+}`}
+/>
+
+## Ne zaman kullanmalı
+
+Tulpar istisnaları normal kontrol akışı için kullanmaz — standart
+kütüphane beklenen başarısızlık yolları için sentinel değerler döner
+(`-1`, boş string, JSON `null`). `throw` / `catch`'i çağırının makul
+şekilde öngöremeyeceği gerçek hata durumlarına ayırın:
+
+- Üst seviye yeniden deneme döngüsünden kurtulan I/O hataları
+- Çalışma anında tespit edilen programcı hataları (kötü girdi şekli,
+  sözleşme ihlalleri)
+- Yerel kod ya da üçüncü parti modüllerden gelen panic'leri sarmalama

@@ -1,0 +1,94 @@
+---
+title: Test (lib/test)
+description: Tulpar ile gelen Jest tarzı doğrulama framework'u — assert, assert_eq_int, assert_throws ve suite çalıştırıcı.
+---
+
+import TulparPlayground from '../../../../components/TulparPlayground.astro';
+
+`lib/test` Tulpar ile gelen küçük bir doğrulama + çalıştırıcı modülüdür.
+Ayrı bir test ikilisi yoktur — test suite'iniz `tulpar` ile çalıştırdığınız
+sıradan bir `.tpr` dosyasıdır.
+
+## Minimal bir suite
+
+```tulpar
+import "test";
+
+func temel_toplama() {
+    assert_eq_int(1 + 1, 2);
+    assert_eq_str(upper("hi"), "HI");
+}
+
+test("toplama calisiyor", "temel_toplama");
+test_summary();
+```
+
+Çalıştırın:
+
+```bash
+$ tulpar testler.tpr
+  PASS toplama calisiyor
+
+Tests: 1 | Pass: 1 | Fail: 0
+```
+
+`test_summary()` herhangi bir test başarısız olursa sıfır olmayan
+durumla çıkar, böylece CI ile uyumludur.
+
+## Doğrulamalar
+
+| Fonksiyon | Ne için |
+|-----------|---------|
+| `assert(kosul, mesaj)` | Genel bool kontrolü; `kosul` truthy değilse test `mesaj` ile başarısız olur |
+| `assert_eq_int(gercek, beklenen)` | Tamsayı eşitliği |
+| `assert_eq_str(gercek, beklenen)` | String eşitliği (byte-tam, mesajda yardımcı diff) |
+| `assert_eq_bool(gercek, beklenen)` | Bool (0/1) eşitliği |
+| `assert_contains(samanlik, igne)` | String veya stringe çevrilmiş değer üzerinde substring kontrolü |
+| `assert_throws(handler_adi, beklenen_msg_substring)` | Adı verilen fonksiyonun fırlattığını doğrular; isteğe bağlı mesaj kontrolü |
+| `assert_status(http_response, beklenen_status)` | Sayısal HTTP status'unun ham response string'inde göründüğünü doğrular |
+
+Her test izolasyonda çalışır — başarısızlık bayrağı her `test(...)`
+çağrısından önce sıfırlanır, böylece tek bir kötü test diğerlerini
+gizlemez.
+
+## Mutsuz yolu test etmek
+
+`assert_throws` adıyla bir fonksiyonu çağırır (`call()` ile) ve fırlattığını
+doğrular. Girdi doğrulama, parse hataları, yetki başarısızlıkları için
+kullanışlıdır.
+
+```tulpar
+import "test";
+
+func kotu_girdi() {
+    throw "zorunlu alan 'email' eksik";
+}
+
+func test_dogrulama_hatasi() {
+    assert_throws("kotu_girdi", "email");
+}
+
+test("bos email reddediliyor", "test_dogrulama_hatasi");
+test_summary();
+```
+
+## Neden tip-uzmanlaşmış doğrulamalar?
+
+Genel bir `assert_eq` olmadığını fark edeceksiniz — yalnızca
+`assert_eq_int`, `assert_eq_str`, `assert_eq_bool` var. Bu bilinçli:
+Tulpar'ın AOT codegen'inde `json`-tipli parametrelerin `call()`
+üzerinden geçen çağrılarda `toJson` döngüsünden sonra string
+kimliğini kaybedebildiği bilinen bir kısıtlama var. Uzmanlaşmış
+biçimler değerleri döngü olmadan doğrudan karşılaştırır ve hem AOT
+hem VM'de aynı şekilde davranır.
+
+## İpuçları
+
+- Handler fonksiyonlarını istediğiniz gibi adlandırın — `test()`
+  onları string ile arar. Yaygın gelenek `t_foo` / `t_bar`'dır,
+  birlikte sıralanırlar.
+- İlişkili doğrulamaları tek handler'da gruplayın; senaryo başına
+  bir `test(...)` çağrısı çıktıyı okunaklı tutar.
+- Ağ / veritabanı / dosya sistemi testlerini saf-mantık testlerinden
+  ayrı bir suite'te tutun — daha yavaş ve daha kararsızdırlar, bazen
+  yerel olarak atlamak isteyebilirsiniz.

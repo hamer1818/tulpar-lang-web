@@ -1,0 +1,42 @@
+---
+export interface Props {
+	/** Başlangıç Tulpar kodu */
+	code: string;
+	/** Opsiyonel başlık */
+	title?: string;
+	/** Textarea satır sayısı */
+	rows?: number;
+}
+
+const { code, title, rows = 10 } = Astro.props;
+---
+
+<div class="tulpar-playground">
+	<div class="tulpar-playground__header">
+		<span class="tulpar-playground__title">{title ?? 'Tulpar'}</span>
+		<div class="tulpar-playground__headerRight">
+			<span class="tulpar-playground__status" aria-live="polite"></span>
+			<button type="button" class="tulpar-playground__run">
+				Çalıştır
+			</button>
+		</div>
+	</div>
+
+	<textarea
+		class="tulpar-playground__editor"
+		rows={rows}
+		spellcheck="false"
+		autocomplete="off"
+		autocapitalize="off"
+		autocorrect="off"
+	>{code}</textarea>
+
+	<div class="tulpar-playground__outputWrap" hidden>
+		<div class="tulpar-playground__outputHeader">Çıktı</div>
+		<pre class="tulpar-playground__output"></pre>
+	</div>
+</div>
+
+<script>
+	import '../scripts/tulpar-playground-init';
+</script>

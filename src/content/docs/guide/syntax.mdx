@@ -1,0 +1,108 @@
+---
+title: Syntax & Variables
+description: Learn about Tulpar's syntax, data types, and variables.
+---
+
+import TulparPlayground from '../../../components/TulparPlayground.astro';
+
+## Data Types
+
+Tulpar supports the following data types:
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `int` | Integer numbers | `int x = 42;` |
+| `float` | Floating-point numbers | `float pi = 3.14;` |
+| `str` | UTF-8 strings | `str name = "Hamza";` |
+| `bool` | Boolean values | `bool flag = true;` |
+| `array` | Mixed-type arrays | `array mix = [1, "text", 3.14];` |
+| `arrayInt` | Type-safe integer arrays | `arrayInt nums = [1, 2, 3];` |
+| `arrayFloat` | Type-safe float arrays | `arrayFloat vals = [1.5, 2.5];` |
+| `arrayStr` | Type-safe string arrays | `arrayStr names = ["Ali", "Veli"];` |
+| `arrayBool` | Type-safe boolean arrays | `arrayBool flags = [true, false];` |
+| `arrayJson` | JSON-like objects | `arrayJson obj = {"key": "value"};` |
+
+## Variables and Constants
+
+Variables are declared with their type:
+
+<TulparPlayground
+	title="Variables"
+	code={String.raw`// Variable declaration
+int x = 10;
+float y = 3.14;
+str name = "TulparLang";
+bool active = true;
+
+// Compound assignment
+x += 5;   // x = 15
+x *= 2;   // x = 30
+
+// Increment/Decrement
+x++;      // x = 31
+x--;      // x = 30`}
+/>
+
+## Number Literals
+
+Integers can be written in four bases. Underscores are not allowed —
+keep large numbers readable with comments instead.
+
+| Form | Example | Decimal value |
+|------|---------|---------------|
+| Decimal | `255` | 255 |
+| Hexadecimal | `0xFF` | 255 |
+| Octal | `0o755` | 493 |
+| Binary | `0b1010` | 10 |
+
+Floating-point numbers accept the standard C-style forms:
+
+```tulpar
+float pi      = 3.14;
+float small   = 1.0e-5;
+float large   = 6.02e23;
+```
+
+Integers above `i64` range trigger a compile-time warning and are
+clamped to `INT64_MAX` (2^63 − 1).
+
+## Operator Precedence
+
+Operators are listed from **lowest to highest** precedence. Operators
+on the same row have equal precedence and associate left-to-right
+unless noted.
+
+| Tier | Operators | Associativity |
+|------|-----------|---------------|
+| 1 (lowest) | `=` `+=` `-=` `*=` `/=` | right |
+| 2 | `\|\|` | left |
+| 3 | `&&` | left |
+| 4 | `==` `!=` | left |
+| 5 | `<` `>` `<=` `>=` | left |
+| 6 | `+` `-` (binary) | left |
+| 7 | `*` `/` `%` | left |
+| 8 | `-` (unary), `!` | right |
+| 9 (highest) | `++` `--` (postfix), `()` call, `[]` index, `.` member | left |
+
+Use parentheses when in doubt — they read better than relying on
+precedence rules across more than one tier:
+
+```tulpar
+// Both compile, but the parenthesised form is clearer.
+int score = a + b * c;        // = a + (b * c)
+int score = a + (b * c);
+```
+
+## Comments
+
+Tulpar supports single-line and multi-line comments:
+
+<TulparPlayground
+	title="Comments"
+	code={String.raw`// Single-line comment
+
+/*
+ Multi-line
+ block comment
+*/`}
+/>

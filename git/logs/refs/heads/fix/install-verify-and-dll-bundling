@@ -1,0 +1,2 @@
+0000000000000000000000000000000000000000 70c1dbb369ed1bdedaa99868926ef923371351d6 Hamza ORTATEPE <hortatepe2002@gmail.com> 1778066179 +0300	branch: Created from HEAD
+70c1dbb369ed1bdedaa99868926ef923371351d6 cd2c9e54f95c0ac889ed3a5d0b4e888d3a49fcd9 Hamza ORTATEPE <hortatepe2002@gmail.com> 1778066462 +0300	commit: fix(install): SHA-256 verification + bundle MinGW DLLs (install.ps1 / install.sh)

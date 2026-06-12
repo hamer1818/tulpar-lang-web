@@ -1,0 +1,99 @@
+---
+title: Concurrency (Threads & Mutexes)
+description: Run work in parallel with thread_create and protect shared state with mutex_lock / mutex_unlock.
+---
+
+import TulparPlayground from '../../../components/TulparPlayground.astro';
+
+Tulpar exposes OS threads directly through three built-in functions:
+`thread_create`, `mutex_create`, and the `mutex_lock` / `mutex_unlock`
+pair. There is no green-thread runtime — each call to `thread_create`
+spawns a real OS thread, so cooperation with locks is your
+responsibility.
+
+:::caution
+The web playground runs single-threaded WASM. The examples on this
+page need a local install — copy them into a `.tpr` file and run with
+`tulpar file.tpr`.
+:::
+
+## Spawning a thread
+
+`thread_create(handler_name, arg)` starts a new thread that calls the
+function named by the first argument, passing it the second argument
+as a single value. The return is a thread id (`int`); pair it with
+`thread_detach(id)` if you do not plan to join.
+
+```tulpar
+func worker(arg) {
+    print("Worker running with arg =", arg);
+}
+
+int t = thread_create("worker", 42);
+thread_detach(t);
+```
+
+The handler is looked up by **name** (string) the first time it runs
+and cached, so it must be a top-level function the AOT pipeline
+exported (the default for any `func` declaration).
+
+## Protecting shared state
+
+A counter mutated from multiple threads is the canonical race. Wrap
+the read-modify-write region in `mutex_lock` / `mutex_unlock`:
+
+```tulpar
+int counter = 0;
+int mu = mutex_create();
+
+func bump(arg) {
+    mutex_lock(mu);
+    counter = counter + 1;
+    mutex_unlock(mu);
+}
+
+for (int i = 0; i < 100; i++) {
+    int t = thread_create("bump", i);
+    thread_detach(t);
+}
+
+sleep(100);   // give the threads a moment to finish
+print("counter =", counter);
+```
+
+Hold the lock for the **shortest** region you can — typically only the
+write to shared state. The HTTP server in `lib/wings.tpr` uses exactly
+this pattern: it locks around handler dispatch and unlocks before the
+response is built and sent.
+
+## A worked example: threaded HTTP server
+
+`lib/wings.tpr` (the `Wings` framework) accepts new TCP connections in
+its main loop, then hands each connection to a worker thread. The core
+idiom looks like this:
+
+```tulpar
+import "wings";
+
+func handle_root() {
+    return wings_text("hello from " + toString(thread_id()));
+}
+
+get("/", "handle_root");
+listen(8080);   // wings spawns one thread per connection internally
+```
+
+See [HTTP Server (Wings)](/ecosystem/http-server/) for the full
+framework — the threading happens inside `listen`, you don't have to
+wire it up yourself for the common case.
+
+## Rules of thumb
+
+- **Pass small values.** `thread_create` takes a single arg. For more
+  context, pack it into a `arrayJson` and unbox in the worker.
+- **Lock around shared writes only.** Reads of immutable data don't
+  need a lock; use one mutex per resource, not one global lock.
+- **Detach if you don't join.** A leaked thread handle is a real OS
+  thread that will never be reclaimed.
+- **Sleep is not synchronization.** `sleep(ms)` is for pacing, not for
+  waiting on a condition. Use a mutex + a flag the worker sets.

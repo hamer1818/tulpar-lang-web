@@ -1,0 +1,59 @@
+---
+title: Benchmarks
+description: How Tulpar performs against C / Rust / Go / Node.js / Python on CPU and HTTP workloads.
+---
+
+Tulpar's tagline is "as easy as Python, as fast as C". The CPU side
+of that claim is verified on every commit; the HTTP side gets us into
+Node.js territory single-threaded.
+
+## CPU benchmarks
+
+`benchmarks/loopsum.tpr` and `benchmarks/fib.tpr` use the typed AOT
+path (explicit `: int` return type) for native LLVM `i64` codegen.
+
+| Benchmark               | C (gcc -O2) | Tulpar AOT | Ratio       |
+| ----------------------- | ----------: | ---------: | ----------- |
+| `loopsum` (10M sum)     | 67 ms       | 88 ms      | **1.31× C** |
+| `fib(35)` recursive     | 83 ms       | 114 ms     | **1.37× C** |
+
+Tulpar AOT lands in the **1.3–1.4× C** range — same neighbourhood as
+Rust and Go on identical hardware. Best-of-3 wall-clock times on
+Windows 11 + MinGW64.
+
+## HTTP throughput
+
+`benchmarks/http_bench.py` — 5000 GET requests over 4 keep-alive TCP
+connections, single-threaded servers, JSON `{"hello":"world"}` body.
+
+| Server                  | Wall (s) | req/sec | Notes                                                              |
+| ----------------------- | -------: | ------: | ------------------------------------------------------------------ |
+| Tulpar Wings            | 0.193    | ~26 000 | Single-thread `listen()`, NODELAY on accept, dlsym handler cache.  |
+| Node.js http            | 0.184    | ~27 200 | `http.createServer`, V8 22.x.                                      |
+| Python ThreadingHTTP    | 0.354    | ~14 100 | `ThreadingHTTPServer`, single CPython process.                     |
+
+`listen_async()` enables a multi-threaded variant — handler dispatch
+still serialises under `_wings_handler_mu` until LLVM thread-local
+globals land, but parallel `recv` / `send` lifts throughput on
+keep-alive workloads where many connections sit idle.
+
+## What got us here
+
+**Hot-path optimisations applied:**
+
+- `call(handler_name)` dlsym cache (256-slot FNV-1a hash) — eliminates the symbol-table walk per request.
+- TCP_NODELAY on accept — removes Nagle's 40ms batching delay on small JSON responses (+13% req/sec).
+- Static thread-local recv buffer — drops a 64 KB malloc/free pair per keep-alive request.
+- Per-request arena reset — bounded memory on long-running servers without leaking.
+- `break` / `continue` real codegen — was silently no-op'd before, prevents LLVM from emitting suboptimal phi nodes around induction variables.
+
+**Trade-offs we explicitly skipped** (analysed, low value):
+
+- Object-key inline caching (`req["method"]` ~0.3 % of HTTP path).
+- String concat coalescing (`a + b + c` ~0.1 % of HTTP path).
+
+## Methodology
+
+- Native compilers: `gcc -O2`. Rust: `rustc -C opt-level=3`. Go: `go build` defaults.
+- HTTP results use **single-threaded** servers everywhere; running Node with cluster or Tulpar with a thread-pool mode is a separate measurement.
+- Numbers regenerated via `benchmarks/run_benchmarks.sh` (CPU) and `python benchmarks/http_bench.py` (HTTP).
