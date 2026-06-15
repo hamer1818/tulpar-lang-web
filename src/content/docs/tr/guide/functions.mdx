@@ -35,3 +35,61 @@ func fibonacci(int n) {
 int toplam = topla(5, 3);
 int fib = fibonacci(10);
 ```
+
+## Lambda'lar
+
+Lambda'lar `=>` oku ile yazılan anonim fonksiyonlardır. Gövde tek bir ifade
+veya bir blok olabilir. Bir değişkende saklayıp çağırabilir ya da değer olarak
+dolaştırabilirsin:
+
+```tulpar
+// İfade gövdesi
+var topla = (int a, int b) => a + b;
+print(topla(2, 3));          // 5
+
+// Blok gövdesi
+var kare = (int x) => { return x * x; };
+print(kare(5));             // 25
+
+// Anında çağrılan (IIFE)
+int r = ((int a, int b) => a + b)(3, 4);   // 7
+```
+
+## Closure'lar (Kapanışlar)
+
+Bir lambda (veya iç içe fonksiyon), tanımlandığı kapsamdaki değişkenleri
+yakalar. Yakalanan değişkenler dıştaki fonksiyon döndükten sonra da yaşar ve
+mutasyonlar paylaşılır — böylece sayaçlar, biriktiriciler ve fabrikalar
+kurabilirsin:
+
+```tulpar
+// Fabrika: her adder kendi `n`'ini yakalar
+func adder_yap(int n) {
+    return (int x) => n + x;
+}
+
+var ekle10 = adder_yap(10);
+var ekle100 = adder_yap(100);
+print(ekle10(5));    // 15
+print(ekle100(5));   // 105  (bağımsız yakalamalar)
+
+// Mutasyonlu yakalama: bir sayaç
+func sayac_yap() {
+    int sayi = 0;
+    return () => {
+        sayi = sayi + 1;
+        return sayi;
+    };
+}
+
+var tik = sayac_yap();
+print(tik());   // 1
+print(tik());   // 2
+print(tik());   // 3
+```
+
+:::note
+Lambda ve closure'lar AOT yolunda (varsayılan `tulpar run` / `tulpar build`)
+tam desteklenir. Yakalama; parametreler ve yerel değişkenler için herhangi bir
+iç içe derinlikte çalışır.
+:::

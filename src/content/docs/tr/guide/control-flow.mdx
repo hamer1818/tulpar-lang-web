@@ -50,3 +50,63 @@ for (i in range(10)) {
     print("i =", i);
 }`}
 />
+
+## Match İfadeleri
+
+`match`, Rust tarzı bir desen eşleştirmesidir. C'deki `switch`'ten farklı
+olarak bir **ifadedir** — bir değer üretir, dolayısıyla doğrudan atayabilirsin.
+Her kol `desen => gövde` şeklindedir; `_` her şeyi yakalayan joker desendir.
+Kollar tek literal, `|`-alternatifler ve kapsayıcı `lo .. hi` aralıklarını
+destekler.
+
+<TulparPlayground
+	title="İfade olarak match"
+	code={String.raw`func not_harfi(int puan) {
+    return match puan {
+        90 => "A",
+        80 => "B",
+        70 => "C",
+        _  => "F"
+    };
+}
+
+print(not_harfi(90));   // A
+print(not_harfi(55));   // F  (hiçbir literal eşleşmedi, _ koluna düştü)`}
+/>
+
+Desenler bir değer kümesini veya bir aralığı eşleştirebilir. Subject bir kez
+değerlendirilir ve eşleşen ilk kol kazanır:
+
+<TulparPlayground
+	title="Alternatifler ve aralıklar"
+	code={String.raw`func kova(int n) {
+    return match n {
+        0          => "sıfır",
+        1 | 2 | 3  => "küçük",
+        10 .. 20   => "orta",
+        _          => "büyük"
+    };
+}
+
+print(kova(2));    // küçük
+print(kova(15));   // orta
+print(kova(99));   // büyük`}
+/>
+
+`match` statement konumunda blok kollarıyla da çalışır; subject herhangi bir
+ifade olabilir (int, string veya bool):
+
+<TulparPlayground
+	title="Statement konumunda match"
+	code={String.raw`str komut = "stop";
+match komut {
+    "go"   => { print("hareket ediyor"); },
+    "stop" => { print("durduruldu"); },
+    _      => { print("boşta"); }
+}`}
+/>
+
+:::note
+v1 desenleri skaler değerleri (int / string / bool) eşleştirir. Struct/dizi
+destructuring desenleri sonraki bir sürüm için planlanıyor.
+:::

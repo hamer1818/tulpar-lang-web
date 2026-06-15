@@ -97,3 +97,75 @@ wire it up yourself for the common case.
   thread that will never be reclaimed.
 - **Sleep is not synchronization.** `sleep(ms)` is for pacing, not for
   waiting on a condition. Use a mutex + a flag the worker sets.
+
+## Async / await (cooperative coroutines)
+
+Separate from OS threads, Tulpar has **`async` / `await`** for cooperative
+concurrency on a single thread (added in v3.0.0). An `async func` returns a
+**promise** immediately; `await` suspends the caller until that promise
+settles, letting other coroutines run in the meantime.
+
+```tulpar
+async func slow_double(int n) {
+    await sleep_async(20);   // non-blocking pause — other tasks run
+    return n * 2;
+}
+
+async func greet(str who) {
+    await sleep_async(10);
+    print("hello " + who);
+    return 1;
+}
+
+// Spawn two coroutines; they run concurrently while we await.
+var a = slow_double(21);
+var g = greet("world");
+
+int result = await a;        // 42
+await g;
+print("done");
+```
+
+`greet` (10 ms timer) finishes **before** `slow_double` (20 ms) even though
+`slow_double` was spawned and awaited first — proof the two coroutines
+interleave rather than block.
+
+### How it works
+
+- **`async func`** compiles to a coroutine. Calling it spawns the task and
+  returns a pending promise; the body does not run until the event loop
+  pumps it (on the next `await` or at program exit).
+- **`await expr`** — if `expr` is a promise, suspend until it settles and
+  yield its value; inside a coroutine this hands control to the scheduler,
+  on the main thread it drives the loop until ready. `await` on a plain
+  value is the identity (`await 5 == 5`).
+- **`sleep_async(ms)`** returns a promise that fulfils after `ms`
+  milliseconds **without blocking** — unlike `sleep(ms)`, which blocks. Use
+  `await sleep_async(ms)` for non-blocking delays.
+- The runtime **drains all pending tasks at program exit**, so a
+  spawned-but-unawaited coroutine still completes (Node-style).
+
+A coroutine can await another coroutine, so you can compose async functions:
+
+```tulpar
+async func inc(int x) { await sleep_async(2); return x + 1; }
+async func chain(int x) {
+    int a = await inc(x);
+    int b = await inc(a);
+    return b;
+}
+print(await chain(40));   // 42
+```
+
+:::note
+`async`/`await` is an **AOT** feature (the default `tulpar run` / `tulpar
+build`). It is backed by a stackful-coroutine event loop, not a
+state-machine transform. `async`/`await` are reserved keywords.
+:::
+
+:::caution
+Threads (`thread_create`) and `async`/`await` are different tools: threads
+are real OS threads for parallelism; `async` is single-threaded cooperative
+scheduling for overlapping waits (timers, and—soon—async I/O). Don't mix a
+coroutine's `await` with blocking `sleep` inside the same task.
+:::

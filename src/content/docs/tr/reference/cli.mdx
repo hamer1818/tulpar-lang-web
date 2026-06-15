@@ -1,6 +1,6 @@
 ---
 title: CLI Referansı
-description: Her tulpar komutu ve bayrağı — çalıştırma modları, REPL, build, fmt, pkg, lsp, version, update, help.
+description: Her tulpar komutu ve bayrağı — çalıştır, build, fmt, pkg, lsp, version, update, help.
 ---
 
 `tulpar` ikilisi derleyiciyi, çalışma zamanını, paket yöneticisini,
@@ -11,22 +11,21 @@ toplar. Bu sayfa kapsamlı referanstır; daha samimi bir giriş için
 ## Program çalıştırma
 
 ```bash
-tulpar <kaynak.tpr>          # AOT derle + çalıştır (varsayılan; native hız)
-tulpar --vm <kaynak.tpr>     # Bytecode VM (anlık başlangıç, dev döngüsü)
-tulpar --legacy <kaynak.tpr> # Tree-walk yorumlayıcı (en yavaş, debug)
+tulpar <kaynak.tpr>          # AOT derle + çalıştır (native hız)
 ```
 
-Bayrak olmadan `tulpar` AOT pipeline'ını çalıştırır (LLVM → native
-ikili → exec). AOT yolu *altyapı* nedeniyle başarısız olursa (clang
-yok, runtime arşivi link edilemiyor) sessizce VM'e düşer. Kaynak
-seviyesi hatalar (parse, codegen) **düşmez** — tanılamayı bir kez
-alırsınız, iki kez değil.
+`tulpar` artık **yalnızca AOT** çalışır (v3.0.0'dan beri): LLVM
+pipeline'ını çalıştırır (LLVM → native ikili → exec) ve başka bir
+yürütme yolu yoktur. AOT hatası (parse, codegen veya eksik clang /
+runtime arşivi) sert hatadır — yani "çalıştı" her zaman native ikilinin
+çalıştığı anlamına gelir.
 
-| Mod | Başlangıç | Verim | Ne zaman |
-|-----|-----------|-------|----------|
-| AOT (varsayılan) | ~200 ms soğuk | Native (≈ Rust) | Üretim, benchmark, deploy |
-| `--vm` | < 10 ms | AOT'tan ~3-5× yavaş | Edit-çalıştır döngüsü, CI test |
-| `--legacy` | < 10 ms | ~50× yavaş | Sadece son çare debug |
+:::note[v3.0.0'da kaldırıldı]
+Bytecode **VM** ve **REPL** kaldırıldı; Tulpar tek AOT yolu modelini
+(C/Rust/Go gibi) izliyor. `--vm` / `--run` kabul edilir ama **uyarıyla
+yok sayılır**; `--repl` / `-i` kaldırıldı bildirimi verip çıkar. Eski
+`--legacy` tree-walk yorumlayıcısı da gitti.
+:::
 
 ## Bağımsız ikili oluşturma
 
@@ -46,21 +45,6 @@ tulpar build merhaba.tpr uygulamam # ./uygulamam üretir
 TULPAR_AOT_NOCACHE=1 tulpar build merhaba.tpr   # her zaman derle
 ```
 
-## REPL
-
-```bash
-tulpar --repl       # veya: tulpar -i
-```
-
-Etkileşimli oku-değerlendir-yazdır döngüsü, eski yorumlayıcı tarafından
-desteklenir (anında başlar, her satırı enter'a bastığınızda çalıştırır).
-REPL içinde yerleşik komutlar:
-
-| Komut | Etkisi |
-|-------|--------|
-| `exit`, `quit` | REPL'den çık |
-| `help` | REPL komut listesini göster |
-| `clear` | Ekranı temizle |
 
 ## Formatlayıcı
 

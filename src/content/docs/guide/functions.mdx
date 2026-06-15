@@ -35,3 +35,61 @@ func fibonacci(int n) {
 int sum = add(5, 3);
 int fib = fibonacci(10);
 ```
+
+## Lambdas
+
+Lambdas are anonymous functions written with the `=>` arrow. The body can be
+a single expression or a block. Store them in a variable and call them, or
+pass them around as values:
+
+```tulpar
+// Expression body
+var add = (int a, int b) => a + b;
+print(add(2, 3));            // 5
+
+// Block body
+var square = (int x) => { return x * x; };
+print(square(5));           // 25
+
+// Immediately invoked
+int r = ((int a, int b) => a + b)(3, 4);   // 7
+```
+
+## Closures
+
+A lambda (or nested function) captures variables from the scope where it is
+defined. The captured variables live on past the enclosing function's return,
+and mutations are shared — so you can build counters, accumulators, and
+factories:
+
+```tulpar
+// Factory: each adder captures its own `n`
+func make_adder(int n) {
+    return (int x) => n + x;
+}
+
+var add10 = make_adder(10);
+var add100 = make_adder(100);
+print(add10(5));    // 15
+print(add100(5));   // 105  (independent captures)
+
+// Mutating capture: a counter
+func make_counter() {
+    int count = 0;
+    return () => {
+        count = count + 1;
+        return count;
+    };
+}
+
+var tick = make_counter();
+print(tick());   // 1
+print(tick());   // 2
+print(tick());   // 3
+```
+
+:::note
+Lambdas and closures are fully supported on the AOT path (the default
+`tulpar run` / `tulpar build`). Capture works for parameters and locals across
+any nesting depth.
+:::

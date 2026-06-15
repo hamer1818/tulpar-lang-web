@@ -100,3 +100,78 @@ durum için bunu kendiniz bağlamak zorunda değilsiniz.
 - **Sleep senkronizasyon değildir.** `sleep(ms)` koşul beklemek için
   değil, hız ayarlamak içindir. Bir koşul beklemek için mutex + worker'ın
   set ettiği bir bayrak kullanın.
+
+## Async / await (kooperatif coroutine'ler)
+
+OS thread'lerinden ayrı olarak Tulpar, tek bir iş parçacığında kooperatif
+eşzamanlılık için **`async` / `await`** sunar (v3.0.0'da eklendi). Bir
+`async func` hemen bir **promise** döndürür; `await` ise o promise yerleşene
+kadar çağıranı askıya alır ve bu sırada diğer coroutine'lerin çalışmasına
+izin verir.
+
+```tulpar
+async func yavas_iki_kat(int n) {
+    await sleep_async(20);   // bloklamayan duraklama — diğer işler çalışır
+    return n * 2;
+}
+
+async func selamla(str kim) {
+    await sleep_async(10);
+    print("merhaba " + kim);
+    return 1;
+}
+
+// İki coroutine başlat; biz await ederken eşzamanlı çalışırlar.
+var a = yavas_iki_kat(21);
+var g = selamla("dunya");
+
+int sonuc = await a;         // 42
+await g;
+print("bitti");
+```
+
+`yavas_iki_kat` ilk başlatılıp ilk await edilmesine rağmen `selamla`
+(10 ms timer) ondan (20 ms) **önce** biter — iki coroutine'in bloklamak
+yerine iç içe geçtiğinin kanıtı.
+
+### Nasıl çalışır
+
+- **`async func`** bir coroutine'e derlenir. Çağırmak task'ı başlatır ve
+  bekleyen bir promise döndürür; gövde, event loop onu sürene kadar (bir
+  sonraki `await`'te ya da program sonunda) çalışmaz.
+- **`await ifade`** — `ifade` bir promise ise yerleşene dek askıya alır ve
+  değerini verir; coroutine içindeyse kontrolü scheduler'a, ana akıştaysa
+  loop'u sürerek hazır olana dek bekler. Promise olmayan bir değerde `await`
+  birim işlevdir (`await 5 == 5`).
+- **`sleep_async(ms)`** `ms` milisaniye sonra **bloklamadan** yerleşen bir
+  promise döndürür — bloklayan `sleep(ms)`'in aksine. Bloklamayan gecikme
+  için `await sleep_async(ms)` kullanın.
+- Runtime **program sonunda bekleyen tüm task'ları drene eder**; başlatılıp
+  await edilmemiş bir coroutine bile tamamlanır (Node tarzı).
+
+Bir coroutine başka bir coroutine'i await edebilir; böylece async
+fonksiyonları besteleyebilirsin:
+
+```tulpar
+async func artir(int x) { await sleep_async(2); return x + 1; }
+async func zincir(int x) {
+    int a = await artir(x);
+    int b = await artir(a);
+    return b;
+}
+print(await zincir(40));   // 42
+```
+
+:::note
+`async`/`await` bir **AOT** özelliğidir (varsayılan `tulpar run` / `tulpar
+build`). State-machine dönüşümü değil, stackful-coroutine event loop ile
+çalışır. `async`/`await` ayrılmış anahtar kelimelerdir.
+:::
+
+:::caution
+Thread'ler (`thread_create`) ve `async`/`await` farklı araçlardır:
+thread'ler paralellik için gerçek OS thread'leridir; `async` ise bekleyişleri
+(timer'lar ve yakında async I/O) üst üste bindirmek için tek-iş-parçacıklı
+kooperatif zamanlamadır. Aynı task içinde coroutine `await`'i ile bloklayan
+`sleep`'i karıştırma.
+:::

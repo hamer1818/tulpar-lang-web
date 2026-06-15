@@ -101,9 +101,21 @@ break;       // exit innermost loop
 continue;    // jump to next iteration
 return;      // exit function (void)
 return expr; // exit function with value
+
+// match — Rust-style; an *expression* (yields a value).
+str grade = match score {
+    90        => "A",       // literal
+    1 | 2 | 3 => "low",     // alternatives
+    10 .. 20  => "mid",     // inclusive range
+    _         => "other"    // wildcard
+};
+// Also valid in statement position with block arms:
+match cmd { "go" => { run(); }, _ => { stop(); } }
 ```
 
-There is no `for x in collection` form yet — iterate via index.
+`match` evaluates its subject once and takes the first matching arm. v1
+patterns are scalar literals (int / string / bool), `|`-alternatives, and
+`lo .. hi` ranges; `_` is the catch-all.
 
 ## Functions
 
@@ -127,6 +139,27 @@ func fib(int n): int {
 
 Function-by-name dispatch (`call("name")`) looks up the symbol at
 runtime; useful for routers / tables-of-handlers.
+
+### Lambdas & closures
+
+```tpr
+// Lambda: `=>` arrow, expression or block body.
+var add = (int a, int b) => a + b;        // add(2, 3) == 5
+var sq  = (int x) => { return x * x; };   // sq(5) == 25
+
+// Closures capture enclosing parameters/locals (heap env), so factories
+// and mutable counters work. Captures are independent per instance.
+func make_adder(int n) { return (int x) => n + x; }
+var add10 = make_adder(10);               // add10(5) == 15
+
+func make_counter() {
+    int c = 0;
+    return () => { c = c + 1; return c; };
+}
+var tick = make_counter();                // tick() -> 1, 2, 3, ...
+```
+
+Closures are fully supported on the AOT path (default `tulpar run` / `build`).
 
 ## Structs (`type`)
 
@@ -210,10 +243,11 @@ shape. `finally` always runs, even on uncaught throws.
 ## Reserved keywords
 
 ```
-break       catch       continue    do          else        false
-finally     for         func        if          import      in
-let         null        return      throw       true        try
-type        var         void        while
+async       await       break       catch       continue    do
+else        false       finally     for         func        if
+import      in          let         match       null        return
+throw       true        try         type        var         void
+while
 ```
 
 Type-name keywords (`int`, `float`, `str`, `bool`, `json`, `array`)

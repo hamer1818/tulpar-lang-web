@@ -1,6 +1,6 @@
 ---
 title: CLI Reference
-description: Every tulpar command and flag — run modes, REPL, build, fmt, pkg, lsp, version, update, help.
+description: Every tulpar command and flag — run, build, fmt, pkg, lsp, version, update, help.
 ---
 
 The `tulpar` binary bundles the compiler, runtime, package manager,
@@ -11,22 +11,20 @@ Started](/intro/getting-started/) guide is a friendlier introduction.
 ## Running a program
 
 ```bash
-tulpar <source.tpr>          # AOT compile + run (default; native speed)
-tulpar --vm <source.tpr>     # Bytecode VM (instant startup, dev loop)
-tulpar --legacy <source.tpr> # Tree-walk interpreter (slowest, debug)
+tulpar <source.tpr>          # AOT compile + run (native speed)
 ```
 
-Without flags, `tulpar` runs the AOT pipeline (LLVM → native binary →
-exec). If the AOT path fails for an *infrastructure* reason (clang
-missing, runtime archive not linkable) it silently falls back to the
-VM. Source-level errors (parse, codegen) **do not** fall back — you
-get the diagnostic once, not twice.
+`tulpar` is **AOT-only** (since v3.0.0): it runs the LLVM pipeline
+(LLVM → native binary → exec) and there is no other execution path. An
+AOT failure (parse, codegen, or a missing clang / runtime archive) is a
+hard error — so "it ran" always means the native binary ran.
 
-| Mode | Startup | Throughput | When to use |
-|------|---------|------------|-------------|
-| AOT (default) | ~200 ms cold | Native (≈ Rust) | Production, benchmarks, deploys |
-| `--vm` | < 10 ms | ~3-5× slower than AOT | Edit-run loop, CI test runs |
-| `--legacy` | < 10 ms | ~50× slower | Last-resort debugging only |
+:::note[Removed in v3.0.0]
+The bytecode **VM** and the **REPL** were removed; Tulpar follows the
+C/Rust/Go model of a single AOT path. `--vm` / `--run` are accepted but
+**ignored with a warning**; `--repl` / `-i` print a removal notice and
+exit. The earlier `--legacy` tree-walk interpreter is also gone.
+:::
 
 ## Building a standalone binary
 
@@ -45,22 +43,6 @@ tulpar build hello.tpr           # produces ./hello (./hello.exe on Windows)
 tulpar build hello.tpr myapp     # produces ./myapp
 TULPAR_AOT_NOCACHE=1 tulpar build hello.tpr   # always recompile
 ```
-
-## REPL
-
-```bash
-tulpar --repl       # or: tulpar -i
-```
-
-Interactive read-eval-print loop, backed by the legacy interpreter
-(starts instantly, runs each line as you press enter). Built-in
-commands inside the REPL:
-
-| Command | Effect |
-|---------|--------|
-| `exit`, `quit` | Leave the REPL |
-| `help` | Show the REPL command list |
-| `clear` | Clear the screen |
 
 ## Formatter
 

@@ -50,3 +50,62 @@ for (i in range(10)) {
     print("i =", i);
 }`}
 />
+
+## Match Expressions
+
+`match` is a Rust-style pattern match. Unlike a C `switch`, it is an
+**expression** — it produces a value, so you can assign it directly. Each arm
+is `pattern => body`; `_` is the catch-all wildcard. Arms support single
+literals, `|`-alternatives, and inclusive `lo .. hi` ranges.
+
+<TulparPlayground
+	title="Match as an expression"
+	code={String.raw`func grade(int score) {
+    return match score {
+        90 => "A",
+        80 => "B",
+        70 => "C",
+        _  => "F"
+    };
+}
+
+print(grade(90));   // A
+print(grade(55));   // F  (no literal matched, fell through to _)`}
+/>
+
+Patterns can match a set of values or a range. The subject is evaluated once,
+and the first matching arm wins:
+
+<TulparPlayground
+	title="Alternatives and ranges"
+	code={String.raw`func bucket(int n) {
+    return match n {
+        0          => "zero",
+        1 | 2 | 3  => "small",
+        10 .. 20   => "teens",
+        _          => "big"
+    };
+}
+
+print(bucket(2));    // small
+print(bucket(15));   // teens
+print(bucket(99));   // big`}
+/>
+
+`match` also works in statement position with block arms, and the subject may
+be any expression (int, string, or bool):
+
+<TulparPlayground
+	title="Statement-position match"
+	code={String.raw`str cmd = "stop";
+match cmd {
+    "go"   => { print("moving"); },
+    "stop" => { print("halted"); },
+    _      => { print("idle"); }
+}`}
+/>
+
+:::note
+v1 patterns match scalar values (int / string / bool). Struct/array
+destructuring patterns are planned for a later release.
+:::
