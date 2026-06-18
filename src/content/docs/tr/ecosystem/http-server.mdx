@@ -13,27 +13,42 @@ ve multi-thread işleme zaten bağlanmış halde.
 ```tulpar
 import "wings";
 
-func index_handler() {
+func index(req) {
     return {"hello": "world"};
 }
 
-get("/", "index_handler");
-listen(8080);
+get("/", index);          // handler'ı adıyla bağla — string değil
+serve();                  // port yok → varsayılan 8484; açık için serve(8080)
 ```
 
 Bu eksiksiz bir HTTP/1.1 sunucusu — keep-alive, CORS uyumlu varsayılan
-header'lar, `/healthz` + `/metrics` otomatik kayıtlı.
+header'lar, `/healthz` + `/metrics` otomatik kayıtlı. Route'lar handler
+**fonksiyonunu** bağlar (`index`, `"index"` değil) — yanlış yazım
+derleme hatası, sessiz 404 değil.
+
+Port'suz `serve()` Tulpar'ın varsayılan portunu kullanır: **8484** (ASCII `T`
+= 84 → ikili `01010100`, "Tulpar portu"); doluysa yukarı yürür (8485, 8486, …)
+ki ikinci bir uygulama da başlayabilsin. Açık port verirsen — `serve(8080)` —
+Wings tam onu bağlar ve doluysa sessizce kaydırmak yerine seni bilgilendirir.
+`serve()` = `listen()`; ikisi de aynı opsiyonel port'u alır.
 
 ## Routing
 
 ```tulpar
-get("/users/:id", "show_user");      // path param'lar _request["params"]'da
-post("/users", "create_user");
-put("/users/:id", "update_user");
-del("/users/:id", "delete_user");
+get("/users/:id", show_user);   // path param'lar req.params'a gelir
+post("/users", create_user);
+put("/users/:id", update_user);
+del("/users/:id", delete_user);
+
+func show_user(req) {
+    return orm_find("users", toInt(req.params.id));
+}
 ```
 
-Handler içinde parsed request global `_request`'tedir:
+Her handler isteği ilk parametre (`req`) olarak alır. Alanları noktalı
+erişimle okuyun — `req.params.id`, `req.query.page`, `req.json` (otomatik
+parse edilmiş gövde). Aynı veri global `_request`'te de var, yani
+parametre almayan bir handler da çalışır:
 
 | Alan       | Tip   | Notlar                                |
 | ---------- | ----- | ------------------------------------- |
@@ -112,6 +127,119 @@ log_error("ödeme başarısız: " + toString(code));
 
 Wings'in kendi access log'u da bu formatı kullanır. Benchmark / production
 yolda satırı susturmak için `TULPAR_HTTP_QUIET=1`.
+
+## Response helper'ları
+
+Düz bir obje döndürün, `200 application/json` olarak serileşir. Diğer
+durum kodları için `{"_status": N}` envelope'unu elle yazmak yerine
+helper'ları kullanın — niyet okunur:
+
+```tulpar
+func get_user(req) {
+    json u = find_user();
+    if (!u) { return not_found("kullanıcı yok"); }
+    return ok(u);                 // 200
+}
+
+func create_user(req) {
+    return created(new_user());   // 201
+}
+```
+
+Mevcut: `ok(data)`, `created(data)` (201), `no_content()` (204),
+`bad_request(msg)` (400), `unauthorized(msg)` (401), `forbidden(msg)`
+(403), `not_found(msg)` (404), `conflict(msg)` (409), `server_error(msg)`
+(500). Hata helper'ları ortak `{"error": msg}` gövdesi paylaşır.
+`text(body)` düz metin döner; `with_status(data, code)` herhangi bir kod.
+
+## İstek gövdesini okuma
+
+JSON istek gövdesi sizin için parse edilir — doğrudan `_request["json"]`
+okuyun, `fromJson()` gerekmez:
+
+```tulpar
+func create_user(req) {
+    json body = req.json;                  // zaten parse edildi
+    if (length(body["name"]) == 0) {
+        return bad_request("name gerekli");
+    }
+    return created({"name": body["name"]});
+}
+```
+
+`req` (ve global `_request`) ayrıca şunları taşır: `params` (`:id` gibi
+path yakalamaları), `query`, `headers`, `cookies`, `body` (ham), ve
+`method` / `path`.
+
+## İstek gövdesini doğrulama
+
+Bir route'u kaydettikten hemen sonra `body_schema()` ile şema iliştir. Gövde
+handler **çalışmadan önce** kontrol edilir — geçersiz gövde koduna hiç
+ulaşmaz ve tüm hatalı alanları listeleyen otomatik bir `422` alır:
+
+```tulpar
+post("/users", create_user);
+body_schema({"name": "str", "age?": "int"});   // sonda ? = opsiyonel
+```
+
+```
+POST {"name": 123}  →  422 {"error":"validation failed",
+                            "fields":{"name":"expected str, got int"}}
+POST {}             →  422 {"fields":{"name":"required"}}
+POST {"name":"Ada"} →  create_user'a ulaşır
+```
+
+Tipler: `str`, `int`, `float`, `num` (int veya float), `bool`, `array`,
+`object`, `json` (object veya array), `any` (var, herhangi bir tip).
+
+## İnteraktif dokümanlar (Swagger UI)
+
+`serve()` otomatik olarak **`/docs`** (Swagger UI) ve onu besleyen
+**`/openapi.json`** uçlarını route'larından üreterek bağlar — `:id` path
+param'ları ve her `body_schema()` OpenAPI parametre ve request body'sine
+dönüşür. Başlık/sürümü `serve()` öncesi `docs_info("Users API", "1.0.0")` ile
+ayarla. Kapatmak için `TULPAR_WINGS_NODOCS=1` ortam değişkeni veya `/docs`'u
+kendin kaydet.
+
+## In-memory durum (otomatik persist)
+
+Wings her isteğin belleğini yanıttan sonra geri alır (arena reset); yani
+handler'ın ürettiği bir değer istek bitince yok olur. Veriyi uzun-ömürlü
+bir **global**'de tutmak — in-memory "veritabanı" deseni — istediğin tek
+şey: global'e yaz, gerisini Tulpar halleder. Global'e yapılan yazımlar
+(`push(_users, u)`, `_users[i]["name"]=v`, `_g = v`) derleme zamanında
+**otomatik kalıcılaştırılır** — manuel bir çağrı gerekmez:
+
+```tulpar
+import "wings";
+
+json _users = [{"id": 1, "name": "Ada"}];
+int _next_id = 2;
+
+func list_users(req) { return ok(_users); }
+
+func create_user(req) {
+    json body = req.json;
+    json u = {"id": _next_id, "name": body["name"]};
+    _next_id = _next_id + 1;
+    push(_users, u);              // global'e push → otomatik kalıcı
+    return created(u);
+}
+
+get("/users", list_users);
+post("/users", create_user);
+serve(8080);                      // serve() == listen()
+```
+
+:::tip
+Auto-persist bir runtime write-barrier'dır: istek verisi isteği aşan bir şeye
+(bir global'e veya zaten bir global'de tutulan bir objeye) yazıldığında
+otomatik derin kopyalanır; response objeleri ve yerel scratch değerleri
+dokunulmaz, böylece sıcak yol bedava kalır. Value-flow tabanlı olduğu için
+global'i yerele alias'layıp yazmayı da kapsar
+(`let x = _users[i]; x["name"] = v;`). Daha büyük veya çok-süreçli veri için
+[veritabanını](/tr/stdlib/database/) kullan.
+:::
 
 ## HTTPS (Wings TLS)
 

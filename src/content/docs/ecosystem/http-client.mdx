@@ -75,6 +75,38 @@ and toggles the `TULPAR_HAS_TLS=1` define. SNI is set automatically,
 certificate verification is currently `SSL_VERIFY_NONE` until a
 configurable trust-store path lands.
 
+## Async (non-blocking) requests
+
+Every verb has an `_async` twin that returns a promise instead of
+blocking: `http_get_async`, `http_post_async`, `http_put_async`,
+`http_delete_async` (wrapping the `http_request_async` built-in). The
+request runs on a worker pool while the [async event loop](/guide/async/)
+keeps pumping other coroutines, so you can fan out to several upstreams
+at once and `gather` the results:
+
+```tulpar
+import "http_client";
+
+async func dashboard() {
+    // Three upstreams fetched concurrently — total time ~ the slowest one.
+    var r = await gather(
+        http_get_async("http://api/users"),
+        http_get_async("http://api/orders"),
+        http_get_async("http://api/stats")
+    );
+    return r;
+}
+
+var data = await dashboard();
+print(toString(data[0]["status"]));   // 200
+```
+
+The resolved value is the same `{ ok, status, headers, body }` envelope
+as the blocking client. Worker-pool size defaults to 4; override it with
+the `TULPAR_HTTP_POOL` environment variable. See the
+[Async / Await guide](/guide/async/) for the full concurrency model,
+including error handling when a request rejects.
+
 ## Limits & roadmap
 
 Today:

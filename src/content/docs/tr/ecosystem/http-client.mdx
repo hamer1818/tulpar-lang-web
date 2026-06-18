@@ -73,6 +73,38 @@ CMake `find_package(OpenSSL)` ile otomatik algılar ve `TULPAR_HAS_TLS=1`
 define'ını açar. SNI otomatik set, sertifika doğrulama şu an
 `SSL_VERIFY_NONE` (yapılandırılabilir trust-store yolu inene kadar).
 
+## Async (bloklamayan) istekler
+
+Her fiilin bloklamak yerine bir promise döndüren bir `_async` ikizi
+vardır: `http_get_async`, `http_post_async`, `http_put_async`,
+`http_delete_async` (`http_request_async` built-in'ini sarmalar). İstek
+bir worker pool'da koşarken [async event loop](/tr/guide/async/) diğer
+coroutine'leri pompalamaya devam eder; böylece birden çok upstream'e
+aynı anda dağılıp sonuçları `gather` edebilirsiniz:
+
+```tulpar
+import "http_client";
+
+async func dashboard() {
+    // Üç upstream eşzamanlı çekilir — toplam süre ~ en yavaş olanı.
+    var r = await gather(
+        http_get_async("http://api/users"),
+        http_get_async("http://api/orders"),
+        http_get_async("http://api/stats")
+    );
+    return r;
+}
+
+var data = await dashboard();
+print(toString(data[0]["status"]));   // 200
+```
+
+Çözülen değer, bloklayan istemciyle aynı `{ ok, status, headers, body }`
+zarfıdır. Worker-pool boyutu default 4'tür; `TULPAR_HTTP_POOL` ortam
+değişkeniyle değiştirin. Tam eşzamanlılık modeli ve bir istek reject
+ettiğinde hata yönetimi için [Async / Await rehberine](/tr/guide/async/)
+bakın.
+
 ## Sınırlar
 
 Bugün:

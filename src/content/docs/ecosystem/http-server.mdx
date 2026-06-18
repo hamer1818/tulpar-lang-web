@@ -14,32 +14,43 @@ wired up.
 ```tulpar
 import "wings";
 
-func index_handler() {
+func index(req) {
     return {"hello": "world"};
 }
 
-get("/", "index_handler");
-listen(8080);
+get("/", index);          // bind the handler by name — not a string
+serve();                  // no port → default 8484; serve(8080) for explicit
 ```
 
 That's a complete HTTP/1.1 server with keep-alive, CORS-friendly default
-headers, and `/healthz` + `/metrics` auto-registered.
+headers, and `/healthz` + `/metrics` auto-registered. Routes bind the
+handler **function** (`index`, not `"index"`) — a typo is a compile
+error, not a silent 404.
+
+Calling `serve()` with no port uses Tulpar's default **8484** (ASCII `T` =
+84 → binary `01010100`, the "Tulpar port"); if it's already taken it walks up
+(8485, 8486, …) so a second app still starts. Pass an explicit port —
+`serve(8080)` — and Wings binds exactly that, telling you if it's in use
+rather than silently moving. `serve()` is `listen()`; both accept the same
+optional port.
 
 ## Routing
 
 ```tulpar
-get("/users/:id", "show_user");      // path params live in _request["params"]
-post("/users", "create_user");
-put("/users/:id", "update_user");
-del("/users/:id", "delete_user");
+get("/users/:id", show_user);   // path params arrive in req.params
+post("/users", create_user);
+put("/users/:id", update_user);
+del("/users/:id", delete_user);
 
-func show_user() {
-    str id = _request["params"]["id"];
-    return orm_find("users", toInt(id));
+func show_user(req) {
+    return orm_find("users", toInt(req.params.id));
 }
 ```
 
-Inside a handler, the parsed request is on the global `_request`:
+Each handler receives the request as its first parameter (`req`). You
+can read fields with dotted access — `req.params.id`, `req.query.page`,
+`req.json` (auto-parsed body). The same data is also on the global
+`_request`, so a handler that takes no parameter still works:
 
 | Field          | Type         | Notes                                      |
 | -------------- | ------------ | ------------------------------------------ |
@@ -136,6 +147,118 @@ Output (one JSON object per line — log aggregator-friendly):
 The Wings access log itself uses the same format. To silence the
 per-request access line on benchmark / production paths, set
 `TULPAR_HTTP_QUIET=1`.
+
+## Response helpers
+
+Return a plain object and it's serialized as `200 application/json`. For
+other status codes, use the helpers instead of hand-writing the
+`{"_status": N}` envelope — they read as intent:
+
+```tulpar
+func get_user(req) {
+    json u = find_user();
+    if (!u) { return not_found("no such user"); }
+    return ok(u);                 // 200
+}
+
+func create_user(req) {
+    return created(new_user());   // 201
+}
+```
+
+Available: `ok(data)`, `created(data)` (201), `no_content()` (204),
+`bad_request(msg)` (400), `unauthorized(msg)` (401), `forbidden(msg)`
+(403), `not_found(msg)` (404), `conflict(msg)` (409), `server_error(msg)`
+(500). Error helpers share a uniform `{"error": msg}` body. `text(body)`
+returns plain text; `with_status(data, code)` sets any status.
+
+## Reading the request body
+
+A JSON request body is parsed for you — read `_request["json"]`
+directly, no `fromJson()` needed:
+
+```tulpar
+func create_user(req) {
+    json body = req.json;                  // already parsed
+    if (length(body["name"]) == 0) {
+        return bad_request("name required");
+    }
+    return created({"name": body["name"]});
+}
+```
+
+`req` (and the global `_request`) also carries `params` (path captures
+like `:id`), `query`, `headers`, `cookies`, `body` (raw), and `method` /
+`path`.
+
+## Validating the request body
+
+Attach a schema to a route with `body_schema()` right after registering it.
+The body is checked **before** your handler runs — an invalid body never
+reaches your code and gets an automatic `422` listing every offending field:
+
+```tulpar
+post("/users", create_user);
+body_schema({"name": "str", "age?": "int"});   // trailing ? = optional
+```
+
+```
+POST {"name": 123}  →  422 {"error":"validation failed",
+                            "fields":{"name":"expected str, got int"}}
+POST {}             →  422 {"fields":{"name":"required"}}
+POST {"name":"Ada"} →  reaches create_user
+```
+
+Types: `str`, `int`, `float`, `num` (int or float), `bool`, `array`,
+`object`, `json` (object or array), `any` (present, any type).
+
+## Interactive docs (Swagger UI)
+
+`serve()` auto-mounts **`/docs`** (Swagger UI) backed by **`/openapi.json`**,
+generated from your routes — `:id` path params and every `body_schema()`
+become OpenAPI parameters and request bodies. Set the title/version with
+`docs_info("Users API", "1.0.0")` before `serve()`. Opt out with the env var
+`TULPAR_WINGS_NODOCS=1` or by claiming `/docs` yourself.
+
+## Keeping in-memory state (auto-persist)
+
+Wings recycles each request's memory after the response (an arena reset),
+so a value a handler built is gone once the request ends. To keep data in
+a long-lived **global** — the in-memory "database" pattern — just write to
+the global; Tulpar handles the rest. Writes rooted in a global
+(`push(_users, u)`, `_users[i]["name"] = v`, `_g = v`) are **auto-persisted
+at compile time** — no manual call needed:
+
+```tulpar
+import "wings";
+
+json _users = [{"id": 1, "name": "Ada"}];
+int _next_id = 2;
+
+func list_users(req) { return ok(_users); }
+
+func create_user(req) {
+    json body = req.json;
+    json u = {"id": _next_id, "name": body["name"]};
+    _next_id = _next_id + 1;
+    push(_users, u);              // push into a global → auto-persisted
+    return created(u);
+}
+
+get("/users", list_users);
+post("/users", create_user);
+serve(8080);                      // serve() == listen()
+```
+
+:::tip
+Auto-persist is a runtime write barrier: storing request data into anything
+that outlives the request (a global, or an object already kept in one) is
+deep-copied automatically, while response objects and local scratch values are
+left untouched so the hot path stays free. It is value-flow based, so it also
+covers a global reached through a local alias
+(`let x = _users[i]; x["name"] = v;`). For larger or multi-process data, use
+the [database](/stdlib/database/) instead.
+:::
 
 ## Custom responses
 
