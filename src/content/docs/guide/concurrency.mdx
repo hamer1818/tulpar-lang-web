@@ -7,9 +7,10 @@ import TulparPlayground from '../../../components/TulparPlayground.astro';
 
 Tulpar exposes OS threads directly through three built-in functions:
 `thread_create`, `mutex_create`, and the `mutex_lock` / `mutex_unlock`
-pair. There is no green-thread runtime — each call to `thread_create`
-spawns a real OS thread, so cooperation with locks is your
-responsibility.
+pair. These are real OS threads — each call to `thread_create` spawns
+one, so cooperation with locks is your responsibility. For *cooperative*,
+single-threaded concurrency (non-blocking timers and HTTP), reach for
+[Async / Await](/guide/async/) instead.
 
 :::caution
 The web playground runs single-threaded WASM. The examples on this

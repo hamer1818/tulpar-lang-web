@@ -98,7 +98,58 @@ platform için derleme yapacaksanız ya da debug build istiyorsanız bu
 yolu kullanın. Çoğu kullanıcı yukarıdaki tek satırlık kurulumu tercih
 etmelidir.
 
-**Ön koşullar:** GCC veya Clang, **LLVM 18+**, **CMake 3.14+**.
+**Ön koşullar:** GCC veya Clang (C++17), **LLVM 18 veya üzeri** (18'den
+22'ye kadar test edilir) ve **CMake 3.14+**. Derleme, LLVM'in
+*geliştirme* ağacını gerektirir — başlıklar artı statik kütüphaneler
+(`LLVMCore`, `LLVMSupport`, …) — yalnızca `clang` derleyicisi değil.
+
+#### Toolchain kurulumu
+
+**Ubuntu / Debian:**
+
+```bash
+sudo apt install build-essential cmake llvm-18-dev
+# kontrol: 18.x yazdırmalı
+llvm-config-18 --version
+```
+
+**Fedora:**
+
+```bash
+sudo dnf install gcc-c++ cmake llvm-devel
+```
+
+**Arch Linux:**
+
+```bash
+sudo pacman -S base-devel cmake llvm
+```
+
+**macOS (Homebrew):**
+
+```bash
+brew install llvm@18 cmake
+```
+
+Homebrew'in LLVM'i keg-only'dir; CMake onu otomatik bulmaz. Derlemeden
+önce cellar'a yönlendirin:
+
+```bash
+export LLVM_DIR="$(brew --prefix llvm@18)/lib/cmake/llvm"
+export PATH="$(brew --prefix llvm@18)/bin:$PATH"
+```
+
+**Windows:** resmi LLVM kurucusu ve Chocolatey yalnızca `clang`
+derleyicisini sunar — Tulpar'ın link ettiği statik dev kütüphanelerini
+değil. Güvenilir yol **MSYS2** (mingw64):
+
+```bash
+pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake \
+          mingw-w64-x86_64-llvm mingw-w64-x86_64-zlib \
+          mingw-w64-x86_64-zstd mingw-w64-x86_64-libxml2
+```
+
+#### Klonla ve derle
 
 ```bash
 git clone https://github.com/hamer1818/TulparLang.git
@@ -111,11 +162,15 @@ cd TulparLang
 ./build.sh
 ```
 
-**Windows (native MSVC):**
+**Windows:**
 
 ```powershell
 .\build.ps1
 ```
+
+`build.bat` / `build.ps1` toolchain'i otomatik algılar: varsa MSVC + bir
+Windows LLVM dev ağacı (`C:\Program Files\LLVM`), yoksa bir MSYS2
+mingw64 kurulumu (`C:\msys64`).
 
 Sonuç olarak repo kökünde `tulpar` (Windows'ta `tulpar.exe`) ve
 AOT-derlenmiş kullanıcı binary'lerinin link ettiği

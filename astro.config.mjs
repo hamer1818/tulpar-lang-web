@@ -64,6 +64,7 @@ export default defineConfig({
 						{ label: 'Modules & Imports', translations: { tr: 'Modüller ve İçe Aktarma' }, slug: 'guide/modules' },
 						{ label: 'Error Handling', translations: { tr: 'Hata Yönetimi' }, slug: 'guide/error-handling' },
 						{ label: 'Concurrency (Threads)', translations: { tr: 'Eşzamanlılık (Thread\'ler)' }, slug: 'guide/concurrency' },
+						{ label: 'Async / Await', translations: { tr: 'Async / Await' }, slug: 'guide/async' },
 						{ label: 'Tulpar vs C', translations: { tr: 'Tulpar ve C Karşılaştırma' }, slug: 'guide/tulpar-vs-c' },
 					],
 				},

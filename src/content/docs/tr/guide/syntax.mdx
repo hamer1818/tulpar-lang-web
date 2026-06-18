@@ -66,6 +66,38 @@ float buyuk   = 6.02e23;
 `i64` aralığını aşan tam sayılar derleme zamanı uyarısı tetikler ve
 `INT64_MAX`'a (2^63 − 1) sıkıştırılır.
 
+## String'ler & interpolation
+
+String'ler UTF-8'dir ve `+` ile birleşir. `+`'nın bir tarafı string ise,
+diğer operand otomatik olarak metin formuna çevrilir — `"adet: " + 5`,
+`"adet: 5"` olur, `toString()` gerekmez.
+
+Okunabilir interpolation için **t-string** kullanın — bir string
+literal'in önüne `t` koyup ifadeleri `{ }` içine gömün:
+
+```tulpar
+str name = "Hamza";
+int age = 24;
+
+// t-string: { } içindeki ifadeler değerlendirilip yerleştirilir.
+print(t"{name}, {age} yaşında");
+
+// Parantez içinde her ifade çalışır.
+int a = 3; int b = 4;
+print(t"toplam = {a + b}, büyük = {a > b}");
+
+// Index erişimi (iç tırnaklar sorun değil):
+json user = {"name": "Ada", "role": "admin"};
+print(t"kullanıcı {user["name"]} ({user["role"]})");
+
+// Literal süslü parantez \{ ... \} ile yazılır
+print(t"\{interpolasyon değil\} ama {age} öyle");
+```
+
+Bir t-string her zaman bir `str` üretir, yalnızca interpolation olsa
+bile (`t"{n}"`). Literal süslü parantezi `\{` / `\}` ile yazın. Tercih
+ederseniz düz `+` birleştirme hâlâ kullanılabilir.
+
 ## Operatör Önceliği
 
 Operatörler **en düşükten en yükseğe** önceliğe göre listelenmiştir.

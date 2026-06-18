@@ -93,7 +93,58 @@ You only need this if you are hacking on the compiler, building for a
 platform we don't ship a binary for, or want a debug build. Most users
 should use the one-liner installer above.
 
-**Prerequisites:** GCC or Clang, **LLVM 18+**, **CMake 3.14+**.
+**Prerequisites:** GCC or Clang (C++17), **LLVM 18 or newer** (18 through
+22 are tested), and **CMake 3.14+**. The build needs LLVM's *development*
+tree — headers plus the static libs (`LLVMCore`, `LLVMSupport`, …) — not
+just the `clang` compiler.
+
+#### Install the toolchain
+
+**Ubuntu / Debian:**
+
+```bash
+sudo apt install build-essential cmake llvm-18-dev
+# sanity check: should print 18.x
+llvm-config-18 --version
+```
+
+**Fedora:**
+
+```bash
+sudo dnf install gcc-c++ cmake llvm-devel
+```
+
+**Arch Linux:**
+
+```bash
+sudo pacman -S base-devel cmake llvm
+```
+
+**macOS (Homebrew):**
+
+```bash
+brew install llvm@18 cmake
+```
+
+Homebrew's LLVM is keg-only, so CMake won't find it automatically. Point
+it at the cellar before building:
+
+```bash
+export LLVM_DIR="$(brew --prefix llvm@18)/lib/cmake/llvm"
+export PATH="$(brew --prefix llvm@18)/bin:$PATH"
+```
+
+**Windows:** the official LLVM installer and Chocolatey ship only the
+`clang` compiler — not the static dev libs Tulpar links against. The
+reliable route is **MSYS2** (mingw64):
+
+```bash
+pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake \
+          mingw-w64-x86_64-llvm mingw-w64-x86_64-zlib \
+          mingw-w64-x86_64-zstd mingw-w64-x86_64-libxml2
+```
+
+#### Clone and build
 
 ```bash
 git clone https://github.com/hamer1818/TulparLang.git
@@ -106,11 +157,15 @@ cd TulparLang
 ./build.sh
 ```
 
-**Windows (native MSVC):**
+**Windows:**
 
 ```powershell
 .\build.ps1
 ```
+
+`build.bat` / `build.ps1` auto-detect the toolchain: MSVC + a Windows
+LLVM dev tree (`C:\Program Files\LLVM`) if present, otherwise an MSYS2
+mingw64 install (`C:\msys64`).
 
 The result is a `tulpar` (`tulpar.exe` on Windows) executable copied to
 the repository root, plus `libtulpar_runtime.a` (`.lib` on Windows) which

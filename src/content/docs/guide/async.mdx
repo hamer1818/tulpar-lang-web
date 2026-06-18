@@ -1,0 +1,214 @@
+---
+title: Async / Await
+description: Cooperative concurrency in Tulpar with async functions, await, sleep_async, gather, and the non-blocking HTTP client.
+---
+
+Tulpar has a built-in **async/await** runtime: a single-threaded,
+cooperative event loop driving stackful coroutines. An `async func`
+returns a *promise* immediately; `await` suspends the current coroutine
+until that promise settles, letting other coroutines run in the
+meantime. This is the same model as JavaScript or Python `asyncio` —
+concurrency without the locking burden of raw OS threads.
+
+:::note
+This is different from [Concurrency (Threads)](/guide/concurrency/).
+Threads (`thread_create`) give you *parallel* OS threads with shared
+memory; async/await gives you *cooperative* single-threaded concurrency
+where tasks interleave only at `await` points. Use async for I/O-bound
+work (timers, HTTP), threads for CPU-bound parallel work.
+:::
+
+:::caution
+The async runtime needs a local install — copy these examples into a
+`.tpr` file and run them with `tulpar file.tpr`. The browser playground
+runs single-threaded WASM and does not host the coroutine scheduler.
+:::
+
+## Your first async function
+
+Mark a function `async` and it becomes a coroutine factory. Calling it
+does **not** run the body — it queues a task and hands you a promise.
+`await` is what actually drives it to a value.
+
+```tulpar
+async func slow_double(int n) {
+    // Non-blocking pause — the scheduler runs other tasks meanwhile.
+    await sleep_async(20);
+    return n * 2;
+}
+
+var p = slow_double(21);   // queued, returns a promise immediately
+int result = await p;      // drive it; suspends here until it settles
+print("slow_double(21) = " + toString(result));   // 42
+```
+
+`await` on a non-promise is the identity function, so `await 5` is just
+`5` — handy when a value might or might not be a promise.
+
+## Concurrency: spawn first, await later
+
+Because calling an `async func` queues the task right away, spawning two
+coroutines *before* awaiting them runs them concurrently. The total time
+is `max(tasks)`, not the sum.
+
+```tulpar
+async func greet(str who) {
+    await sleep_async(10);
+    print("merhaba " + who);
+    return 1;
+}
+
+// Both tasks are queued, then run concurrently while we await.
+var a = slow_double(21);
+var g = greet("dunya");
+
+int r = await a;
+await g;
+print("done");
+```
+
+The runtime drains all pending tasks at program exit, so a coroutine you
+spawned but never awaited still gets a chance to finish (Node-style).
+
+## sleep_async — the non-blocking timer
+
+`sleep_async(ms)` returns a promise that settles after `ms`
+milliseconds. Unlike the blocking `sleep(ms)`, it yields control to the
+scheduler, so the 10 ms task below settles before the 20 ms one even
+though it was spawned second:
+
+```tulpar
+async func after(int ms, int val) {
+    await sleep_async(ms);
+    return val;
+}
+
+var slow = after(20, 100);
+var fast = after(10, 1);
+int f = await fast;   // fast first — settles at ~10ms
+int s = await slow;   // ~20ms total, not 30ms
+```
+
+## gather — await many at once
+
+`gather(...)` awaits several promises concurrently and fulfils with an
+array of their results, **in argument order**. Non-promise arguments
+pass through unchanged. Total time is `max(children)`, not the sum.
+
+```tulpar
+async func fetch_user(int id) {
+    await sleep_async(20);
+    return "user-" + toString(id);
+}
+
+async func main_flow() {
+    var results = await gather(fetch_user(1), fetch_user(2), 99);
+    print(results[0]);   // user-1
+    print(results[1]);   // user-2
+    print(toString(results[2]));   // 99 (passed through)
+    return results;
+}
+
+await main_flow();
+```
+
+## Error handling — reject and try/catch
+
+A `throw` that escapes an `async func` **rejects** its promise. Awaiting
+a rejected promise re-raises the thrown value, so you catch it with the
+ordinary [`try` / `catch`](/guide/error-handling/) you'd use for any
+synchronous error:
+
+```tulpar
+async func boom(int n) {
+    await sleep_async(5);
+    throw "boom-" + toString(n);
+}
+
+try {
+    int r = await boom(1);
+    print("unreached");
+} catch (e) {
+    print("caught: " + e);   // caught: boom-1
+}
+```
+
+The rejection propagates across coroutine boundaries. A wrapping `async
+func` can catch a child's rejection with its own `try` / `catch`, and a
+coroutine that catches its own throw fulfils normally:
+
+```tulpar
+async func wrapper() {
+    try {
+        int r = await boom(2);
+        return "no-throw";
+    } catch (e) {
+        return "wrapper-caught: " + e;
+    }
+}
+
+str w = await wrapper();
+print(w);   // wrapper-caught: boom-2
+```
+
+If a child passed to `gather(...)` rejects, the rejection re-raises on
+the `gather` await — so a single `try` / `catch` around the `gather`
+covers every child. An async rejection that nobody awaits, or that
+reaches the top level uncaught, prints `Uncaught Exception` and exits
+with a non-zero status.
+
+## Non-blocking HTTP client
+
+The headline use of async I/O is the **non-blocking HTTP client**.
+`http_request_async(method, url, body)` returns a promise; the request
+runs on a worker pool while the event loop keeps pumping other
+coroutines. The `http_client` library wraps it with the usual verbs:
+
+```tulpar
+import "http_client";
+
+async func fetch_two(str a, str b) {
+    // Both requests fly concurrently — total time ~ max(a, b).
+    var r = await gather(http_get_async(a), http_get_async(b));
+    return r;
+}
+
+var out = await fetch_two("http://example.com/a", "http://example.com/b");
+print(toString(out[0]["status"]));   // 200
+print(out[0]["body"]);
+```
+
+The resolved value is the same `{ ok, status, headers, body }` envelope
+as the blocking [`http_get` / `http_post`](/ecosystem/http-client/)
+client. The wrappers are `http_get_async`, `http_post_async`,
+`http_put_async`, and `http_delete_async`. Worker-pool size defaults to
+4; override it with the `TULPAR_HTTP_POOL` environment variable.
+
+## How it works (and its limits)
+
+- **Stackful coroutines, not a state-machine transform.** An `async
+  func` compiles to an ordinary native function; `await` swaps the
+  coroutine's stack back to the scheduler (POSIX `ucontext` / Windows
+  Fibers). This keeps the compiler changes tiny and means you can
+  `await` anywhere — inside loops, `if`s, even across a `try` block.
+- **Single-threaded.** Coroutines never run nested or in parallel; one
+  either runs to completion or yields at an `await`. No locks needed for
+  coroutine-local state.
+- **Exception isolation.** Each coroutine carries its own exception-
+  handler context, so a `try` that spans an `await` works correctly even
+  while sibling coroutines throw and catch independently.
+- **Parameter limit.** `async func` supports up to **16** parameters.
+- **AOT-only.** Like every Tulpar feature, async lives only on the
+  AOT/LLVM path — there is no VM fallback.
+
+## When to reach for async vs threads
+
+| Use async/await | Use [threads](/guide/concurrency/) |
+| --- | --- |
+| I/O-bound work (HTTP, timers) | CPU-bound parallel work |
+| Many concurrent waits, little CPU | A few long-running compute jobs |
+| You want cooperative, lock-free tasks | You need true OS-level parallelism |
+
+For an HTTP server handling many connections, the [Wings](/ecosystem/http-server/)
+listeners already give you thread- and event-based concurrency; reach
+for async/await in client code that fans out to several upstreams.

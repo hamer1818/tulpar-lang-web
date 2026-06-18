@@ -66,6 +66,38 @@ float large   = 6.02e23;
 Integers above `i64` range trigger a compile-time warning and are
 clamped to `INT64_MAX` (2^63 − 1).
 
+## Strings & interpolation
+
+Strings are UTF-8 and concatenate with `+`. When either side of `+` is a
+string, the other operand is coerced to its text form automatically —
+`"count: " + 5` is `"count: 5"`, no `toString()` needed.
+
+For readable interpolation, use a **t-string** — prefix a string literal
+with `t` and embed expressions in `{ }`:
+
+```tulpar
+str name = "Hamza";
+int age = 24;
+
+// t-string: expressions in { } are evaluated and stitched in.
+print(t"{name} is {age} years old");
+
+// Any expression works inside the braces.
+int a = 3; int b = 4;
+print(t"sum = {a + b}, bigger = {a > b}");
+
+// Index access (inner quotes are fine):
+json user = {"name": "Ada", "role": "admin"};
+print(t"user {user["name"]} ({user["role"]})");
+
+// A literal brace is written \{ ... \}
+print(t"\{not interpolated\} but {age} is");
+```
+
+A t-string always produces a `str`, even when it is only an
+interpolation (`t"{n}"`). Write a literal brace as `\{` / `\}`. The plain
+`+` concatenation is still available when you prefer it.
+
 ## Operator Precedence
 
 Operators are listed from **lowest to highest** precedence. Operators

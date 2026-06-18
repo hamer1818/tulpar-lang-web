@@ -108,13 +108,73 @@ tulpar --help          # veya: tulpar -h, tulpar help, tulpar ?
 referansını yazdırır. Çıktı dili sistem locale'ini takip eder
 (TR locale'inde Türkçe, başka yerde İngilizce).
 
+## Derleyici bayrakları
+
+Bunlar tek bir `tulpar` / `tulpar build` çağrısını değiştirir. Komut
+satırındaki diğer her şey program ve argümanlarıdır.
+
+| Bayrak | Etkisi |
+|--------|--------|
+| `--aot` | Açık AOT derleme (zaten varsayılan — başka backend yok) |
+| `--build` | Derle-ve-çalıştır yerine bağımsız ikili üret (`build` alt komutuyla aynı) |
+| `--debug` / `-g` | `clang++` link'ine `-g` ilet, debug bölümleri ikiliye taşınsın |
+| `--no-typecheck` | Bu çalıştırma için `[typecheck]` ön-geçişini atla |
+| `--strict` | Tip denetçisi uyarılarını sert hatalara yükselt |
+| `--vm` / `--run` | **Uyarıyla yok sayılır** — Tulpar AOT-only, VM yok |
+| `--repl` / `-i` | **Kaldırıldı** — bir not yazıp çıkar (yorumlayıcı yok) |
+
 ## Ortam değişkenleri
+
+Alt sisteme göre gruplanmıştır. Boolean'lar, aksi belirtilmedikçe boş
+olmayan her değeri "açık" sayar.
+
+#### Tanılama & locale
 
 | Değişken | Etkisi |
 |----------|--------|
-| `TULPAR_LANG=tr` / `en` | Tanılama mesajları için sistem locale'ini geçersiz kıl |
+| `LANG` / `LC_ALL` / `LC_MESSAGES` | CLI + tanılama dili: `tr` içeren bir değer Türkçe, diğerleri İngilizce seçer (Windows OS UI locale'ine düşer) |
+
+#### Tip denetimi
+
+| Değişken | Etkisi |
+|----------|--------|
+| `TULPAR_NO_TYPECHECK=1` | Her `run` / `build`'de `[typecheck]` ön-geçişini kapat |
+| `TULPAR_STRICT=1` | Tip denetçisi uyarılarını hata say (`=0` kapatır) |
+
+#### AOT / derleyici
+
+| Değişken | Etkisi |
+|----------|--------|
 | `TULPAR_AOT_NOCACHE=1` | Çıktı güncel olsa bile `tulpar build`'i yeniden derlemeye zorla |
-| `TULPAR_INSTALL_DIR` | `install.sh`'nin ikiliyi koyduğu yer (varsayılan: `~/.local/bin`) |
+| `TULPAR_AOT_TIME=1` | AOT zincirinin faz-bazlı süre dökümünü yazdır |
+| `TULPAR_AOT_EMIT_LL=1` | Nesne dosyasının yanına LLVM `.ll` IR'ı da çıkar |
+| `TULPAR_AOT_LINK_FLAGS=…` | Final `clang++` link'ine ek bayraklar ilet (ör. ASan'lı runtime'a karşı leak-check için `-fsanitize=address`) |
+| `TULPAR_RUNTIME_DIR=path` | `libtulpar_runtime.a` için ek arama dizini |
+
+#### Async / HTTP runtime
+
+| Değişken | Etkisi |
+|----------|--------|
+| `TULPAR_HTTP_POOL=N` | [Async HTTP istemcisi](/tr/ecosystem/http-client/) worker-pool boyutu (varsayılan 4) |
+| `TULPAR_HTTP_MAX_BODY=bytes` | Wings sunucuları için gelen HTTP istek gövdesi üst sınırı (varsayılan 16 MiB) |
+| `TULPAR_HTTP_QUIET=1` | HTTP istemci istek loglamasını sustur |
+| `TULPAR_WINGS_HOST=127.0.0.1` | Wings listener'ları için bind host — loopback LAN firewall sorularını önler |
+
+#### TLS
+
+| Değişken | Etkisi |
+|----------|--------|
+| `TULPAR_CA_BUNDLE=path` | HTTPS sertifika doğrulaması için özel CA bundle (PEM) |
+| `TULPAR_TLS_INSECURE=1` | Sertifika doğrulamasını atla — yalnız dev / self-signed |
+
+#### Paket yöneticisi & araçlar
+
+| Değişken | Etkisi |
+|----------|--------|
+| `TULPAR_REGISTRY=url` | Paket registry temel URL'ini geçersiz kıl |
+| `TULPAR_PUBLISH_TOKEN=token` | `tulpar pkg publish` için yetki token'ı |
+| `TULPAR_LSP_DEBUG=1` | `--lsp` dil sunucusundan ayrıntılı log |
+| `TULPAR_INSTALL_DIR=path` | `install.sh`'nin ikiliyi koyduğu yer (varsayılan `~/.local/bin`) |
 
 ## Çıkış kodları
 

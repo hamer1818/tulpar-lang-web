@@ -106,13 +106,73 @@ Prints the same command reference shown when you run `tulpar` with no
 arguments. Output language follows the system locale (Turkish on TR
 locale, English elsewhere).
 
+## Compiler flags
+
+These modify a single `tulpar` / `tulpar build` invocation. Everything
+else on the command line is the program and its arguments.
+
+| Flag | Effect |
+|------|--------|
+| `--aot` | Explicit AOT compile (already the default — there is no other backend) |
+| `--build` | Emit a standalone binary instead of compile-and-run (same as the `build` subcommand) |
+| `--debug` / `-g` | Forward `-g` to the `clang++` link so debug sections survive into the binary |
+| `--no-typecheck` | Skip the `[typecheck]` pre-pass for this run |
+| `--strict` | Promote type-checker warnings to hard errors |
+| `--vm` / `--run` | **Ignored with a warning** — Tulpar is AOT-only, there is no VM |
+| `--repl` / `-i` | **Removed** — prints a notice and exits (no interpreter) |
+
 ## Environment variables
+
+Grouped by subsystem. Booleans treat any non-empty value as "on" unless
+noted.
+
+#### Diagnostics & locale
 
 | Variable | Effect |
 |----------|--------|
-| `TULPAR_LANG=tr` / `en` | Override the system locale for diagnostic messages |
+| `LANG` / `LC_ALL` / `LC_MESSAGES` | CLI + diagnostic language: a value containing `tr` selects Turkish, anything else English (Windows falls back to the OS UI locale) |
+
+#### Type checking
+
+| Variable | Effect |
+|----------|--------|
+| `TULPAR_NO_TYPECHECK=1` | Disable the `[typecheck]` pre-pass on every `run` / `build` |
+| `TULPAR_STRICT=1` | Treat type-checker warnings as errors (`=0` forces it off) |
+
+#### AOT / compiler
+
+| Variable | Effect |
+|----------|--------|
 | `TULPAR_AOT_NOCACHE=1` | Force `tulpar build` to recompile even if the output is up-to-date |
-| `TULPAR_INSTALL_DIR` | Where `install.sh` puts the binary (default: `~/.local/bin`) |
+| `TULPAR_AOT_TIME=1` | Print a per-phase wallclock breakdown of the AOT pipeline |
+| `TULPAR_AOT_EMIT_LL=1` | Also emit the LLVM `.ll` IR alongside the object file |
+| `TULPAR_AOT_LINK_FLAGS=…` | Extra flags forwarded to the final `clang++` link (e.g. `-fsanitize=address` to leak-check against an ASan-built runtime) |
+| `TULPAR_RUNTIME_DIR=path` | Extra directory to search for `libtulpar_runtime.a` |
+
+#### Async / HTTP runtime
+
+| Variable | Effect |
+|----------|--------|
+| `TULPAR_HTTP_POOL=N` | Worker-pool size for the [async HTTP client](/ecosystem/http-client/) (default 4) |
+| `TULPAR_HTTP_MAX_BODY=bytes` | Max inbound HTTP request body for Wings servers (default 16 MiB) |
+| `TULPAR_HTTP_QUIET=1` | Silence HTTP client request logging |
+| `TULPAR_WINGS_HOST=127.0.0.1` | Bind host for Wings listeners — loopback avoids LAN firewall prompts |
+
+#### TLS
+
+| Variable | Effect |
+|----------|--------|
+| `TULPAR_CA_BUNDLE=path` | Custom CA bundle (PEM) for HTTPS certificate verification |
+| `TULPAR_TLS_INSECURE=1` | Skip certificate verification — dev / self-signed only |
+
+#### Package manager & tooling
+
+| Variable | Effect |
+|----------|--------|
+| `TULPAR_REGISTRY=url` | Override the package registry base URL |
+| `TULPAR_PUBLISH_TOKEN=token` | Auth token for `tulpar pkg publish` |
+| `TULPAR_LSP_DEBUG=1` | Verbose logging from the `--lsp` language server |
+| `TULPAR_INSTALL_DIR=path` | Where `install.sh` puts the binary (default `~/.local/bin`) |
 
 ## Exit codes
 

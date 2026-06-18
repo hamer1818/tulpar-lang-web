@@ -7,9 +7,11 @@ import TulparPlayground from '../../../../components/TulparPlayground.astro';
 
 Tulpar OS thread'lerini doğrudan üç yerleşik fonksiyon üzerinden
 sunar: `thread_create`, `mutex_create` ve `mutex_lock` /
-`mutex_unlock` çifti. Yeşil-thread çalışma zamanı yoktur — her
-`thread_create` çağrısı gerçek bir OS thread'i başlatır, dolayısıyla
-kilitlerle iş birliği sizin sorumluluğunuzdadır.
+`mutex_unlock` çifti. Bunlar gerçek OS thread'leridir — her
+`thread_create` çağrısı bir tane başlatır, dolayısıyla kilitlerle iş
+birliği sizin sorumluluğunuzdadır. *Kooperatif*, tek-thread'li
+eşzamanlılık (bloklamayan timer ve HTTP) için bunun yerine
+[Async / Await](/tr/guide/async/)'e bakın.
 
 :::caution
 Web playground tek-thread'li WASM'de çalışır. Bu sayfadaki örnekler

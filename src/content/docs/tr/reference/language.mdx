@@ -16,7 +16,7 @@ program başlar başlamaz çalışan herhangi bir ifade veya kontrol-akışı
 statement'ı. `main()` zorunluluğu yok — top-level statement'lar kaynak
 sırasına göre çalışır.
 
-```tpr
+```tulpar
 import "wings";          // import (yalnızca top-level)
 
 type Point {             // struct tanımı
@@ -39,18 +39,24 @@ print(origin());         // top-level ifade — başlangıçta çalışır
 | `int`          | `42`, `-1`, `0xff`                        | 64-bit signed.                                      |
 | `float`        | `3.14`, `2.0`, `-0.5`                     | 64-bit IEEE 754.                                    |
 | `bool`         | `true`, `false`                           |                                                     |
-| `str`          | `"merhaba"`, `"a\nb"`                     | UTF-8. Sadece çift tırnak.                          |
+| `str`          | `"merhaba"`, `t"x={n}"`                   | UTF-8. `t"..{expr}.."` interpolasyon; `+` çevirir.  |
 | `json`         | `{"k": 1}`, `[1, 2, 3]`                   | Runtime'da object/array/scalar tagged-union.        |
 | `array<T>`     | `[1, 2, 3]`                               | `T` ∈ `int / float / str / bool / json`.            |
 | `void`         | —                                         | Sadece dönüş tipi olabilir — `void` değer yok.      |
 | `<TipAdı>`     | `Point p = { x: 1, y: 2 };`               | Kullanıcı `type` ile tanımlar.                      |
 
-`var` (tipsiz) ve `null` da rezerve. `var` tipi inferer'a bırakır,
-`null` ise atanmamış slot/değişkenin "yokluk" değeridir.
+`var` (ve aliası `let`, tipsiz) ve `null` da rezerve. `var` tipi
+inferer'a bırakır, `null` ise atanmamış slot/değişkenin "yokluk"
+değeridir.
+
+**String interpolation.** `t"total: {n} adet"` bir *t-string*'tir: her
+`{expr}` değerlendirilip yerleştirilir. Her zaman `str` üretir (`t"{n}"`
+bile); literal süslü parantez `\{` / `\}` ile yazılır. Düz `+` de çalışır
+ve çevirir — `"n=" + 5`, `"n=5"` olur, `toString()` gerekmez.
 
 ## Değişkenler
 
-```tpr
+```tulpar
 int x = 10;              // tipli, başlangıç değerli
 str name = "Hamza";
 bool flag;               // tipli, varsayılan (0 / "" / false / null)
@@ -87,7 +93,7 @@ belirtir ama dil bunu zorunlu kılmaz.
 
 ## Kontrol akışı
 
-```tpr
+```tulpar
 if (kosul) { ... }
 if (kosul) { ... } else if (digeri) { ... } else { ... }
 
@@ -96,17 +102,58 @@ while (kosul) { ... }
 for (int i = 0; i < n; i = i + 1) { ... }
 // `i = i + 1` yerine `i++` ya da `i += 1` da geçerli
 
+// for-each — bir diziyi, string'in karakterlerini veya range(n)'i gez.
+// Parantez şart; döngü değişkeni çıkarsanır (tip yok, `var` yok).
+for (x in [10, 20, 30]) { print(x); }
+for (i in range(n))     { print(i); }
+
 break;       // en içteki döngüden çık
 continue;    // bir sonraki iterasyona atla
 return;      // void fonksiyondan çık
 return ifade; // değerle çık
+
+// match — Rust tarzı; bir *ifadedir* (değer üretir).
+str grade = match score {
+    90        => "A",       // literal
+    1 | 2 | 3 => "low",     // alternatifler
+    10 .. 20  => "mid",     // kapsayıcı aralık
+    _         => "other"    // joker
+};
+// Blok kollarıyla statement konumunda da geçerli:
+match cmd { "go" => { run(); }, _ => { stop(); } }
+
+// Destructuring — çıplak tanımlayıcı BAĞLAR, literal KISITLAR, `_`
+// yok sayar, `..rest` dizi kuyruğunu yakalar. Desenler iç içe geçer.
+match arr {
+    []             => "empty",
+    [0, second]    => "leading zero",      // 0 kısıtlar, second bağlar
+    [head, ..tail] => "head + tail",
+};
+match user {                                // json obje / struct alanları
+    {role: "admin", name} => "admin " + name,
+    {name}                => "user " + name,
+};
+match shape {                               // tipli struct varyant desenleri
+    Circle{r: 0} => "point",
+    Rect{w, h}   => w * h,
+};
+match req { {user: {id}, path} => handle(id, path), _ => skip() };  // iç içe
 ```
 
-`for x in koleksiyon` formu henüz yok — index ile döngü yazın.
+`match` subject'ini bir kez değerlendirir ve ilk eşleşen kolu alır.
+Desenler: skaler literal (int / string / bool), `|`-alternatifler,
+`lo .. hi` aralıkları ve dizilerin (`[a, b]`, `[head, ..tail]`), JSON
+objelerinin / struct alanlarının (`{role: "admin", name}`) ve tipli
+struct varyantlarının (`Circle{r}`) **destructuring**'i — ki iç içe
+geçer. `_` joker (catch-all)'dır.
+
+`for (x in koleksiyon)` for-each'i dizi, string ve `range(n)` üzerinde
+çalışır (yukarı bakın). Object üzerinde henüz yok; anahtarlar için
+`keys(obj)` dizisini gezin.
 
 ## Fonksiyonlar
 
-```tpr
+```tulpar
 // Pozisyonel parametreler; tip isimden önce.
 func add(int a, int b): int {
     return a + b;
@@ -129,7 +176,7 @@ işe yarar.
 
 ## Struct (`type`)
 
-```tpr
+```tulpar
 type Point {
     int x;
     int y;
@@ -151,7 +198,7 @@ Struct alanlarına `.` ile erişilir (`["alan"]` sugar'ı). Struct'ta
 
 ## JSON / array
 
-```tpr
+```tulpar
 json o = { "name": "Hamza", "age": 24, "tags": ["admin", "user"] };
 print(o["name"]);                // "Hamza"
 print(o.tags[0]);                // "admin"
@@ -170,7 +217,7 @@ sayı veya null olabilir.
 
 ## Modüller ve import
 
-```tpr
+```tulpar
 import "wings";              // tüm top-level fonksiyonları scope'a getirir
 import "wings" as w;         // namespace'li — `w.listen(...)` ya da `w__listen(...)`
 import "./local/util.tpr";   // path import (kaynağa göre relative)
@@ -183,7 +230,7 @@ embedded stdlib. Lockfile + sürüm spesleri için
 
 ## Hata yönetimi
 
-```tpr
+```tulpar
 try {
     riskli();
 } catch (e) {
@@ -199,9 +246,31 @@ throw {"code": 500, "msg": "patladı"};
 `catch (e)` fırlatılan değeri `e`'ye bağlar (json olarak). `finally`
 yakalanmamış throw'da bile çalışır.
 
+## Async / await
+
+```tulpar
+async func fetch(int id) {        // hemen bir promise döndürür
+    await sleep_async(20);        // bloklamaz; bu sırada başka görevler koşar
+    return id * 2;
+}
+
+var p = fetch(21);                // kuyruğa alındı, henüz koşmadı
+int r = await p;                  // sür → 42
+
+// gather: birçoğunu eşzamanlı bekle, sonuçlar argüman sırasında
+var all = await gather(fetch(1), fetch(2));
+```
+
+`async func`'lar tek-thread'li bir event loop üzerinde stackful
+coroutine'lerdir; birini çağırmak bir görev kuyruğa alıp promise
+döndürür, `await` onu sürer. Yakalanmayan bir `throw` promise'i reject
+eder ve `await` onu yeniden fırlatır; yani sıradan `try` / `catch` async
+hataları yakalar. En fazla 16 parametre. Tam model ve bloklamayan HTTP
+istemcisi için [Async / Await rehberine](/tr/guide/async/) bakın.
+
 ## Yorumlar
 
-```tpr
+```tulpar
 // Tek satır — satır sonuna kadar.
 /* Blok yorum — iç içe geçmez. */
 ```

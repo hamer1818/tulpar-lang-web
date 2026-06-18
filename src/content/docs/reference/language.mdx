@@ -16,7 +16,7 @@ control-flow statement that runs immediately when the program starts.
 There is no `main()` requirement — top-level statements execute in
 source order.
 
-```tpr
+```tulpar
 import "wings";          // import (top-level only)
 
 type Point {             // struct declaration
@@ -39,19 +39,24 @@ print(origin());         // top-level expression — runs at startup
 | `int`          | `42`, `-1`, `0xff`                       | 64-bit signed.                                     |
 | `float`        | `3.14`, `2.0`, `-0.5`                    | 64-bit IEEE 754.                                   |
 | `bool`         | `true`, `false`                          |                                                    |
-| `str`          | `"hello"`, `"a\nb"`                      | UTF-8. Double-quote only.                          |
+| `str`          | `"hi"`, `t"x={n}"`                       | UTF-8. `t"..{expr}.."` interpolates; `+` coerces.  |
 | `json`         | `{"k": 1}`, `[1, 2, 3]`                  | Tagged-union for objects/arrays/scalars at runtime.|
 | `array<T>`     | `[1, 2, 3]`                              | `T` ∈ `int / float / str / bool / json`.           |
 | `void`         | —                                        | Function return only — no values of type `void`.   |
 | `<TypeName>`   | `Point p = { x: 1, y: 2 };`              | User-declared via `type`.                          |
 
-`var` (untyped) and `null` are also keywords — `var` declares a binding
-the type-inferer fills in, `null` is the absence value for `json` slots
-and unset variables.
+`var` (and its alias `let`, untyped) and `null` are also keywords — `var`
+declares a binding the type-inferer fills in, `null` is the absence value
+for `json` slots and unset variables.
+
+**String interpolation.** `t"total: {n} adet"` is a *t-string*: each
+`{expr}` is evaluated and stitched in. It always yields a `str` (even
+`t"{n}"`); write a literal brace as `\{` / `\}`. Plain `+` also works and
+coerces — `"n=" + 5` is `"n=5"`, no `toString()` needed.
 
 ## Variables
 
-```tpr
+```tulpar
 int x = 10;              // typed, with initializer
 str name = "Hamza";
 bool flag;               // typed, default-initialised (0 / "" / false / null)
@@ -88,7 +93,7 @@ Precedence (highest first):
 
 ## Control flow
 
-```tpr
+```tulpar
 if (cond) { ... }
 if (cond) { ... } else if (other) { ... } else { ... }
 
@@ -96,6 +101,11 @@ while (cond) { ... }
 
 for (int i = 0; i < n; i = i + 1) { ... }
 // `i = i + 1` is also valid as `i++` or `i += 1`
+
+// for-each — iterate an array, a string's chars, or range(n).
+// Parens are required; the loop variable is inferred (no type, no `var`).
+for (x in [10, 20, 30]) { print(x); }
+for (i in range(n))     { print(i); }
 
 break;       // exit innermost loop
 continue;    // jump to next iteration
@@ -111,15 +121,34 @@ str grade = match score {
 };
 // Also valid in statement position with block arms:
 match cmd { "go" => { run(); }, _ => { stop(); } }
+
+// Destructuring — a bare identifier BINDS, a literal CONSTRAINS, `_`
+// ignores, `..rest` captures the array tail. Patterns nest arbitrarily.
+match arr {
+    []             => "empty",
+    [0, second]    => "leading zero",      // 0 constrains, second binds
+    [head, ..tail] => "head + tail",
+};
+match user {                                // json object / struct fields
+    {role: "admin", name} => "admin " + name,
+    {name}                => "user " + name,
+};
+match shape {                               // typed-struct variant patterns
+    Circle{r: 0} => "point",
+    Rect{w, h}   => w * h,
+};
+match req { {user: {id}, path} => handle(id, path), _ => skip() };  // nested
 ```
 
-`match` evaluates its subject once and takes the first matching arm. v1
-patterns are scalar literals (int / string / bool), `|`-alternatives, and
-`lo .. hi` ranges; `_` is the catch-all.
+`match` evaluates its subject once and takes the first matching arm.
+Patterns are scalar literals (int / string / bool), `|`-alternatives,
+`lo .. hi` ranges, and **destructuring** of arrays (`[a, b]`,
+`[head, ..tail]`), JSON objects / struct fields (`{role: "admin", name}`),
+and typed-struct variants (`Circle{r}`) — which nest. `_` is the catch-all.
 
 ## Functions
 
-```tpr
+```tulpar
 // Positional parameters; type before name.
 func add(int a, int b): int {
     return a + b;
@@ -142,7 +171,7 @@ runtime; useful for routers / tables-of-handlers.
 
 ### Lambdas & closures
 
-```tpr
+```tulpar
 // Lambda: `=>` arrow, expression or block body.
 var add = (int a, int b) => a + b;        // add(2, 3) == 5
 var sq  = (int x) => { return x * x; };   // sq(5) == 25
@@ -163,7 +192,7 @@ Closures are fully supported on the AOT path (default `tulpar run` / `build`).
 
 ## Structs (`type`)
 
-```tpr
+```tulpar
 type Point {
     int x;
     int y;
@@ -185,7 +214,7 @@ structs is currently field-by-field (json behaviour).
 
 ## JSON / arrays
 
-```tpr
+```tulpar
 json o = { "name": "Hamza", "age": 24, "tags": ["admin", "user"] };
 print(o["name"]);                // "Hamza"
 print(o.tags[0]);                // "admin"
@@ -204,7 +233,7 @@ array, string, number, or null.
 
 ## Modules & imports
 
-```tpr
+```tulpar
 import "wings";              // brings every top-level func into scope
 import "wings" as w;         // namespaced — call as `w.listen(...)` or `w__listen(...)`
 import "./local/util.tpr";   // path import (resolves relative to source)
@@ -217,7 +246,7 @@ for the lockfile + version specs.
 
 ## Error handling
 
-```tpr
+```tulpar
 try {
     risky();
 } catch (e) {
@@ -233,9 +262,31 @@ throw {"code": 500, "msg": "boom"};
 `catch (e)` binds the thrown value to `e` (a json) regardless of its
 shape. `finally` always runs, even on uncaught throws.
 
+## Async / await
+
+```tulpar
+async func fetch(int id) {        // returns a promise immediately
+    await sleep_async(20);        // non-blocking; other tasks run meanwhile
+    return id * 2;
+}
+
+var p = fetch(21);                // queued, not run yet
+int r = await p;                  // drive it → 42
+
+// gather: await many concurrently, results in argument order
+var all = await gather(fetch(1), fetch(2));
+```
+
+`async func`s are stackful coroutines on a single-threaded event loop;
+calling one queues a task and returns a promise, `await` drives it. An
+uncaught `throw` rejects the promise and `await` re-raises it, so ordinary
+`try` / `catch` catches async errors. Up to 16 parameters. See the
+[Async / Await guide](/guide/async/) for the full model, including the
+non-blocking HTTP client.
+
 ## Comments
 
-```tpr
+```tulpar
 // Single line — runs to EOL.
 /* Block comment — does not nest. */
 ```
