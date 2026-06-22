@@ -54,13 +54,13 @@ is `max(tasks)`, not the sum.
 ```tulpar
 async func greet(str who) {
     await sleep_async(10);
-    print("merhaba " + who);
+    print("hello " + who);
     return 1;
 }
 
 // Both tasks are queued, then run concurrently while we await.
 var a = slow_double(21);
-var g = greet("dunya");
+var g = greet("world");
 
 int r = await a;
 await g;
