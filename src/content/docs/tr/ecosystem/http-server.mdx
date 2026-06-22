@@ -381,11 +381,57 @@ kontrol edilen catch-all'dur:
 static("/static", "./public");   // GET /static/app.css → ./public/app.css
 ```
 
+Dizin-tarzı bir istek (mount kökü veya `/` ile biten yol) `index.html` sunar,
+böylece bir single-page app'i doğrudan kökten servis edebilirsin:
+
+```tulpar
+static("/", "./public");   // GET / → ./public/index.html
+```
+
 Path traversal (`..`) reddedilir. Metin asset'leri
 (`html`/`css`/`js`/`json`/`svg`/`txt`) doğru `Content-Type` alır; geri kalan
 her şey `application/octet-stream`'e düşer. Binary asset'ler (gömülü NUL'lu
 bir PNG) byte-exact round-trip eder, çünkü `read_file` /
 `http_create_response` `strlen` yerine length-tracked çalışır.
+
+## Özel yanıtlar
+
+Varsayılan `200 application/json` + CORS header'ları çoğu durumu karşılar. Düz
+string gövdeli özel bir **content type** için `_raw` / `_content_type`
+envelope'unu dön — Wings string'i JSON'a çevirmeden olduğu gibi gönderir:
+
+```tulpar
+func export_csv(req) {
+    str body = "id,name\n1,Ada\n2,Linus\n";
+    return {"_raw": body, "_content_type": "text/csv; charset=utf-8"};
+}
+```
+
+:::caution
+Handler'dan `return http_create_response(...)` yapma. Bu builtin **tam bir HTTP
+wire string'i** döndürür, ama dispatcher handler'ın dönüş değerini serialize
+edilecek veri sayar — yani string tekrar JSON olarak sarılır. Yukarıdaki `_raw`
+envelope'unu ya da aşağıdaki streaming desenini kullan.
+:::
+
+Ayrıca **özel header'lara** ihtiyacın olduğunda — örneğin `Content-Disposition`
+indirme dosya adı — tam yanıtı sokete kendin `http_create_response(...)` ile yaz,
+sonra `{"_stream": 1}` dön; böylece Wings wire'ı senin hallettiğini bilir ve
+kendi framing'ini atlar:
+
+```tulpar
+func download_csv(req) {
+    str body = "id,name\n1,Ada\n2,Linus\n";
+    json headers = {"Content-Disposition": "attachment; filename=\"users.csv\""};
+    str wire = http_create_response(200, "text/csv; charset=utf-8", body, headers, 0);
+    socket_send(wings_current_fd(), wire);
+    return {"_stream": 1};
+}
+```
+
+`http_create_response(status, content_type, body, headers, keep_alive)` alttaki
+primitif; `wings_current_fd()` aktif istek soketidir. Bu aynı `{"_stream": 1}`
+deseni SSE veya WebSocket upgrade'i de bu şekilde yazılır.
 
 ## HTTPS (Wings TLS)
 

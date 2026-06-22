@@ -387,23 +387,43 @@ the [database](/stdlib/database/) instead.
 
 ## Custom responses
 
-The default `200 application/json` plus CORS headers covers most cases.
-For custom status codes, headers, or content types:
+The default `200 application/json` plus CORS headers covers most cases. For a
+custom **content type** with a plain-string body, return the `_raw` /
+`_content_type` envelope — Wings sends the string verbatim instead of
+JSON-encoding it:
 
 ```tulpar
-func download_handler() {
-    str body = read_file("./report.csv");
-    json headers = {
-        "Content-Disposition": "attachment; filename=\"report.csv\""
-    };
-    int keep = http_should_keepalive(_request);
-    return http_create_response(200, "text/csv", body, headers, keep);
+func export_csv(req) {
+    str body = "id,name\n1,Ada\n2,Linus\n";
+    return {"_raw": body, "_content_type": "text/csv; charset=utf-8"};
 }
 ```
 
-`http_create_response(status, content_type, body, headers, keep_alive)`
-is the underlying primitive Wings uses internally; calling it directly
-gives you complete control over the response.
+:::caution
+Don't `return http_create_response(...)` from a handler. That builtin returns a
+**complete HTTP wire string**, but the dispatcher treats a handler's return
+value as data to serialize — so the string gets wrapped again as JSON. Use the
+`_raw` envelope above, or the streaming pattern below.
+:::
+
+When you also need **custom headers** — a `Content-Disposition` download
+filename, say — write the full response to the socket yourself with
+`http_create_response(...)`, then return `{"_stream": 1}` so Wings knows you've
+already handled the wire and skips its own framing:
+
+```tulpar
+func download_csv(req) {
+    str body = "id,name\n1,Ada\n2,Linus\n";
+    json headers = {"Content-Disposition": "attachment; filename=\"users.csv\""};
+    str wire = http_create_response(200, "text/csv; charset=utf-8", body, headers, 0);
+    socket_send(wings_current_fd(), wire);
+    return {"_stream": 1};
+}
+```
+
+`http_create_response(status, content_type, body, headers, keep_alive)` is the
+underlying primitive; `wings_current_fd()` is the active request socket. This
+same `{"_stream": 1}` pattern is how you'd implement SSE or a WebSocket upgrade.
 
 ## Static file serving (`static`)
 
@@ -413,6 +433,13 @@ first, and static is the catch-all checked only when nothing else matches:
 
 ```tulpar
 static("/static", "./public");   // GET /static/app.css → ./public/app.css
+```
+
+A directory-style request (the mount root, or a path ending in `/`) serves
+`index.html`, so you can host a single-page app straight from root:
+
+```tulpar
+static("/", "./public");   // GET / → ./public/index.html
 ```
 
 Path traversal (`..`) is rejected. Text assets (`html`/`css`/`js`/`json`/
