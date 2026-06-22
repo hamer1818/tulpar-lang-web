@@ -1,0 +1,398 @@
+---
+title: Wings Cookbook
+description: Task-oriented Wings recipes — CRUD APIs, auth middleware, dependency injection, validation, pagination, file uploads, static files, route groups, response models, caching, file downloads, and SQLite-backed APIs.
+---
+
+Short, copy-paste recipes for the things you actually build with
+[Wings](/ecosystem/http-server/). Every snippet below is a complete program —
+drop it in a `.tpr` file and run `tulpar app.tpr`. Each one has been compiled
+and exercised with `curl`, so the request/response shapes are exactly what you
+get.
+
+:::tip
+Routes bind a handler by **name** (`get("/", "index")`), the server starts with
+`serve(port)`, and a handler returns a plain object that becomes
+`200 application/json`. Those three facts cover most of what follows.
+:::
+
+## How do I build a JSON CRUD API?
+
+Keep the data in a global and write to it — Wings auto-persists writes rooted in
+a global, so your in-memory "database" survives across requests.
+
+```tulpar
+import "wings";
+
+json _todos = [{"id": 1, "title": "Learn Wings", "done": false}];
+int _next_id = 2;
+
+func list_todos(req) { return ok(_todos); }
+
+func get_todo(req) {
+    int id = toInt(req["params"]["id"]);
+    for (t in _todos) {
+        if (t["id"] == id) { return ok(t); }
+    }
+    return not_found("no such todo");
+}
+
+func create_todo(req) {
+    json body = req["json"];
+    json t = {"id": _next_id, "title": body["title"], "done": false};
+    _next_id = _next_id + 1;
+    push(_todos, t);
+    return created(t);
+}
+
+func delete_todo(req) {
+    int id = toInt(req["params"]["id"]);
+    json kept = [];
+    for (t in _todos) {
+        if (t["id"] != id) { push(kept, t); }
+    }
+    _todos = kept;
+    return no_content();
+}
+
+get("/todos", "list_todos");
+get("/todos/:id", "get_todo");
+post("/todos", "create_todo");
+del("/todos/:id", "delete_todo");
+serve(8080);
+```
+
+```
+GET  /todos      → [{"id":1,"title":"Learn Wings","done":false}]
+POST /todos      → 201 {"id":2,"title":"...","done":false}
+GET  /todos/2    → {"id":2,...}
+GET  /todos/99   → 404 {"error":"no such todo"}
+DELETE /todos/2  → 204
+```
+
+## How do I protect routes with middleware?
+
+`use("fn")` registers a global middleware that runs before every handler.
+Return a response (status set via a helper) to **short-circuit**; return `{}`
+to continue.
+
+```tulpar
+import "wings";
+
+func require_token(req) {
+    str auth = req["headers"]["Authorization"];
+    if (auth != "Bearer s3cret") {
+        return unauthorized("valid token required");
+    }
+    return {};
+}
+
+func secret(req) { return ok({"data": "classified"}); }
+
+use("require_token");
+get("/secret", "secret");
+serve(8080);
+```
+
+```
+GET /secret                                → 401
+GET /secret  (Authorization: Bearer x)     → 401
+GET /secret  (Authorization: Bearer s3cret)→ {"data":"classified"}
+```
+
+## How do I do per-route auth (dependency injection)?
+
+When only *some* routes need a guard — and you want the resolved value inside
+the handler — use a dependency. `depends("fn")` attaches it to the
+most-recently-registered route; read the result with `dep("name")`.
+
+```tulpar
+import "wings";
+
+func current_user(req) {
+    str t = req["headers"]["Authorization"];
+    if (length(t) == 0) { return unauthorized("token required"); }
+    return {"id": 1, "name": "Ada"};
+}
+
+func profile(req) {
+    json u = dep("current_user");
+    return ok({"hello": u["name"], "uid": u["id"]});
+}
+
+get("/profile", "profile");
+depends("current_user");
+serve(8080);
+```
+
+```
+GET /profile                       → 401
+GET /profile  (Authorization: tok) → {"hello":"Ada","uid":1}
+```
+
+## How do I validate the request body?
+
+Attach a schema with `body_schema()`. It runs **before** the handler, so an
+invalid body never reaches your code — it gets an automatic `422` listing every
+offending field.
+
+```tulpar
+import "wings";
+
+func register(req) {
+    json b = req["json"];
+    return created({"name": b["name"], "email": b["email"]});
+}
+
+post("/register", "register");
+body_schema({
+    "name":  {"type": "str", "min": 2, "max": 40},
+    "email": {"type": "str", "regex": "^[^@]+@[^@]+$"},
+    "age?":  {"type": "int", "min": 13, "max": 120}   // trailing ? = optional
+});
+serve(8080);
+```
+
+```
+POST {"name":"A","email":"nope"}
+  → 422 {"error":"validation failed",
+         "fields":{"name":"min length 2","email":"must match ^[^@]+@[^@]+$"}}
+POST {"name":"Ada","email":"a@b.io"} → 201
+```
+
+## How do I paginate and filter with query params?
+
+The typed accessors coerce `?page=2&desc=true` with a fallback, so you read
+pagination in one line instead of hand-parsing strings.
+
+```tulpar
+import "wings";
+
+json _items = [];
+
+func list_items(req) {
+    int page  = query_int(req, "page", 1);
+    int size  = query_int(req, "size", 10);
+    str sort  = query(req, "sort", "id");
+    bool desc = query_bool(req, "desc", false);
+    return ok({"page": page, "size": size, "sort": sort, "desc": desc});
+}
+
+get("/items", "list_items");
+serve(8080);
+```
+
+```
+GET /items?page=3&size=25&sort=name&desc=true
+  → {"page":3,"size":25,"sort":"name","desc":true}
+```
+
+`query_bool` accepts `1`/`true`/`yes` and `0`/`false`/`no` (case-insensitive).
+
+## How do I accept file uploads?
+
+Read text fields with `form(...)` and files with `uploaded_files(...)`. File
+`data` is the raw bytes (binary-safe), so it round-trips byte-exact.
+
+```tulpar
+import "wings";
+
+func upload(req) {
+    str title = form(req, "title", "(untitled)");
+    json saved = [];
+    for (f in uploaded_files(req)) {
+        write_file("./uploads/" + f["filename"], f["data"]);
+        push(saved, {"name": f["filename"], "size": f["size"]});
+    }
+    return created({"title": title, "files": saved});
+}
+
+post("/upload", "upload");
+serve(8080);
+```
+
+```bash
+curl -F 'title=report' -F 'file=@sample.txt' localhost:8080/upload
+# → 201 {"title":"report","files":[{"name":"sample.txt","size":13}]}
+```
+
+## How do I serve static files?
+
+`static(prefix, dir)` mounts a directory as a **404-fallback** — real routes
+always win, static is the catch-all.
+
+```tulpar
+import "wings";
+
+func health(req) { return ok({"status": "up"}); }
+
+get("/api/health", "health");
+static("/static", "./public");   // GET /static/app.css → ./public/app.css
+serve(8080);
+```
+
+```
+GET /static/index.html → file contents (text/html)
+GET /static/app.css    → file contents (text/css)
+GET /static/missing.js → 404
+GET /api/health        → {"status":"up"}
+```
+
+Text assets get a correct `Content-Type`; binaries (PNG, etc.) round-trip
+byte-exact. Path traversal (`..`) is rejected.
+
+## How do I version my API?
+
+`group(prefix, fn)` prefixes every route `fn` registers. Groups nest, so you
+can mount `/api/v1` and `/api/v2` side by side.
+
+```tulpar
+import "wings";
+
+func v1_users(req) { return ok({"version": "v1", "users": []}); }
+func v2_users(req) { return ok({"version": "v2", "users": []}); }
+
+func api_v1() { get("/users", "v1_users"); }
+func api_v2() { get("/users", "v2_users"); }
+
+group("/api/v1", "api_v1");
+group("/api/v2", "api_v2");
+serve(8080);
+```
+
+```
+GET /api/v1/users → {"version":"v1","users":[]}
+GET /api/v2/users → {"version":"v2","users":[]}
+```
+
+## How do I hide secret fields from the response?
+
+`response_model(schema)` filters successful output down to the declared fields
+— a `password_hash` or internal flag is dropped before serialization, so a
+handler can return its full row without leaking.
+
+```tulpar
+import "wings";
+
+func show_user(req) {
+    return ok({"id": 1, "name": "Ada", "email": "ada@x.io",
+               "password_hash": "$2b$...", "_internal": "audit-7"});
+}
+
+get("/users/:id", "show_user");
+response_model({"id": "int", "name": "str", "email": "str"});
+serve(8080);
+```
+
+```
+GET /users/1 → {"id":1,"name":"Ada","email":"ada@x.io"}
+               (password_hash + _internal dropped)
+```
+
+Errors (status ≥ 400) bypass filtering, so a `{"error": ...}` body survives.
+
+## How do I cache a hot endpoint?
+
+For a response that's a pure function of the path (config, version banner),
+`cached_get` serves every hit after the first from a pinned wire buffer —
+skipping handler dispatch and JSON serialization entirely.
+
+```tulpar
+import "wings";
+
+func app_config(req) {
+    return ok({"name": "MyApp", "features": ["a", "b"], "version": "3.1.0"});
+}
+
+cached_get("/config", "app_config");
+serve(8080);
+```
+
+Use it only when the output doesn't depend on the request or wall-clock time
+(the cache freezes the first result). There's no invalidation API yet —
+re-caching happens at restart.
+
+## How do I return a CSV (or trigger a file download)?
+
+For a custom content type, return the `_raw` / `_content_type` envelope (a
+plain string body, no JSON wrapping):
+
+```tulpar
+import "wings";
+
+func export_csv(req) {
+    str body = "id,name\n1,Ada\n2,Linus\n";
+    return {"_raw": body, "_content_type": "text/csv; charset=utf-8"};
+}
+
+get("/export.csv", "export_csv");
+serve(8080);
+```
+
+When you also need custom headers — a `Content-Disposition` download filename —
+write the full response to the socket yourself and signal `{"_stream": 1}` so
+Wings doesn't wrap it:
+
+```tulpar
+import "wings";
+
+func download_csv(req) {
+    str body = "id,name\n1,Ada\n2,Linus\n";
+    json headers = {"Content-Disposition": "attachment; filename=\"users.csv\""};
+    str wire = http_create_response(200, "text/csv; charset=utf-8", body, headers, 0);
+    socket_send(wings_current_fd(), wire);
+    return {"_stream": 1};   // "I already wrote the socket; don't build a response"
+}
+
+get("/download.csv", "download_csv");
+serve(8080);
+```
+
+## How do I back my API with SQLite?
+
+Swap the in-memory global for the [ORM](/ecosystem/orm/): define a model once,
+then `orm_create` / `orm_find` / `orm_all` give you persistent rows.
+
+```tulpar
+import "wings";
+import "orm";
+
+orm_open("./app.db");
+define_model("users", {
+    "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "name": "TEXT",
+    "email": "TEXT"
+});
+
+func list_users(req) { return ok(orm_all("users")); }
+
+func create_user(req) {
+    json b = req["json"];
+    int id = orm_create("users", {"name": b["name"], "email": b["email"]});
+    return created(orm_find("users", id));
+}
+
+func get_user(req) {
+    json u = orm_find("users", toInt(req["params"]["id"]));
+    if (length(keys(u)) == 0) { return not_found("no such user"); }
+    return ok(u);
+}
+
+get("/users", "list_users");
+post("/users", "create_user");
+get("/users/:id", "get_user");
+serve(8080);
+```
+
+```
+POST /users {"name":"Ada","email":"a@b.io"} → 201 {"id":1,"name":"Ada",...}
+GET  /users                                  → [{"id":1,...}]
+GET  /users/1                                → {"id":1,...}
+```
+
+## Where next?
+
+- [HTTP Server (Wings)](/ecosystem/http-server/) — the full reference: serve
+  modes, the request object, response helpers, OpenAPI, `/docs`, and TLS.
+- [ORM (lib/orm)](/ecosystem/orm/) — models, queries, and updates.
+- [Package Manager](/ecosystem/package-manager/) — publish your Wings app's
+  reusable pieces.

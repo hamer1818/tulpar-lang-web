@@ -1,0 +1,398 @@
+---
+title: Wings Tarif Kitabı
+description: Göreve dönük Wings tarifleri — CRUD API'ler, auth middleware, dependency injection, validation, sayfalama, dosya yükleme, statik dosyalar, route grupları, response model, cache, dosya indirme ve SQLite destekli API'ler.
+---
+
+[Wings](/tr/ecosystem/http-server/) ile gerçekten kurduğun şeyler için kısa,
+kopyala-yapıştır tarifler. Aşağıdaki her parça eksiksiz bir programdır — bir
+`.tpr` dosyasına koy ve `tulpar app.tpr` ile çalıştır. Her biri derlenip `curl`
+ile denendi, yani istek/yanıt şekilleri birebir aldığın çıktı.
+
+:::tip
+Route'lar handler'ı **isimle** bağlar (`get("/", "index")`), sunucu
+`serve(port)` ile başlar ve bir handler düz bir obje döndürür → bu
+`200 application/json` olur. Aşağıdakilerin çoğu bu üç gerçekten ibaret.
+:::
+
+## JSON CRUD API nasıl yaparım?
+
+Veriyi bir global'de tut ve ona yaz — Wings, global'e kök salan yazıları
+otomatik kalıcılaştırır, böylece in-memory "veritabanın" istekler arası yaşar.
+
+```tulpar
+import "wings";
+
+json _todos = [{"id": 1, "title": "Wings öğren", "done": false}];
+int _next_id = 2;
+
+func list_todos(req) { return ok(_todos); }
+
+func get_todo(req) {
+    int id = toInt(req["params"]["id"]);
+    for (t in _todos) {
+        if (t["id"] == id) { return ok(t); }
+    }
+    return not_found("todo yok");
+}
+
+func create_todo(req) {
+    json body = req["json"];
+    json t = {"id": _next_id, "title": body["title"], "done": false};
+    _next_id = _next_id + 1;
+    push(_todos, t);
+    return created(t);
+}
+
+func delete_todo(req) {
+    int id = toInt(req["params"]["id"]);
+    json kept = [];
+    for (t in _todos) {
+        if (t["id"] != id) { push(kept, t); }
+    }
+    _todos = kept;
+    return no_content();
+}
+
+get("/todos", "list_todos");
+get("/todos/:id", "get_todo");
+post("/todos", "create_todo");
+del("/todos/:id", "delete_todo");
+serve(8080);
+```
+
+```
+GET  /todos      → [{"id":1,"title":"Wings öğren","done":false}]
+POST /todos      → 201 {"id":2,"title":"...","done":false}
+GET  /todos/2    → {"id":2,...}
+GET  /todos/99   → 404 {"error":"todo yok"}
+DELETE /todos/2  → 204
+```
+
+## Route'ları middleware ile nasıl korurum?
+
+`use("fn")` her handler'dan önce çalışan global bir middleware kaydeder. Bir
+yanıt döndürmek (helper ile status set ederek) zinciri **kısa-devre** yapar;
+`{}` döndürmek devam ettirir.
+
+```tulpar
+import "wings";
+
+func require_token(req) {
+    str auth = req["headers"]["Authorization"];
+    if (auth != "Bearer s3cret") {
+        return unauthorized("geçerli token gerekli");
+    }
+    return {};
+}
+
+func secret(req) { return ok({"data": "gizli"}); }
+
+use("require_token");
+get("/secret", "secret");
+serve(8080);
+```
+
+```
+GET /secret                                 → 401
+GET /secret  (Authorization: Bearer x)      → 401
+GET /secret  (Authorization: Bearer s3cret) → {"data":"gizli"}
+```
+
+## Route-başına auth (dependency injection) nasıl yaparım?
+
+Yalnızca *bazı* route'lar guard istediğinde — ve çözülen değeri handler içinde
+kullanmak istediğinde — bir bağımlılık kullan. `depends("fn")` onu en son
+kaydedilen route'a iliştirir; sonucu `dep("name")` ile okursun.
+
+```tulpar
+import "wings";
+
+func current_user(req) {
+    str t = req["headers"]["Authorization"];
+    if (length(t) == 0) { return unauthorized("token gerekli"); }
+    return {"id": 1, "name": "Ada"};
+}
+
+func profile(req) {
+    json u = dep("current_user");
+    return ok({"hello": u["name"], "uid": u["id"]});
+}
+
+get("/profile", "profile");
+depends("current_user");
+serve(8080);
+```
+
+```
+GET /profile                       → 401
+GET /profile  (Authorization: tok) → {"hello":"Ada","uid":1}
+```
+
+## İstek gövdesini nasıl doğrularım?
+
+`body_schema()` ile bir şema iliştir. Handler'dan **önce** çalışır, böylece
+geçersiz bir gövde koduna hiç ulaşmaz — her hatalı alanı listeleyen otomatik bir
+`422` alır.
+
+```tulpar
+import "wings";
+
+func register(req) {
+    json b = req["json"];
+    return created({"name": b["name"], "email": b["email"]});
+}
+
+post("/register", "register");
+body_schema({
+    "name":  {"type": "str", "min": 2, "max": 40},
+    "email": {"type": "str", "regex": "^[^@]+@[^@]+$"},
+    "age?":  {"type": "int", "min": 13, "max": 120}   // sondaki ? = opsiyonel
+});
+serve(8080);
+```
+
+```
+POST {"name":"A","email":"nope"}
+  → 422 {"error":"validation failed",
+         "fields":{"name":"min length 2","email":"must match ^[^@]+@[^@]+$"}}
+POST {"name":"Ada","email":"a@b.io"} → 201
+```
+
+## Query param'larla sayfalama ve filtre nasıl yaparım?
+
+Tipli erişimciler `?page=2&desc=true`'yu fallback ile coerce eder, böylece
+sayfalamayı string parse etmeden tek satırda okursun.
+
+```tulpar
+import "wings";
+
+json _items = [];
+
+func list_items(req) {
+    int page  = query_int(req, "page", 1);
+    int size  = query_int(req, "size", 10);
+    str sort  = query(req, "sort", "id");
+    bool desc = query_bool(req, "desc", false);
+    return ok({"page": page, "size": size, "sort": sort, "desc": desc});
+}
+
+get("/items", "list_items");
+serve(8080);
+```
+
+```
+GET /items?page=3&size=25&sort=name&desc=true
+  → {"page":3,"size":25,"sort":"name","desc":true}
+```
+
+`query_bool`, `1`/`true`/`yes` ve `0`/`false`/`no` (büyük/küçük harf duyarsız)
+kabul eder.
+
+## Dosya yüklemeyi nasıl alırım?
+
+Metin alanlarını `form(...)`, dosyaları `uploaded_files(...)` ile oku. Dosya
+`data`'sı ham byte'tır (binary-safe), yani byte-exact round-trip eder.
+
+```tulpar
+import "wings";
+
+func upload(req) {
+    str title = form(req, "title", "(başlıksız)");
+    json saved = [];
+    for (f in uploaded_files(req)) {
+        write_file("./uploads/" + f["filename"], f["data"]);
+        push(saved, {"name": f["filename"], "size": f["size"]});
+    }
+    return created({"title": title, "files": saved});
+}
+
+post("/upload", "upload");
+serve(8080);
+```
+
+```bash
+curl -F 'title=rapor' -F 'file=@sample.txt' localhost:8080/upload
+# → 201 {"title":"rapor","files":[{"name":"sample.txt","size":13}]}
+```
+
+## Statik dosyaları nasıl sunarım?
+
+`static(prefix, dir)` bir dizini **404-fallback** olarak mount eder — gerçek
+route'lar her zaman kazanır, static catch-all'dur.
+
+```tulpar
+import "wings";
+
+func health(req) { return ok({"status": "up"}); }
+
+get("/api/health", "health");
+static("/static", "./public");   // GET /static/app.css → ./public/app.css
+serve(8080);
+```
+
+```
+GET /static/index.html → dosya içeriği (text/html)
+GET /static/app.css    → dosya içeriği (text/css)
+GET /static/missing.js → 404
+GET /api/health        → {"status":"up"}
+```
+
+Metin asset'leri doğru `Content-Type` alır; binary'ler (PNG vb.) byte-exact
+round-trip eder. Path traversal (`..`) reddedilir.
+
+## API'mi nasıl sürümlerim?
+
+`group(prefix, fn)`, `fn`'in kaydettiği her route'a prefix ekler. Gruplar iç
+içe geçer, böylece `/api/v1` ve `/api/v2`'yi yan yana mount edebilirsin.
+
+```tulpar
+import "wings";
+
+func v1_users(req) { return ok({"version": "v1", "users": []}); }
+func v2_users(req) { return ok({"version": "v2", "users": []}); }
+
+func api_v1() { get("/users", "v1_users"); }
+func api_v2() { get("/users", "v2_users"); }
+
+group("/api/v1", "api_v1");
+group("/api/v2", "api_v2");
+serve(8080);
+```
+
+```
+GET /api/v1/users → {"version":"v1","users":[]}
+GET /api/v2/users → {"version":"v2","users":[]}
+```
+
+## Yanıttan gizli alanları nasıl saklarım?
+
+`response_model(schema)` başarılı çıktıyı bildirilen alanlara filtreler — bir
+`password_hash` veya iç bayrak serileştirmeden önce düşürülür, böylece bir
+handler tüm satırını sızdırmadan dönebilir.
+
+```tulpar
+import "wings";
+
+func show_user(req) {
+    return ok({"id": 1, "name": "Ada", "email": "ada@x.io",
+               "password_hash": "$2b$...", "_internal": "audit-7"});
+}
+
+get("/users/:id", "show_user");
+response_model({"id": "int", "name": "str", "email": "str"});
+serve(8080);
+```
+
+```
+GET /users/1 → {"id":1,"name":"Ada","email":"ada@x.io"}
+               (password_hash + _internal düşürüldü)
+```
+
+Hatalar (status ≥ 400) filtrelemeyi atlar, böylece `{"error": ...}` gövdesi
+korunur.
+
+## Sıcak bir endpoint'i nasıl cache'lerim?
+
+Path'in saf fonksiyonu olan bir yanıt için (config, sürüm banner'ı),
+`cached_get` ilk istekten sonra her vuruşu pinlenmiş bir wire buffer'dan sunar —
+handler dispatch'i ve JSON serileştirmeyi tamamen atlar.
+
+```tulpar
+import "wings";
+
+func app_config(req) {
+    return ok({"name": "MyApp", "features": ["a", "b"], "version": "3.1.0"});
+}
+
+cached_get("/config", "app_config");
+serve(8080);
+```
+
+Yalnızca çıktı isteğe veya duvar-saatine bağlı değilken kullan (cache ilk
+sonucu dondurur). Henüz invalidation API'si yok — yeniden cache restart'ta olur.
+
+## CSV nasıl dönerim (ya da dosya indirmeyi nasıl tetiklerim)?
+
+Özel bir content type için `_raw` / `_content_type` envelope'unu dön (düz string
+gövde, JSON sarmalama yok):
+
+```tulpar
+import "wings";
+
+func export_csv(req) {
+    str body = "id,name\n1,Ada\n2,Linus\n";
+    return {"_raw": body, "_content_type": "text/csv; charset=utf-8"};
+}
+
+get("/export.csv", "export_csv");
+serve(8080);
+```
+
+Ayrıca özel header'lara ihtiyacın olduğunda — `Content-Disposition` indirme
+dosya adı gibi — tam yanıtı sokete kendin yaz ve `{"_stream": 1}` ile sinyal
+ver, böylece Wings onu sarmalamaz:
+
+```tulpar
+import "wings";
+
+func download_csv(req) {
+    str body = "id,name\n1,Ada\n2,Linus\n";
+    json headers = {"Content-Disposition": "attachment; filename=\"users.csv\""};
+    str wire = http_create_response(200, "text/csv; charset=utf-8", body, headers, 0);
+    socket_send(wings_current_fd(), wire);
+    return {"_stream": 1};   // "soketi ben yazdım; yanıt kurma"
+}
+
+get("/download.csv", "download_csv");
+serve(8080);
+```
+
+## API'mi SQLite ile nasıl desteklerim?
+
+In-memory global'i [ORM](/tr/ecosystem/orm/) ile değiştir: bir kez model
+tanımla, sonra `orm_create` / `orm_find` / `orm_all` sana kalıcı satırlar verir.
+
+```tulpar
+import "wings";
+import "orm";
+
+orm_open("./app.db");
+define_model("users", {
+    "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "name": "TEXT",
+    "email": "TEXT"
+});
+
+func list_users(req) { return ok(orm_all("users")); }
+
+func create_user(req) {
+    json b = req["json"];
+    int id = orm_create("users", {"name": b["name"], "email": b["email"]});
+    return created(orm_find("users", id));
+}
+
+func get_user(req) {
+    json u = orm_find("users", toInt(req["params"]["id"]));
+    if (length(keys(u)) == 0) { return not_found("kullanıcı yok"); }
+    return ok(u);
+}
+
+get("/users", "list_users");
+post("/users", "create_user");
+get("/users/:id", "get_user");
+serve(8080);
+```
+
+```
+POST /users {"name":"Ada","email":"a@b.io"} → 201 {"id":1,"name":"Ada",...}
+GET  /users                                  → [{"id":1,...}]
+GET  /users/1                                → {"id":1,...}
+```
+
+## Sırada ne var?
+
+- [HTTP Sunucusu (Wings)](/tr/ecosystem/http-server/) — tam referans: serve
+  modları, request objesi, response helper'ları, OpenAPI, `/docs` ve TLS.
+- [ORM (lib/orm)](/tr/ecosystem/orm/) — modeller, sorgular ve güncellemeler.
+- [Paket Yöneticisi](/tr/ecosystem/package-manager/) — Wings uygulamanın
+  yeniden kullanılabilir parçalarını yayınla.
