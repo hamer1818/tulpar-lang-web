@@ -30,7 +30,7 @@ const t = isTurkish
 	  };
 ---
 
-<div class="tulpar-playground" data-running={t.running} data-hint={t.hint}>
+<div class="tulpar-playground" data-locale={isTurkish ? 'tr' : 'en'} data-running={t.running} data-hint={t.hint}>
 	<div class="tulpar-playground__header">
 		<span class="tulpar-playground__title">{title ?? 'Tulpar'}</span>
 		<div class="tulpar-playground__headerRight">

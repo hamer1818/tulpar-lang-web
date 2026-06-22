@@ -12,6 +12,7 @@ function initOne(root: HTMLElement) {
 	// Localized strings are baked onto the root element by the Astro component
 	// (which knows the page locale); fall back to English if absent.
 	const runningLabel = root.dataset.running ?? 'Running…';
+	const locale = root.dataset.locale === 'tr' ? 'tr' : 'en';
 	const semicolonHint =
 		root.dataset.hint ?? 'Tip: this error is usually a missing semicolon (;) at the end of a line.';
 
@@ -38,7 +39,7 @@ function initOne(root: HTMLElement) {
 		setOutput('');
 
 		try {
-			const { output, error } = await runTulparCode(code);
+			const { output, error } = await runTulparCode(code, locale);
 			let text = output || '';
 
 			if (error) {

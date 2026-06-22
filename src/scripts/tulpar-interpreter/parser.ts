@@ -15,6 +15,9 @@ import type {
 	ImportStmt,
 	ExprStmt,
 	Identifier,
+	MatchExpr,
+	MatchArm,
+	MatchPattern,
 } from './ast.ts';
 
 export class ParserError extends Error {
@@ -177,6 +180,44 @@ class Parser {
 		}
 		this.expect('PUNCT', '}');
 		return { kind: 'Block', body, line: start.line, col: start.col };
+	}
+
+	// match subject { pat | pat => body, lo .. hi => body, _ => body }
+	private parseMatch(): MatchExpr {
+		const start = this.advance(); // 'match'
+		const subject = this.parseExpression();
+		this.expect('PUNCT', '{');
+		const arms: MatchArm[] = [];
+		while (!this.check('PUNCT', '}') && !this.check('EOF')) {
+			const patterns: MatchPattern[] = [this.parsePattern()];
+			while (this.match('OP', '|')) {
+				patterns.push(this.parsePattern());
+			}
+			this.expect('OP', '=>');
+			// An arm body is a block (statement effect) or an expression (value).
+			const body = this.check('PUNCT', '{')
+				? this.parseBlock()
+				: this.parseExpression();
+			arms.push({ patterns, body });
+			this.match('PUNCT', ','); // trailing comma optional
+		}
+		this.expect('PUNCT', '}');
+		return { kind: 'Match', subject, arms, line: start.line, col: start.col };
+	}
+
+	private parsePattern(): MatchPattern {
+		const t = this.peek();
+		// `_` wildcard
+		if (t.type === 'IDENT' && t.value === '_') {
+			this.advance();
+			return { kind: 'wildcard' };
+		}
+		const lo = this.parsePrimary();
+		if (this.match('OP', '..')) {
+			const hi = this.parsePrimary();
+			return { kind: 'range', lo, hi };
+		}
+		return { kind: 'literal', value: lo };
 	}
 
 	private parseIf(): IfStmt {
@@ -625,6 +666,10 @@ class Parser {
 		if (t.type === 'KEYWORD' && t.value === 'null') {
 			this.advance();
 			return { kind: 'NullLit', line: t.line, col: t.col };
+		}
+
+		if (t.type === 'KEYWORD' && t.value === 'match') {
+			return this.parseMatch();
 		}
 
 		if (t.type === 'IDENT') {

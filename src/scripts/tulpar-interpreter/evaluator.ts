@@ -28,6 +28,8 @@ import type {
 	ThrowStmt,
 	ExprStmt,
 	ImportStmt,
+	MatchExpr,
+	MatchPattern,
 } from './ast.ts';
 import {
 	BreakSignal,
@@ -49,16 +51,19 @@ import {
 	valuesEqual,
 } from './values.ts';
 import type { Value } from './values.ts';
+import { messages, type Locale } from './i18n.ts';
 
 export interface RunOptions {
 	stdout: (line: string) => void;
 	maxOps?: number; // execution-step ceiling to keep the browser alive
+	locale?: Locale;
 }
 
 export interface RunContext {
 	stdout: (s: string) => void;
 	ops: number;
 	maxOps: number;
+	msg: ReturnType<typeof messages>;
 }
 
 export class Evaluator {
@@ -70,6 +75,7 @@ export class Evaluator {
 			stdout: opts.stdout,
 			ops: 0,
 			maxOps: opts.maxOps ?? 5_000_000,
+			msg: messages(opts.locale ?? 'en'),
 		};
 	}
 
@@ -94,9 +100,7 @@ export class Evaluator {
 		this.ctx.ops++;
 		if (this.ctx.ops > this.ctx.maxOps) {
 			throw new TulparError(
-				'Execution limit exceeded (over ' +
-					this.ctx.maxOps.toLocaleString() +
-					' operations). The web playground caps long-running programs — try smaller inputs.',
+				this.ctx.msg.execLimit(this.ctx.maxOps.toLocaleString()),
 				line,
 			);
 		}
@@ -318,8 +322,47 @@ export class Evaluator {
 				return this.evalMember(node as MemberExpr, env);
 			case 'ExprStmt':
 				return this.evaluate((node as ExprStmt).expr, env);
+			case 'Match':
+				return this.evalMatch(node as MatchExpr, env);
 		}
 		throw new TulparError(`Unsupported expression: ${node.kind}`, node.line);
+	}
+
+	// First arm whose pattern matches wins. A block body executes for effect
+	// (statement position) and yields void; an expression body yields its value.
+	private evalMatch(node: MatchExpr, env: Env): Value {
+		const subject = this.evaluate(node.subject, env);
+		for (const arm of node.arms) {
+			for (const pat of arm.patterns) {
+				if (this.matchPattern(pat, subject, env)) {
+					if (arm.body.kind === 'Block') {
+						this.execStmt(arm.body, env);
+						return VOID;
+					}
+					return this.evaluate(arm.body, env);
+				}
+			}
+		}
+		return VOID; // no arm matched (an `_` arm avoids this)
+	}
+
+	private matchPattern(pat: MatchPattern, subject: Value, env: Env): boolean {
+		if (pat.kind === 'wildcard') return true;
+		if (pat.kind === 'literal') {
+			return valuesEqual(this.evaluate(pat.value!, env), subject);
+		}
+		// range: inclusive lo..hi, numeric only
+		const lo = this.evaluate(pat.lo!, env);
+		const hi = this.evaluate(pat.hi!, env);
+		const n = this.asNumber(subject);
+		const a = this.asNumber(lo);
+		const b = this.asNumber(hi);
+		if (n === null || a === null || b === null) return false;
+		return n >= a && n <= b;
+	}
+
+	private asNumber(v: Value): number | null {
+		return v.kind === 'int' || v.kind === 'float' ? v.value : null;
 	}
 
 	private evalBinary(node: BinaryOp, env: Env): Value {

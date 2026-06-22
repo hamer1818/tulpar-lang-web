@@ -35,6 +35,7 @@ const KEYWORDS = new Set([
 	'throw',
 	'import',
 	'null',
+	'match',
 ]);
 
 const TYPES = new Set([
@@ -66,6 +67,8 @@ const TWO_CHAR_OPS = new Set([
 	'*=',
 	'/=',
 	'%=',
+	'=>', // match arm
+	'..', // match range
 ]);
 
 const SINGLE_CHAR_OPS = new Set([
@@ -78,6 +81,7 @@ const SINGLE_CHAR_OPS = new Set([
 	'<',
 	'>',
 	'!',
+	'|', // match alternatives
 ]);
 
 const PUNCT = new Set(['(', ')', '{', '}', '[', ']', ',', ';', '.', ':']);
@@ -246,6 +250,15 @@ export function tokenize(source: string): Token[] {
 			if (KEYWORDS.has(value)) type = 'KEYWORD';
 			else if (TYPES.has(value)) type = 'TYPE';
 			tokens.push({ type, value, line: startLine, col: startCol });
+			continue;
+		}
+
+		// `..` range op — checked before PUNCT because '.' is also punctuation
+		// (member access), so the two-char form would otherwise never be seen.
+		if (ch === '.' && peek(1) === '.') {
+			advance();
+			advance();
+			tokens.push({ type: 'OP', value: '..', line: startLine, col: startCol });
 			continue;
 		}
 
