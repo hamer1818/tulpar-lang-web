@@ -9,6 +9,12 @@ function initOne(root: HTMLElement) {
 
 	if (!editor || !runBtn) return;
 
+	// Localized strings are baked onto the root element by the Astro component
+	// (which knows the page locale); fall back to English if absent.
+	const runningLabel = root.dataset.running ?? 'Running…';
+	const semicolonHint =
+		root.dataset.hint ?? 'Tip: this error is usually a missing semicolon (;) at the end of a line.';
+
 	function setStatus(text: string) {
 		if (statusEl) statusEl.textContent = text;
 	}
@@ -27,7 +33,7 @@ function initOne(root: HTMLElement) {
 	async function run() {
 		const code = editor.value;
 		runBtn.disabled = true;
-		setStatus('Çalışıyor…');
+		setStatus(runningLabel);
 		setOutputMode(false);
 		setOutput('');
 
@@ -41,7 +47,7 @@ function initOne(root: HTMLElement) {
 
 				// Parser hatalarında kullanıcıya noktalı virgül ipucu ver
 				if (/Parser error/i.test(error) && /'.+'/.test(error)) {
-					text += '\n\nİpucu: Bu hata çoğu zaman satır sonunda unutulan noktalı virgülden (;) kaynaklanır.';
+					text += '\n\n' + semicolonHint;
 				}
 			}
 

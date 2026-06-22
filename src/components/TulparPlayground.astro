@@ -9,15 +9,34 @@ export interface Props {
 }
 
 const { code, title, rows = 10 } = Astro.props;
+
+// Locale follows the page path — Turkish pages live under /tr/, English at root.
+// The button label, output header, live status, and the client-side parser
+// hint all switch with it so an English page never shows Turkish UI.
+const isTurkish =
+	Astro.url.pathname === '/tr' || Astro.url.pathname.startsWith('/tr/');
+const t = isTurkish
+	? {
+			run: 'Çalıştır',
+			output: 'Çıktı',
+			running: 'Çalışıyor…',
+			hint: 'İpucu: Bu hata çoğu zaman satır sonunda unutulan noktalı virgülden (;) kaynaklanır.',
+	  }
+	: {
+			run: 'Run',
+			output: 'Output',
+			running: 'Running…',
+			hint: 'Tip: this error is usually a missing semicolon (;) at the end of a line.',
+	  };
 ---
 
-<div class="tulpar-playground">
+<div class="tulpar-playground" data-running={t.running} data-hint={t.hint}>
 	<div class="tulpar-playground__header">
 		<span class="tulpar-playground__title">{title ?? 'Tulpar'}</span>
 		<div class="tulpar-playground__headerRight">
 			<span class="tulpar-playground__status" aria-live="polite"></span>
 			<button type="button" class="tulpar-playground__run">
-				Çalıştır
+				{t.run}
 			</button>
 		</div>
 	</div>
@@ -32,7 +51,7 @@ const { code, title, rows = 10 } = Astro.props;
 	>{code}</textarea>
 
 	<div class="tulpar-playground__outputWrap" hidden>
-		<div class="tulpar-playground__outputHeader">Çıktı</div>
+		<div class="tulpar-playground__outputHeader">{t.output}</div>
 		<pre class="tulpar-playground__output"></pre>
 	</div>
 </div>
