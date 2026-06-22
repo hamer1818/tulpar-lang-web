@@ -47,7 +47,7 @@ author = "Hamza"
 license = "MIT"
 
 [registry]
-url = "https://pkg.tulparlang.dev"
+url = "https://api.pkg.tulparlang.dev"   # the API base; this is also the default
 
 [dependencies]
 wings          = "1.2.3"                       # registry
@@ -61,11 +61,21 @@ lodash         = "url:http://cdn/lodash.tpr"   # single-file URL
 | --------------------------- | ---------------------------------------------------------- |
 | `path:./local/dir`          | Recursively copy `*.tpr` from a local directory.           |
 | `url:http://example.com/x.tpr` | Plain HTTP fetch of a single `.tpr` file.               |
-| `1.2.3` (or `^0.2.0`, `*`)  | Registry fetch. Resolves to `<registry>/<name>/<spec>.tpr` |
+| `1.2.3`                     | Exact version from the registry.                           |
+| `^1.2.3` / `~1.2.3`         | Semver range — caret (within major) / tilde (within minor).|
+| `>=1.0,<2.0` / `*` / `latest` | Comparator/compound range, or highest published version. |
 
-A registry version spec requires `[registry] url = "..."` in the
-manifest. `https://` URLs require Tulpar to be built with OpenSSL
-(`pacman -S mingw-w64-x86_64-openssl` on MSYS2).
+For an exact version Tulpar hits the registry directly. For a **range**
+(`^`, `~`, a `<`/`>`/`=` comparator, a comma-compound, or `*`/`latest`) it
+first fetches the package's published versions from
+`<registry>/v1/packages/<name>`, picks the highest one that satisfies the
+range, then downloads
+`<registry>/v1/packages/<name>/versions/<version>/source`.
+
+A registry version spec requires a registry URL — `[registry] url = "..."`
+in the manifest, the `--registry` flag, or the `TULPAR_REGISTRY` env var
+(default `https://api.pkg.tulparlang.dev`). `https://` URLs require Tulpar to
+be built with OpenSSL (`pacman -S mingw-w64-x86_64-openssl` on MSYS2).
 
 ## Lockfile
 
@@ -77,27 +87,32 @@ to your manifest:
 # DO NOT EDIT. Commit alongside tulpar.toml so re-installs are reproducible.
 
 [resolved]
-wings   = "https://pkg.tulparlang.dev/wings/1.2.3.tpr"
+wings   = "https://api.pkg.tulparlang.dev/v1/packages/wings/versions/1.2.3/source"
 greeter = "path:../greeter"
 lodash  = "url:http://cdn/lodash.tpr"
 ```
 
-The lockfile records the **fully resolved URL or path** used for each
-dependency so a re-install on another machine fetches the exact same
-bytes — even if the registry's `latest` pointer moves.
+The lockfile records the **fully resolved URL or path** plus a **SHA-256**
+of the downloaded bytes for each dependency, so a re-install on another
+machine fetches the exact same bytes — even if the registry's `latest`
+pointer moves. A re-install that finds the same URL serving a different
+SHA-256 than the lockfile records is refused rather than silently
+overwritten.
 
 ## Module resolution
 
 When the AOT compiler sees `import "name"`, it tries (in order):
 
-1. The literal path `./name`.
-2. The literal path with `.tpr` appended (`./name.tpr`).
-3. `./tulpar_modules/<name>/<name>.tpr` — the vendored entry-point convention.
-4. `./tulpar_modules/<name>.tpr` — single-file vendor.
-5. The embedded standard library (`wings`, `router`, `http_client`, `orm`, `test`, …).
+1. The embedded standard library (`wings`, `router`, `http_client`, `orm`, `test`, …).
+2. A bundle-local sibling — `<importing-file's-dir>/name.tpr` — so a multi-file package's internal imports resolve to its own files.
+3. The literal path `./name`.
+4. The literal path with `.tpr` appended (`./name.tpr`).
+5. `./tulpar_modules/<name>/<name>.tpr` — the vendored entry-point convention.
+6. `./tulpar_modules/<name>.tpr` — single-file vendor.
 
-That ordering means a local `name.tpr` shadows a vendored package,
-and the embedded stdlib only kicks in if nothing else resolves.
+That ordering means the embedded stdlib names (`wings`, `orm`, …) always win
+— you can't shadow `wings` with a local `wings.tpr` — and a vendored package
+in `tulpar_modules/` is the fallback for everything else.
 
 ## Subcommands
 
@@ -108,9 +123,29 @@ and the embedded stdlib only kicks in if nothing else resolves.
 | `tulpar pkg add <name>[@<ver-spec>]`   | Add or update a manifest dependency line.                    |
 | `tulpar pkg remove <name>`             | Drop a manifest dependency line.                             |
 | `tulpar pkg install`                   | Vendor every dep into `tulpar_modules/` + write `tulpar.lock`. |
+| `tulpar pkg search <query>`            | Search the registry catalog by name/description.            |
+| `tulpar pkg info <name>`               | Print a package's registry metadata + published versions.   |
+| `tulpar pkg publish [--dry-run]`       | Bundle the project's sources and POST them to the registry. |
+
+## Publishing
+
+`tulpar pkg publish` bundles every `.tpr` source in your project and uploads
+it to the registry under your manifest's `name` + `version` (both required).
+Authentication is a bearer token — pass `--token <tok>` or set
+`TULPAR_PUBLISH_TOKEN`:
+
+```bash
+export TULPAR_PUBLISH_TOKEN="…"
+tulpar pkg publish --dry-run     # bundle + show what would ship, no upload
+tulpar pkg publish               # POST to <registry>/v1/publish
+```
+
+The registry target follows the same resolution as installs (`--registry`
+flag → `[registry] url` → `TULPAR_REGISTRY` → the default
+`https://api.pkg.tulparlang.dev`). `--dry-run` skips the POST so you can
+inspect the bundle without a token.
 
 ## Roadmap
 
 - Multi-file packages via tar/zip extract from registry URLs.
-- Real semver range resolution (`^1.2`, `>=1,<2`).
-- Package signing + cryptographic checksum in the lockfile.
+- Package signing (the lockfile already records a SHA-256 per dependency).

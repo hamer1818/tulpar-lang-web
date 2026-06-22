@@ -59,6 +59,76 @@ parametre almayan bir handler da çalışır:
 | `headers`  | `json`| Header haritası (case-sensitive).     |
 | `body`     | `str` | Ham body byte'ları, length-bounded.   |
 
+## Middleware (`use`)
+
+`use("fn_name")` ile global bir middleware kaydet. Kaydedilen her
+middleware — kayıt sırasıyla — eşleşen handler'dan **önce**, tüm serve
+modlarında çalışır (tek bir dispatch noktası var). Bir middleware,
+`func mw(req)` biçiminde: ya bir response dict döner (`_status` set →
+zincir **kısa devre** yapar ve o yanıt gönderilir) ya da `{}` döner
+(devam). `req`'i yerinde değiştirebilir, böylece sonraki middleware'ler ve
+handler değişikliği görür:
+
+```tulpar
+func require_auth(req) {
+    str token = req["headers"]["Authorization"];
+    if (length(token) == 0) {
+        return unauthorized("token required");   // kısa devre → 401
+    }
+    req["user"] = {"id": 1, "name": "Ada"};      // handler'a görünür
+    return {};                                    // devam
+}
+
+use("require_auth");
+```
+
+Hiç middleware kaydedilmediğinde zincir sıfır maliyetlidir — Wings hot
+path'te onu tamamen atlar.
+
+## Route grupları (`group`)
+
+`group(prefix, register_fn)`, `register_fn`'i (bir fonksiyon **adı**)
+kaydettiği her route'a uygulanan bir path prefix'iyle çalıştırır. Prefix
+çağrının etrafında saklanır ve geri yüklenir, böylece gruplar **iç içe**
+geçebilir:
+
+```tulpar
+func api_v1() {
+    get("/users", "list_users");      // → /api/v1/users
+    post("/users", "create_user");    // → /api/v1/users
+}
+group("/api/v1", "api_v1");
+```
+
+`get` / `post` / `put` / `del` / `cached_get` hepsi aktif prefix'i dikkate
+alır, yani iç `group(...)` çağrıları birleşir (`/api/v1` + `/admin` →
+`/api/v1/admin`).
+
+## Dependency injection (`depends` / `dep`)
+
+FastAPI tarzı route-başına bağımlılıklar. `depends("fn_name")` bağımlılığı
+**en son kaydedilen** route'a iliştirir; handler çalışmadan önce her
+bağımlılık `req` ile çağrılır ve dönüş değeri enjekte edilir. Handler bunu
+`dep("name")` ile okur. Bir bağımlılık, response dict döndürerek (`_status`
+set) kısa devre yapabilir — tıpkı middleware gibi, ama route-başına ve
+değer üreten:
+
+```tulpar
+func current_user(req) {
+    str t = req["headers"]["Authorization"];
+    if (length(t) == 0) { return unauthorized("token required"); }
+    return {"id": 1, "name": "Ada"};
+}
+
+func profile(req) { return ok(dep("current_user")); }
+
+get("/profile", "profile");
+depends("current_user");
+```
+
+Çözülen değerler thread-local bir depoda durur, böylece `listen_pool` /
+`listen_async` altında eşzamanlı istekler arasında sızmaz.
+
 ## Tek-thread vs multi-thread
 
 ```tulpar
@@ -192,6 +262,65 @@ POST {"name":"Ada"} →  create_user'a ulaşır
 Tipler: `str`, `int`, `float`, `num` (int veya float), `bool`, `array`,
 `object`, `json` (object veya array), `any` (var, herhangi bir tip).
 
+## Tipli query parametreleri
+
+`req["query"]` ham string değerleri tutar. Tipli erişimciler varsayılan bir
+fallback ile coerce eder, böylece bir liste endpoint'i sayfalama/filtreleri
+tek satırda okur — varlığı elle kontrol edip `toInt()` çağırmak yerine:
+
+```tulpar
+func list_items(req) {
+    int page  = query_int(req, "page", 1);     // ?page=2  → 2, yoksa → 1
+    str sort  = query(req, "sort", "id");       // ?sort=name → "name"
+    bool desc = query_bool(req, "desc", false); // 1/true/yes → true, 0/false/no → false
+    return ok(fetch_items(page, sort, desc));
+}
+```
+
+`query_int` eksik veya boş değerde fallback döner; `query_bool`
+`1`/`true`/`yes` ve `0`/`false`/`no` (büyük/küçük harf duyarsız) kabul eder,
+aksi halde fallback'e düşer.
+
+## Response model (çıktı şekillendirme)
+
+`body_schema()`'nın simetrik karşılığı: en son kaydedilen route'a bir şema
+iliştirerek **başarılı çıktıyı** yalnızca bildirilen alanlara filtreler.
+Listelenmeyen her şey (bir `password_hash`, bir `_internal` bayrağı)
+serileştirmeden önce düşürülür, böylece bir handler tüm satırını sır
+sızdırmadan dönebilir:
+
+```tulpar
+get("/users/:id", "show_user");
+response_model({"id": "int", "name": "str"});   // password vb. düşürülür
+```
+
+Tek bir obje veya obje dizisi üzerinde çalışır. Hatalar (status ≥ 400)
+filtrelemeyi atlar, böylece bir `{"error": ...}` gövdesi asla kırpılmaz.
+
+## Dosya yükleme (multipart/form-data)
+
+`multipart/form-data` istekleri için metin alanlarını
+`form(req, name, fallback)` ile, yüklenen dosyaları ise `uploaded_files(req)`
+ile oku — `{name, filename, content_type, data, size}` dizisi. Dosya `data`'sı
+**ham byte** taşır (binary-safe, length-tracked), böylece PNG'ler ve diğer
+binary'ler byte-exact round-trip eder:
+
+```tulpar
+func upload(req) {
+    str title = form(req, "title", "");
+    for (f in uploaded_files(req)) {
+        write_file("./uploads/" + f["filename"], f["data"]);
+    }
+    return created({"title": title, "count": length(uploaded_files(req))});
+}
+post("/upload", "upload");
+```
+
+Parse lazy'dir (yalnızca `form` / `uploaded_files` çağrılınca) ve native
+`parse_multipart` builtin'iyle desteklenir. Her çağrı yeniden parse eder; çok
+alanlı durumlarda bir kez `form_data(req)` çağır ve dönen `{fields, files}`'i
+doğrudan oku.
+
 ## İnteraktif dokümanlar (Swagger UI)
 
 `serve()` otomatik olarak **`/docs`** (Swagger UI) ve onu besleyen
@@ -240,6 +369,23 @@ global'i yerele alias'layıp yazmayı da kapsar
 (`let x = _users[i]; x["name"] = v;`). Daha büyük veya çok-süreçli veri için
 [veritabanını](/tr/stdlib/database/) kullan.
 :::
+
+## Statik dosya sunumu (`static`)
+
+`static(url_prefix, dir)` bir dizini URL prefix'i altında mount eder.
+Dosyalar bir **404-fallback** olarak sunulur: gerçek route'lar (tam veya
+`:param`) her zaman önce eşleşir, static yalnızca hiçbir şey eşleşmediğinde
+kontrol edilen catch-all'dur:
+
+```tulpar
+static("/static", "./public");   // GET /static/app.css → ./public/app.css
+```
+
+Path traversal (`..`) reddedilir. Metin asset'leri
+(`html`/`css`/`js`/`json`/`svg`/`txt`) doğru `Content-Type` alır; geri kalan
+her şey `application/octet-stream`'e düşer. Binary asset'ler (gömülü NUL'lu
+bir PNG) byte-exact round-trip eder, çünkü `read_file` /
+`http_create_response` `strlen` yerine length-tracked çalışır.
 
 ## HTTPS (Wings TLS)
 

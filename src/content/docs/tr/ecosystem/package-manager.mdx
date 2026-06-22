@@ -50,7 +50,7 @@ author = "Hamza"
 license = "MIT"
 
 [registry]
-url = "https://pkg.tulparlang.dev"
+url = "https://api.pkg.tulparlang.dev"   # API tabanı; bu aynı zamanda varsayılan
 
 [dependencies]
 wings   = "1.2.3"                       # registry
@@ -64,10 +64,20 @@ lodash  = "url:http://cdn/lodash.tpr"   # tek-dosya URL
 | ----------------------------- | ----------------------------------------------------------- |
 | `path:./local/dir`            | Yerel bir dizinden `*.tpr`'leri kopyala.                    |
 | `url:http://example.com/x.tpr`| Düz HTTP'den tek bir `.tpr` dosyası çek.                    |
-| `1.2.3`                       | Registry'den çek: `<registry>/<name>/<spec>.tpr`            |
+| `1.2.3`                       | Registry'den tam sürüm.                                     |
+| `^1.2.3` / `~1.2.3`           | Semver aralığı — caret (major içinde) / tilde (minor içinde). |
+| `>=1.0,<2.0` / `*` / `latest` | Karşılaştırıcı/bileşik aralık veya en yüksek yayınlanmış sürüm. |
 
-Registry sürümü için manifest'te `[registry] url = "..."` gerekir.
-`https://` URL'leri Tulpar'ın OpenSSL ile build'ini gerektirir
+Tam sürümde Tulpar registry'ye doğrudan gider. Bir **aralık** için (`^`, `~`,
+bir `<`/`>`/`=` karşılaştırıcısı, virgülle bileşik veya `*`/`latest`) önce
+paketin yayınlanmış sürümlerini `<registry>/v1/packages/<name>`'den çeker,
+aralığı karşılayan en yükseğini seçer, sonra
+`<registry>/v1/packages/<name>/versions/<version>/source`'u indirir.
+
+Registry sürümü için bir registry URL'i gerekir — manifest'te
+`[registry] url = "..."`, `--registry` flag'i veya `TULPAR_REGISTRY` ortam
+değişkeni (varsayılan `https://api.pkg.tulparlang.dev`). `https://` URL'leri
+Tulpar'ın OpenSSL ile build'ini gerektirir
 (MSYS2'de `pacman -S mingw-w64-x86_64-openssl`).
 
 ## Lockfile
@@ -79,24 +89,31 @@ Her başarılı `pkg install` sonrası `tulpar.lock` yazılır:
 # DÜZENLEMEYİN. Reproducible install için tulpar.toml ile birlikte commit'le.
 
 [resolved]
-wings   = "https://pkg.tulparlang.dev/wings/1.2.3.tpr"
+wings   = "https://api.pkg.tulparlang.dev/v1/packages/wings/versions/1.2.3/source"
 greeter = "path:../greeter"
 lodash  = "url:http://cdn/lodash.tpr"
 ```
 
-Lockfile her bağımlılık için **tam çözümlenmiş URL veya yolu** kaydeder
-— başka bir makinada re-install aynı baytları çeker, registry'nin
-`latest` pointer'ı kayarsa bile.
+Lockfile her bağımlılık için **tam çözümlenmiş URL veya yolu** ve indirilen
+baytların bir **SHA-256**'sını kaydeder — başka bir makinada re-install aynı
+baytları çeker, registry'nin `latest` pointer'ı kayarsa bile. Aynı URL'in
+lockfile'dakinden farklı bir SHA-256 sunduğu bir re-install sessizce üzerine
+yazmak yerine reddedilir.
 
 ## Modül çözümlemesi
 
 `import "name"` gördüğünde AOT derleyicisi sırasıyla dener:
 
-1. Düz yol `./name`.
-2. `.tpr` uzantılı yol (`./name.tpr`).
-3. `./tulpar_modules/<name>/<name>.tpr` — vendored entry-point konvansiyonu.
-4. `./tulpar_modules/<name>.tpr` — tek-dosya vendor.
-5. Gömülü stdlib (`wings`, `router`, `http_client`, `orm`, `test`, …).
+1. Gömülü stdlib (`wings`, `router`, `http_client`, `orm`, `test`, …).
+2. Bundle-local kardeş — `<içe-aktaran-dosyanın-dizini>/name.tpr` — böylece çok-dosyalı bir paketin iç import'ları kendi dosyalarına çözülür.
+3. Düz yol `./name`.
+4. `.tpr` uzantılı yol (`./name.tpr`).
+5. `./tulpar_modules/<name>/<name>.tpr` — vendored entry-point konvansiyonu.
+6. `./tulpar_modules/<name>.tpr` — tek-dosya vendor.
+
+Bu sıralama, gömülü stdlib adlarının (`wings`, `orm`, …) her zaman kazandığı
+anlamına gelir — `wings`'i yerel bir `wings.tpr` ile gölgeleyemezsiniz — ve
+`tulpar_modules/`'daki vendored bir paket geri kalan her şey için fallback'tir.
 
 ## Alt komutlar
 
@@ -107,3 +124,24 @@ Lockfile her bağımlılık için **tam çözümlenmiş URL veya yolu** kaydeder
 | `tulpar pkg add <name>[@<spec>]`       | Manifest'e bağımlılık ekle/güncelle.                       |
 | `tulpar pkg remove <name>`             | Manifest'ten bağımlılık kaldır.                            |
 | `tulpar pkg install`                   | Hepsini `tulpar_modules/`'a vendor et + lockfile yaz.      |
+| `tulpar pkg search <sorgu>`            | Registry kataloğunu ad/açıklamaya göre ara.                |
+| `tulpar pkg info <name>`               | Bir paketin registry meta'sını + yayınlanmış sürümlerini yazdır. |
+| `tulpar pkg publish [--dry-run]`       | Projenin kaynaklarını paketle ve registry'ye POST et.      |
+
+## Yayınlama
+
+`tulpar pkg publish`, projenizdeki her `.tpr` kaynağını paketler ve
+manifest'inizdeki `name` + `version` (ikisi de zorunlu) altında registry'ye
+yükler. Kimlik doğrulama bir bearer token'dır — `--token <tok>` geç veya
+`TULPAR_PUBLISH_TOKEN` ayarla:
+
+```bash
+export TULPAR_PUBLISH_TOKEN="…"
+tulpar pkg publish --dry-run     # paketle + ne gönderileceğini göster, yükleme yok
+tulpar pkg publish               # <registry>/v1/publish'e POST
+```
+
+Registry hedefi install'larla aynı çözümlemeyi izler (`--registry` flag'i →
+`[registry] url` → `TULPAR_REGISTRY` → varsayılan
+`https://api.pkg.tulparlang.dev`). `--dry-run` POST'u atlar, böylece bundle'ı
+token olmadan inceleyebilirsiniz.

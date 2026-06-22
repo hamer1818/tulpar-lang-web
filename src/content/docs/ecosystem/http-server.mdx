@@ -61,6 +61,73 @@ can read fields with dotted access — `req.params.id`, `req.query.page`,
 | `headers`      | `json`       | Header map (case-sensitive keys).          |
 | `body`         | `str`        | Raw body bytes, length-bounded.            |
 
+## Middleware (`use`)
+
+Register a global middleware with `use("fn_name")`. Every registered
+middleware runs — in registration order — **before** the matched handler,
+across all serve modes (there's a single dispatch point). A middleware is a
+`func mw(req)` that either returns a response dict (`_status` set → the chain
+**short-circuits** and that response is sent) or returns `{}` (continue). It
+can mutate `req` in place, so later middleware and the handler see the change:
+
+```tulpar
+func require_auth(req) {
+    str token = req["headers"]["Authorization"];
+    if (length(token) == 0) {
+        return unauthorized("token required");   // short-circuit → 401
+    }
+    req["user"] = {"id": 1, "name": "Ada"};      // visible to the handler
+    return {};                                    // continue
+}
+
+use("require_auth");
+```
+
+When no middleware is registered the chain is zero-cost — Wings skips it
+entirely on the hot path.
+
+## Route groups (`group`)
+
+`group(prefix, register_fn)` runs `register_fn` (a function **name**) with a
+path prefix applied to every route it registers. The prefix is saved and
+restored around the call, so groups **nest**:
+
+```tulpar
+func api_v1() {
+    get("/users", "list_users");      // → /api/v1/users
+    post("/users", "create_user");    // → /api/v1/users
+}
+group("/api/v1", "api_v1");
+```
+
+`get` / `post` / `put` / `del` / `cached_get` all honor the active prefix, so
+inner `group(...)` calls concatenate (`/api/v1` + `/admin` → `/api/v1/admin`).
+
+## Dependency injection (`depends` / `dep`)
+
+FastAPI-style per-route dependencies. `depends("fn_name")` attaches a
+dependency to the **most recently registered** route; before the handler runs,
+each dependency is called with `req` and its return value is injected. The
+handler reads it with `dep("name")`. A dependency can short-circuit by
+returning a response dict (`_status` set) — exactly like middleware, but
+per-route and value-producing:
+
+```tulpar
+func current_user(req) {
+    str t = req["headers"]["Authorization"];
+    if (length(t) == 0) { return unauthorized("token required"); }
+    return {"id": 1, "name": "Ada"};
+}
+
+func profile(req) { return ok(dep("current_user")); }
+
+get("/profile", "profile");
+depends("current_user");
+```
+
+Resolved values live in a thread-local store, so they don't leak between
+concurrent requests under `listen_pool` / `listen_async`.
+
 ## Single-thread vs multi-thread
 
 ```tulpar
@@ -212,6 +279,64 @@ POST {"name":"Ada"} →  reaches create_user
 Types: `str`, `int`, `float`, `num` (int or float), `bool`, `array`,
 `object`, `json` (object or array), `any` (present, any type).
 
+## Typed query parameters
+
+`req["query"]` holds raw string values. The typed accessors coerce with a
+default fallback, so a list endpoint reads pagination/filters in one line
+instead of hand-checking presence and calling `toInt()`:
+
+```tulpar
+func list_items(req) {
+    int page  = query_int(req, "page", 1);     // ?page=2  → 2,  missing → 1
+    str sort  = query(req, "sort", "id");       // ?sort=name → "name"
+    bool desc = query_bool(req, "desc", false); // 1/true/yes → true, 0/false/no → false
+    return ok(fetch_items(page, sort, desc));
+}
+```
+
+`query_int` returns the fallback on a missing or empty value; `query_bool`
+accepts `1`/`true`/`yes` and `0`/`false`/`no` (case-insensitive) and falls
+back otherwise.
+
+## Response model (output shaping)
+
+The symmetric counterpart to `body_schema()`: attach a schema to the most
+recently registered route to **filter successful output** down to only the
+declared fields. Anything not listed (a `password_hash`, an `_internal` flag)
+is dropped before serialization, so a handler can return its full row without
+leaking secrets:
+
+```tulpar
+get("/users/:id", "show_user");
+response_model({"id": "int", "name": "str"});   // password etc. dropped
+```
+
+Works on a single object or an array of objects. Errors (status ≥ 400) bypass
+filtering, so a `{"error": ...}` body is never stripped.
+
+## File uploads (multipart/form-data)
+
+For `multipart/form-data` requests, read text fields with
+`form(req, name, fallback)` and uploaded files with `uploaded_files(req)` —
+an array of `{name, filename, content_type, data, size}`. File `data` carries
+the **raw bytes** (binary-safe, length-tracked), so PNGs and other binaries
+round-trip byte-exact:
+
+```tulpar
+func upload(req) {
+    str title = form(req, "title", "");
+    for (f in uploaded_files(req)) {
+        write_file("./uploads/" + f["filename"], f["data"]);
+    }
+    return created({"title": title, "count": length(uploaded_files(req))});
+}
+post("/upload", "upload");
+```
+
+Parsing is lazy (only when you call `form` / `uploaded_files`) and backed by
+the native `parse_multipart` builtin. Each call re-parses; for many fields,
+call `form_data(req)` once and read the returned `{fields, files}` directly.
+
 ## Interactive docs (Swagger UI)
 
 `serve()` auto-mounts **`/docs`** (Swagger UI) backed by **`/openapi.json`**,
@@ -279,6 +404,22 @@ func download_handler() {
 `http_create_response(status, content_type, body, headers, keep_alive)`
 is the underlying primitive Wings uses internally; calling it directly
 gives you complete control over the response.
+
+## Static file serving (`static`)
+
+`static(url_prefix, dir)` mounts a directory under a URL prefix. Files are
+served as a **404-fallback**: real routes (exact or `:param`) always match
+first, and static is the catch-all checked only when nothing else matches:
+
+```tulpar
+static("/static", "./public");   // GET /static/app.css → ./public/app.css
+```
+
+Path traversal (`..`) is rejected. Text assets (`html`/`css`/`js`/`json`/
+`svg`/`txt`) get a correct `Content-Type`; everything else falls back to
+`application/octet-stream`. Binary assets (a PNG with embedded NULs) round-trip
+byte-exact, since `read_file` / `http_create_response` are length-tracked
+rather than `strlen`-based.
 
 ## HTTPS (Wings TLS)
 
