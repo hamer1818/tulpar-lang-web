@@ -84,7 +84,7 @@ const SINGLE_CHAR_OPS = new Set([
 	'|', // match alternatives
 ]);
 
-const PUNCT = new Set(['(', ')', '{', '}', '[', ']', ',', ';', '.', ':']);
+const PUNCT = new Set(['(', ')', '{', '}', '[', ']', ',', ';', '.', ':', '?']);
 
 export class LexerError extends Error {
 	line: number;

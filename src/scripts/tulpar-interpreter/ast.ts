@@ -4,6 +4,7 @@ export type Node =
 	| Assign
 	| BinaryOp
 	| LogicalOp
+	| Conditional
 	| UnaryOp
 	| Postfix
 	| Call
@@ -90,6 +91,13 @@ export interface LogicalOp extends NodeBase {
 	op: '&&' | '||';
 	left: Node;
 	right: Node;
+}
+
+export interface Conditional extends NodeBase {
+	kind: 'Conditional';
+	cond: Node;
+	then: Node;
+	otherwise: Node;
 }
 
 export interface UnaryOp extends NodeBase {

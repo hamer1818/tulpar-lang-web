@@ -388,7 +388,7 @@ class Parser {
 	}
 
 	private parseAssignment(): Node {
-		const left = this.parseLogicalOr();
+		const left = this.parseTernary();
 		const t = this.peek();
 		if (
 			t.type === 'OP' &&
@@ -422,6 +422,28 @@ class Parser {
 			} as Assign;
 		}
 		return left;
+	}
+
+	// Ternary `cond ? then : else` — looser than every binary operator and
+	// right-associative (both branches recurse through parseAssignment), so
+	// `a ? b : c ? d : e` parses as `a ? b : (c ? d : e)`.
+	private parseTernary(): Node {
+		const cond = this.parseLogicalOr();
+		if (this.check('PUNCT', '?')) {
+			const q = this.advance();
+			const then = this.parseAssignment();
+			this.expect('PUNCT', ':');
+			const otherwise = this.parseAssignment();
+			return {
+				kind: 'Conditional',
+				cond,
+				then,
+				otherwise,
+				line: q.line,
+				col: q.col,
+			};
+		}
+		return cond;
 	}
 
 	private parseLogicalOr(): Node {

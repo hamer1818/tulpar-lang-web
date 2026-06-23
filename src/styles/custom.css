@@ -314,3 +314,131 @@ header.header {
 .tulpar-playground__output.is-error {
 	color: #ff6b6b;
 }
+
+/* ===================================================================== */
+/* Anasayfa (splash) landing ek bileşenleri                              */
+/* ===================================================================== */
+
+/* Hero başlığına hafif neon parıltısı + daha güçlü gradyan */
+.hero h1 {
+	text-shadow: 0 0 38px var(--tech-glow);
+}
+
+/* --- İstatistik şeridi (hero altında dikkat çeken rakamlar) --- */
+.tlp-stats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+	justify-content: center;
+	margin: 2.5rem auto 1rem;
+	max-width: 60rem;
+}
+.tlp-stat {
+	flex: 1 1 150px;
+	max-width: 220px;
+	padding: 1.15rem 1rem;
+	text-align: center;
+	border-radius: 16px;
+	background: var(--tech-card-bg);
+	border: 1px solid var(--tech-glass-border);
+	backdrop-filter: blur(10px);
+	transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.tlp-stat:hover {
+	transform: translateY(-5px);
+	border-color: var(--sl-color-accent);
+	box-shadow: 0 10px 34px var(--tech-glow);
+}
+.tlp-stat__num {
+	font-family: var(--sl-font-mono);
+	font-weight: 700;
+	font-size: 1.75rem;
+	line-height: 1.1;
+	background: linear-gradient(to right, var(--sl-color-accent), #2979ff);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+.tlp-stat__label {
+	margin-top: 0.4rem;
+	font-size: 0.82rem;
+	color: var(--sl-color-gray-3);
+	letter-spacing: 0.01em;
+}
+
+/* --- Bölüm "eyebrow" etiketi --- */
+.tlp-eyebrow {
+	display: inline-block;
+	font-family: var(--sl-font-mono);
+	font-size: 0.72rem;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--sl-color-accent);
+	border: 1px solid var(--tech-glass-border);
+	border-radius: 999px;
+	padding: 0.25rem 0.8rem;
+	margin-bottom: 0.4rem;
+	background: var(--tech-card-bg);
+}
+
+/* --- "Hemen dene" canlı playground sarmalayıcısı --- */
+.tlp-try {
+	position: relative;
+	margin: 1.5rem auto 0;
+	max-width: 56rem;
+}
+.tlp-try::before {
+	content: '';
+	position: absolute;
+	inset: -1px;
+	border-radius: 18px;
+	padding: 1px;
+	background: linear-gradient(135deg, var(--sl-color-accent), transparent 55%);
+	-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+	-webkit-mask-composite: xor;
+	        mask-composite: exclude;
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+/* --- Alt çağrı (install / CTA) bandı --- */
+.tlp-cta {
+	margin: 3.5rem auto 1rem;
+	max-width: 50rem;
+	padding: 2.25rem 1.75rem;
+	border-radius: 20px;
+	text-align: center;
+	border: 1px solid var(--tech-glass-border);
+	background:
+		radial-gradient(130% 130% at 50% 0%, var(--tech-glow), transparent 58%),
+		var(--tech-card-bg);
+}
+.tlp-cta h2 {
+	border: 0 !important;
+	margin: 0 0 0.4rem !important;
+	font-size: 1.7rem;
+}
+.tlp-cta p {
+	color: var(--sl-color-gray-2);
+	margin: 0 auto 1.25rem;
+	max-width: 34rem;
+}
+.tlp-cta__cmd {
+	display: inline-block;
+	font-family: var(--sl-font-mono);
+	font-size: 0.95rem;
+	padding: 0.7rem 1.1rem;
+	border-radius: 12px;
+	background: rgba(0, 0, 0, 0.28);
+	border: 1px solid var(--tech-glass-border);
+	color: var(--sl-color-accent-high);
+}
+:root[data-theme='light'] .tlp-cta__cmd {
+	background: rgba(0, 0, 0, 0.05);
+	color: var(--sl-color-accent-high);
+}
+.tlp-cta__cmd .tlp-prompt { color: var(--sl-color-gray-4); user-select: none; }
+
+@media (max-width: 30rem) {
+	.tlp-stat__num { font-size: 1.45rem; }
+}

@@ -5,6 +5,7 @@ import type {
 	Assign,
 	BinaryOp,
 	LogicalOp,
+	Conditional,
 	UnaryOp,
 	Postfix,
 	Call,
@@ -308,6 +309,13 @@ export class Evaluator {
 				return this.evalBinary(node as BinaryOp, env);
 			case 'LogicalOp':
 				return this.evalLogical(node as LogicalOp, env);
+			case 'Conditional': {
+				// Lazy: evaluate the condition, then ONLY the taken branch.
+				const c = node as Conditional;
+				return isTruthy(this.evaluate(c.cond, env))
+					? this.evaluate(c.then, env)
+					: this.evaluate(c.otherwise, env);
+			}
 			case 'UnaryOp':
 				return this.evalUnary(node as UnaryOp, env);
 			case 'Postfix':
