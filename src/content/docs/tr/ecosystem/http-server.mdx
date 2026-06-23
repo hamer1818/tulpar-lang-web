@@ -137,8 +137,11 @@ listen_async(8080);    // bağlantı başına thread, paralel recv/send
 ```
 
 `listen()` test edilmiş tek-thread sunucu: kabul edilen her socket'te
-çoklu keep-alive request'i seri serve eder. Throughput: **~24k req/sec**,
-Node.js seviyesi.
+çoklu keep-alive request'i seri serve eder. **En düşük request-başı
+latency'ye** (~0.22 ms p50) sahip ama seri bir accept döngüsü olduğundan
+eşzamanlı keep-alive bağlantılarını serileştirir — ham throughput için
+`listen_pool` tercih et (Go `net/http`'yi geçiyor). Tam karşılaştırma
+için [Benchmark](/tr/ecosystem/benchmarks/) sayfasına bak.
 
 `listen_async()` her TCP bağlantısı için detached worker spawn'lar.
 Her worker kendi `recv` / parse / `send`'ini paralel yapar; handler

@@ -1,40 +1,68 @@
 ---
 title: Benchmark Sonuçları
-description: Tulpar'ın CPU ve HTTP iş yüklerinde C / Rust / Go / Node.js / Python karşısında nasıl performans verdiği.
+description: Tulpar'ın CPU ve HTTP iş yüklerinde C / Go / Node.js / FastAPI karşısında nasıl performans verdiği.
 ---
 
-Tulpar'ın sloganı "Python kadar kolay, C kadar hızlı". CPU tarafının
-iddiasını her commit'te doğruluyoruz; HTTP tarafı bizi tek-thread Node.js
-seviyesine çıkarıyor.
+Tulpar'ın sloganı "Python kadar kolay, C kadar hızlı". CPU'da Rust/Go
+bölgesinde; HTTP'de çok-çekirdekli `listen_pool` sunucusu Go'nun `net/http`'sini
+geçiyor ve FastAPI'yi çok geride bırakıyor — hepsi gönderilecek bir runtime
+olmadan, tek bağımsız binary'den.
 
 ## CPU benchmark'ları
 
-`benchmarks/loopsum.tpr` ve `benchmarks/fib.tpr`, native LLVM `i64`
-codegen için typed AOT path (explicit `: int` return) kullanır.
+`benchmarks/fib.tpr`, native LLVM `i64` codegen için typed AOT path (explicit
+`: int` return) kullanır. Özyineleme derinliği bir env var'dan okunur, böylece
+LLVM sonucu derleme zamanında kısmi-değerlendiremez.
 
-| Benchmark               | C (gcc -O2) | Tulpar AOT | Oran        |
-| ----------------------- | ----------: | ---------: | ----------- |
-| `loopsum` (10M sum)     | 67 ms       | 88 ms      | **1.31× C** |
-| `fib(35)` recursive     | 83 ms       | 114 ms     | **1.37× C** |
+| Ortam                                        | C            | Tulpar AOT | Oran        |
+| -------------------------------------------- | -----------: | ---------: | ----------- |
+| Windows 11 / MinGW64, `fib(35)`, best-of-3   | 83 ms        | 114 ms     | **1.37× C** |
+| Linux WSL2 / gcc 15 `-O2`, `fib(40)`, best-of-5 | 140 ms    | 261 ms     | **1.86× C** |
 
-Tulpar AOT **1.3–1.4× C** aralığında — Rust ve Go ile aynı bölgede.
-Best-of-3 wall-clock, Windows 11 + MinGW64.
+**Oran yalnızca Tulpar'a değil, C derleyicisine de bağlı.** Her iki taraf da
+LLVM/AOT-native; fark, `gcc -O2`'ye (çok agresif bir C) karşı MinGW'nin eski
+GCC'sine göre daha geniş. Her iki durumda da Tulpar **~1.4–1.9× C** bandında —
+Rust ve Go ile aynı mahalle, yorumlanan Python'un kat kat önünde.
+
+:::note[Neden burada `loopsum` yok]
+Eski `loopsum` (`0..n` toplamı) geçerli bir Tulpar-vs-C satırı **değil**: LLVM'in
+scalar-evolution geçişi seriyi kapalı formu `n·(n-1)/2`'ye derleme zamanında
+fold eder — opaque bir runtime `n` ile bile — yani Tulpar binary'si ~5 ms'de
+döner ve döngüyü değil, process startup'ını ölçer. `fib`, LLVM'in fold
+edemeyeceği gerçek özyineleme, yük taşıyan CPU rakamıdır.
+:::
 
 ## HTTP throughput
 
-`benchmarks/http_bench.py` — 5000 GET, 4 keep-alive bağlantı,
-single-thread sunucular, JSON `{"hello":"world"}` body.
+`benchmarks/loadtest` (native C yük üreteci), her sunucuyu keep-alive bağlantılar
+üzerinden `GET /` → JSON `{"hello":"world"}` ile döver; concurrency 1–12 arasında
+taranır (kutunun çekirdek sayısının altında tutulur, böylece yük üreteci sunucuyu
+aç bırakmaz), seviye başına 4 sn, en iyi koşu ikinci geçişle doğrulanır.
+Kutu: 14-vCPU WSL2. **Her runtime kendi önerilen tek-process yapılandırmasında.**
 
-| Sunucu                  | Wall (s) | req/sec | Notlar                                                              |
-| ----------------------- | -------: | ------: | ------------------------------------------------------------------- |
-| Tulpar Wings            | 0.193    | ~26 000 | Single-thread `listen()`, NODELAY, dlsym handler cache.             |
-| Node.js http            | 0.184    | ~27 200 | `http.createServer`, V8 22.x.                                       |
-| Python ThreadingHTTP    | 0.354    | ~14 100 | `ThreadingHTTPServer`, tek CPython process.                         |
+| Sunucu                | istek/sn | p50 latency | Yapılandırma                          |
+| --------------------- | -------: | ----------: | ------------------------------------- |
+| **Tulpar `listen_pool`** | **~36k** | **0.32 ms** | 14 çekirdek, 1 process             |
+| Go `net/http`         |    ~30k | 0.38 ms     | tüm çekirdekler (default), 1 process   |
+| Node.js `http`        |   ~8.7k | 1.06 ms     | 1 thread (default)                    |
+| FastAPI (uvicorn)     |   ~3.5k | 3.31 ms     | 1 worker (default)                    |
+| Tulpar `listen`       | ~4–4.7k | 0.22 ms     | 1 thread, **seri** accept döngüsü     |
 
-`listen_async()` multi-thread variant'ı sunar — handler dispatch hâlâ
-`_wings_handler_mu` altında serileşiyor (LLVM thread-local global'leri
-inene kadar), ama paralel `recv` / `send` keep-alive iş yükünde
-throughput yükselmesi sağlıyor.
+Thread modelleri farklıdır ve yukarıda etiketlenmiştir: `listen_pool` ve Go'nun
+`net/http`'si kutudan çıkarken tüm çekirdekleri kullanır, Node ve tek bir uvicorn
+worker'ı ise default'ta tek. Tulpar'ın tek-thread `listen()`'i **seri** bir
+accept döngüsüdür — en düşük request-başı latency'ye sahip (0.22 ms p50) ama
+keep-alive bağlantıları serileştirir; bu yüzden throughput için `listen_pool`
+(veya `listen_async`) kullan. Dikkat: tek-thread `listen()` burada tek-thread
+Node'un gerisinde kalıyor; Tulpar'ın üstünlüğü `listen_pool`'un çekirdekler
+arasında temiz ölçeklenmesinden geliyor (36k istek/sn'de p50 0.32 ms'de kalıyor,
+temiz sub-millisecond tail ile).
+
+Özellikle FastAPI'ye karşı Tulpar latency (~10× daha düşük p50) ve ayak izinde de
+net kazanıyor — ayrıntılı
+[Wings vs FastAPI yazısına](https://github.com/hamer1818/TulparLang/blob/main/benchmarks/WINGS_VS_FASTAPI.md)
+bak (yük altında p50 0.31 ms vs 28 ms, 6.7 MB vs 54 MB RSS, 2 MB bağımsız binary
+vs Python + ~50 MB bağımlılık).
 
 ## Bizi buraya getirenler
 
@@ -43,5 +71,25 @@ throughput yükselmesi sağlıyor.
 - `call(handler_name)` dlsym cache (256-slot FNV-1a hash) — request başı sembol-tablosu walk'unu eliyor.
 - Accept'te TCP_NODELAY — Nagle'ın 40ms gecikmesini kaldırır (+%13).
 - Static thread-local recv buffer — keep-alive request başı 64KB malloc/free pair'ini düşürür.
-- Per-request arena reset — uzun süreli sunucularda bounded memory.
-- `break` / `continue` real codegen — eskiden silently no-op'tu; LLVM induction-variable update'lerinde phi node optimize edemiyordu.
+- Per-request arena reset + per-request malloc region — uzun süreli sunucularda sızıntısız bounded memory.
+- Built-in'lerde thread-local scratch buffer — TLS olmayan static'ler `listen_pool` altında yarışıyordu (bir `toString` buffer'ı düzeltilene dek ~%1.1 hatalı 404'e yol açtı).
+- `break` / `continue` real codegen — eskiden silently no-op'tu; LLVM induction-variable update'lerinde suboptimal phi node üretmesini engeller.
+
+**Bilinçli atladığımız trade-off'lar** (analiz edildi, düşük değer):
+
+- Object-key inline caching (`req["method"]` HTTP path'in ~%0.3'ü).
+- String concat coalescing (`a + b + c` HTTP path'in ~%0.1'i).
+
+## Metodoloji
+
+- **CPU:** `gcc -O2` (Linux gcc 15 / Windows MinGW64). Best-of-N wall-clock. İş
+  yükü girdisi derleyiciye opaque'tır (runtime'da okunur), böylece `-O2` onu
+  constant-fold edemez; `N` process startup'ı önemsiz kılacak kadar büyüktür.
+- **HTTP:** native `benchmarks/loadtest`, tek kutu, keep-alive, concurrency
+  çekirdek sayısı ≤ tutulur, böylece yük üreteci ve sunucu CPU için yarışmaz.
+  Toolchain'ler: Go 1.23, Node 22, Python 3.14 + FastAPI/uvicorn. Sunucular
+  default tek-process yapılandırmasında çalışır (çekirdek kullanımı satır başına
+  etiketli).
+- Mutlak rakamlar kutuya özeldir; taşınabilir sinyal olarak **oranları ve
+  latency'yi** baz al. CPU'yu `benchmarks/run_benchmarks.sh` ile yeniden üret;
+  buradaki HTTP sunucuları + sürücü, aynı JSON'u döndüren minimal eşdeğerlerdir.

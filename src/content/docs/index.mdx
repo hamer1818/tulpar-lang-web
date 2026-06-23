@@ -1,57 +1,143 @@
 ---
 title: Tulpar Language
-description: As easy as Python, as fast as C. A statically-typed scripting language with an LLVM 18 backend, batteries-included HTTP/JSON/SQLite stack, and full editor tooling.
+description: As easy as Python, as fast as C. A statically-typed, AOT-compiled language with an LLVM 18 backend and a batteries-included HTTP / JSON / SQLite / OpenAPI stack — no framework required.
 template: splash
-hero:
-  tagline: "<strong>As easy as Python, as fast as C.</strong> A statically-typed, AOT-compiled language with an LLVM 18 backend — batteries-included HTTP / JSON / SQLite stack and full editor tooling, out of the box."
-  image:
-    file: ../../assets/icon.png
-  actions:
-    - text: Get Started
-      link: /intro/getting-started/
-      icon: right-arrow
-      variant: primary
-    - text: Try it live ↓
-      link: "#try-it"
-      icon: rocket
-      variant: secondary
-    - text: View on GitHub
-      link: https://github.com/hamer1818/TulparLang
-      icon: external
-      variant: minimal
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
 import TulparPlayground from '../../components/TulparPlayground.astro';
 
-<div class="tlp-stats">
-	<div class="tlp-stat">
-		<div class="tlp-stat__num">1.3–1.4×</div>
-		<div class="tlp-stat__label">of C on tight loops</div>
-	</div>
-	<div class="tlp-stat">
-		<div class="tlp-stat__num">~24k</div>
-		<div class="tlp-stat__label">HTTP req/sec, 1 thread</div>
-	</div>
-	<div class="tlp-stat">
-		<div class="tlp-stat__num">0</div>
-		<div class="tlp-stat__label">npm / pip installs</div>
-	</div>
-	<div class="tlp-stat">
-		<div class="tlp-stat__num">LLVM 18</div>
-		<div class="tlp-stat__label">native AOT backend</div>
-	</div>
-	<div class="tlp-stat">
-		<div class="tlp-stat__num">TR + EN</div>
-		<div class="tlp-stat__label">bilingual compiler</div>
-	</div>
-</div>
+<div class="tlp-landing">
 
-<div id="try-it" class="tlp-try">
-	<span class="tlp-eyebrow">Run it now</span>
+<section class="tlp-hero">
+	<div class="tlp-hero__content">
+		<span class="tlp-eyebrow">AOT · LLVM 18 · batteries included</span>
+		<h1 class="tlp-hero__title">Build production APIs<span>without the framework</span></h1>
+		<p class="tlp-hero__lead">
+			As easy as Python, as fast as C. A statically-typed, AOT-compiled
+			language with HTTP, JSON, SQLite, an ORM and OpenAPI built right into
+			the runtime — no <code>npm install</code>, no pip, no dependencies.
+		</p>
+		<div class="tlp-hero__actions">
+			<a class="tlp-btn tlp-btn--primary" href="/intro/getting-started/">Get Started →</a>
+			<a class="tlp-btn tlp-btn--ghost" href="#playground">Open Playground</a>
+			<a class="tlp-btn tlp-btn--minimal" href="https://github.com/hamer1818/TulparLang">View on GitHub ↗</a>
+		</div>
+		<div class="tlp-hero__stats">
+			<div class="tlp-hero__stat"><b>~36k</b><span>req/s · Tulpar pool</span></div>
+			<div class="tlp-hero__stat"><b>~1.9× C</b><span>fib · native AOT</span></div>
+			<div class="tlp-hero__stat"><b>0</b><span>external dependencies</span></div>
+		</div>
+	</div>
 
-	No install, no setup — this runs **right here in your browser**. Edit the code
-	and hit **Run**.
+	<div class="tlp-hero__preview">
+		<div class="tlp-window">
+			<div class="tlp-window__bar">
+				<span class="tlp-window__dot tlp-window__dot--r"></span>
+				<span class="tlp-window__dot tlp-window__dot--y"></span>
+				<span class="tlp-window__dot tlp-window__dot--g"></span>
+				<span class="tlp-window__name">api.tpr</span>
+				<span class="tlp-window__live">running</span>
+			</div>
+
+			```tulpar
+			import "wings";
+			import "orm";
+
+			orm_open("app.db");
+			define_model("users", { "name": "TEXT", "age": "INTEGER" });
+
+			func list_users(req)  { return ok(orm_all("users")); }
+			func create_user(req) { return created(orm_create("users", req.json)); }
+
+			get("/users",  "list_users");
+			post("/users", "create_user");
+
+			serve(8080);   // + Swagger UI, /openapi.json, /metrics, /healthz
+			```
+		</div>
+	</div>
+</section>
+
+<section class="tlp-section">
+	<div class="tlp-section__head">
+		<span class="tlp-eyebrow">Benchmarks</span>
+		<h2>Fast where it counts</h2>
+		<p>Throughput on <code>GET /</code> → JSON <code>{"{"}"hello":"world"{"}"}</code>, keep-alive, native load tester, one 14-vCPU box. Each runtime in its recommended single-process config.</p>
+	</div>
+
+	<div class="tlp-bench">
+		<div class="tlp-bench__row tlp-bench__row--hero">
+			<div class="tlp-bench__name">Tulpar<span class="tlp-bench__tag">pool · 14c</span></div>
+			<div class="tlp-bench__track"><div class="tlp-bench__fill" style="--val:100%"></div></div>
+			<div class="tlp-bench__val">~36k req/s</div>
+		</div>
+		<div class="tlp-bench__row">
+			<div class="tlp-bench__name">Go net/http<span class="tlp-bench__tag">14c</span></div>
+			<div class="tlp-bench__track"><div class="tlp-bench__fill" style="--val:83%"></div></div>
+			<div class="tlp-bench__val">~30k req/s</div>
+		</div>
+		<div class="tlp-bench__row">
+			<div class="tlp-bench__name">Node.js http<span class="tlp-bench__tag">1c</span></div>
+			<div class="tlp-bench__track"><div class="tlp-bench__fill" style="--val:24%"></div></div>
+			<div class="tlp-bench__val">~8.7k req/s</div>
+		</div>
+		<div class="tlp-bench__row">
+			<div class="tlp-bench__name">FastAPI<span class="tlp-bench__tag">uvicorn · 1w</span></div>
+			<div class="tlp-bench__track"><div class="tlp-bench__fill" style="--val:10%"></div></div>
+			<div class="tlp-bench__val">~3.5k req/s</div>
+		</div>
+		<p class="tlp-bench__note">
+			And latency stays low: <strong>p50 0.32 ms</strong> (Tulpar) vs 3.3 ms (FastAPI). On CPU, fib lands at <strong>1.37× C</strong> (Windows / MinGW) to <strong>~1.9× C</strong> (Linux gcc -O2) — Rust/Go class either way. <a href="/ecosystem/benchmarks/">Full methodology →</a>
+		</p>
+	</div>
+</section>
+
+<section class="tlp-section">
+	<div class="tlp-section__head">
+		<span class="tlp-eyebrow">Features</span>
+		<h2>Everything you need is already in the box</h2>
+	</div>
+
+	<div class="tlp-bento">
+		<div class="tlp-bento__item tlp-bento__item--feature">
+			<div class="tlp-bento__icon">🚀</div>
+			<h3>An API on day one</h3>
+			<p><code>import "wings"</code>, register a route, <code>serve(8080)</code> — done. You get OpenAPI 3.0 + Swagger UI auto-generation, schema validation (invalid body → 422), dependency injection, structured logging, keep-alive, plus built-in <code>/healthz</code> and <code>/metrics</code> (JSON + Prometheus) for free.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">⚡</div>
+			<h3>C-class performance</h3>
+			<p>AOT-compiled via LLVM 18 to a standalone native binary.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">🗄️</div>
+			<h3>SQLite + ORM</h3>
+			<p>Embedded SQLite and an Active-Record ORM — no driver to wire up.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">🧰</div>
+			<h3>Editor tooling</h3>
+			<p>Bundled LSP, <code>tulpar fmt</code>, and a VS Code extension.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">📦</div>
+			<h3>Package manager</h3>
+			<p><code>tulpar pkg</code> with a <code>tulpar.toml</code> manifest and lockfile.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">🌍</div>
+			<h3>UTF-8 · TR + EN</h3>
+			<p>Unicode identifiers and bilingual compiler diagnostics.</p>
+		</div>
+	</div>
+</section>
+
+<section id="playground" class="tlp-section">
+	<div class="tlp-section__head">
+		<span class="tlp-eyebrow">Live playground</span>
+		<h2>Try it right here in your browser</h2>
+		<p>No install, no setup. Edit the code and hit <strong>Run</strong> — it executes in the page.</p>
+	</div>
 
 	<TulparPlayground
 		title="hello.tpr — recursion + the ternary operator"
@@ -65,35 +151,14 @@ for (int i = 0; i < 12; i++) {
     print("fib(" + toString(i) + ") = " + toString(fib(i)));
 }`}
 	/>
-</div>
+</section>
 
-## Why Tulpar
-
-<CardGrid stagger>
-	<Card title="C-class performance" icon="rocket">
-		AOT-compiled via LLVM. Lands in the **1.3–1.4× C** range on tight loops on identical hardware — same neighbourhood as Rust and Go. HTTP server hits ~24k req/sec single-threaded, ~Node.js parity.
-	</Card>
-	<Card title="API on day one" icon="seti:json">
-		`import "wings"`, register a route, `serve(8080)` — done. Built-in `/healthz`, `/metrics` (JSON + Prometheus), OpenAPI 3.0 + Swagger UI auto-gen, schema validation, dependency injection, structured logging, keep-alive, multi-threaded request handling.
-	</Card>
-	<Card title="Modern editor tooling" icon="laptop">
-		Bundled language server: diagnostics, hover, completion, go-to-definition, find-references, rename. Plus `tulpar fmt` (gofmt-style idempotent formatter) and a VS Code extension that just works.
-	</Card>
-	<Card title="Package manager" icon="puzzle">
-		`tulpar pkg init / add / install / list / remove`, `tulpar.toml` manifest, `tulpar.lock` lockfile. Vendor local paths, fetch single-file URLs, or pull from a registry by semver.
-	</Card>
-	<Card title="Batteries included" icon="seti:db">
-		Embedded SQLite + Active-Record ORM. Outbound HTTP/HTTPS client. Regex, CSV, file glob, datetime (ISO 8601 parse/format/weekday), JSON, threads, mutex, sockets — all in the runtime, no `npm install`.
-	</Card>
-	<Card title="UTF-8 · Türkçe · English" icon="pencil">
-		Identifiers, strings, paths — all UTF-8. Compiler error messages are bilingual (Turkish + English via `tr_en` localisation). Cross-platform: Linux, macOS, Windows.
-	</Card>
-</CardGrid>
-
-## From zero to a REST API
-
-A real, persistent CRUD API — model, routes, server — in one file. The server
-boots with `/healthz`, `/metrics`, `/openapi.json` and a Swagger UI for free.
+<section class="tlp-section">
+	<div class="tlp-section__head">
+		<span class="tlp-eyebrow">From zero to a REST API</span>
+		<h2>A persistent CRUD service in one file</h2>
+		<p>Model, routes and server in a single <code>.tpr</code> — boots with <code>/healthz</code>, <code>/metrics</code>, <code>/openapi.json</code> and a Swagger UI for free.</p>
+	</div>
 
 ```tulpar
 import "wings";
@@ -123,6 +188,8 @@ serve(8080);
 Want the guided version? The **[Wings Tutorial](/ecosystem/wings-tutorial/)**
 builds three complete apps step by step — REST, token auth, and a SQLite-backed API.
 
+</section>
+
 <div class="tlp-cta">
 	## Ready in one command
 
@@ -133,4 +200,6 @@ builds three complete apps step by step — REST, token auth, and a SQLite-backe
 	<div style="margin-top:1.5rem">
 		[Get Started →](/intro/getting-started/) &nbsp;·&nbsp; [Installation](/intro/installation/) &nbsp;·&nbsp; [Language Guide](/guide/syntax/)
 	</div>
+</div>
+
 </div>

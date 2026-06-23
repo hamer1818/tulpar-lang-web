@@ -137,8 +137,11 @@ listen_async(8080);    // thread-per-connection, parallel recv/send
 
 `listen()` is the battle-tested single-thread server: it serves multiple
 keep-alive requests on each accepted socket, but new connections wait
-until the current one returns to `accept()`. Throughput on a benchmark
-load: **~24k req/sec**, ~Node.js parity.
+until the current one returns to `accept()`. It has the **lowest
+per-request latency** (~0.22 ms p50) but, being a serial accept loop, it
+serialises concurrent keep-alive connections — so for raw throughput
+prefer `listen_pool` (which out-throughputs Go `net/http`). See the
+[Benchmarks](/ecosystem/benchmarks/) page for the full comparison.
 
 `listen_async()` spawns a detached worker per accepted TCP connection.
 Each worker does its own `recv` / parse / `send` in parallel; handler
