@@ -7,12 +7,13 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'Tulpar Language',
-			favicon: './public/favicon.svg',
+			favicon: '/favicon.svg',
 
 			customCss: ['./src/styles/custom.css'],
 			logo: {
 				src: './src/assets/icon.png',
 			},
+			// PNG fallback for browsers that don't render SVG favicons.
 			head: [
 				{ tag: 'link', attrs: { rel: 'icon', href: '/icon.png', type: 'image/png' } },
 			],
