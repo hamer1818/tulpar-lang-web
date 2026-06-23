@@ -88,6 +88,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Package Manager', translations: { tr: 'Paket Yöneticisi' }, slug: 'ecosystem/package-manager' },
 						{ label: 'HTTP Server (Wings)', translations: { tr: 'HTTP Sunucusu (Wings)' }, slug: 'ecosystem/http-server' },
+						{ label: 'Wings Tutorial', translations: { tr: 'Wings Öğreticisi' }, slug: 'ecosystem/wings-tutorial' },
 						{ label: 'Wings Cookbook', translations: { tr: 'Wings Tarif Kitabı' }, slug: 'ecosystem/wings-cookbook' },
 						{ label: 'TulparAPI (FastAPI-style)', translations: { tr: 'TulparAPI (FastAPI tarzı)' }, slug: 'ecosystem/tulpar-api' },
 						{ label: 'HTTP Client', translations: { tr: 'HTTP İstemcisi' }, slug: 'ecosystem/http-client' },

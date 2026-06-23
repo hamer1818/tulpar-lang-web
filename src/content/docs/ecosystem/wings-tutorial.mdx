@@ -1,0 +1,293 @@
+---
+title: Wings Tutorial — From Zero to a Real App
+description: A guided, three-stage walkthrough that builds real Wings applications — a REST Todo API, a token-auth API with dependency injection, and a SQLite-backed persistent API. Each stage is a complete program you can run.
+---
+
+The [Cookbook](/ecosystem/wings-cookbook/) gives you copy-paste recipes; the
+[HTTP Server reference](/ecosystem/http-server/) lists every function. This
+page is different: it's a **guided tutorial** that builds up three complete
+applications so you learn the language *and* the framework together, one
+concept at a time.
+
+Each stage ships as a runnable file in the repo's `examples/` folder, fully
+commented in Turkish. Open them alongside this page:
+
+| Stage | File | What it teaches |
+| ----- | ---- | --------------- |
+| 1 | `examples/wings_todo_api.tpr`  | REST routing, path params, JSON body, validation, query filters, auto-docs |
+| 2 | `examples/wings_auth_api.tpr`  | Middleware, dependency injection, route groups, response models, status helpers |
+| 3 | `examples/wings_notes_db.tpr`  | SQLite persistence, building safe SQL, surviving restarts |
+
+:::tip[The three facts that cover most of Wings]
+1. A route binds a handler **by name**: `get("/", "index")`.
+2. A handler takes `req` and **returns a plain object** → `200 application/json`.
+3. The server starts with `serve()` (default port `8484`). `/docs` and
+   `/openapi.json` come for free.
+:::
+
+## Stage 1 — A REST Todo API
+
+Start with the smallest thing that's still a *real* API: an in-memory list of
+todos exposed over the five REST verbs.
+
+```tulpar
+import "wings";
+
+array _todos  = [];
+int   _next_id = 1;
+
+func seed() {
+    push(_todos, {"id": 1, "title": "Learn Tulpar",  "done": true});
+    push(_todos, {"id": 2, "title": "Write an API",  "done": false});
+    _next_id = 3;
+}
+seed();
+
+// id → index in _todos (-1 = not found). Returning an index is the simplest
+// way to "point at" a row without references.
+func find_index(int id) {
+    for (int i = 0; i < length(_todos); i++) {
+        if (_todos[i]["id"] == id) { return i; }
+    }
+    return -1;
+}
+
+func list_todos(req) {
+    return {"data": _todos, "count": length(_todos)};
+}
+
+func show_todo(req) {
+    int id  = toInt(req.params.id);          // params are always strings → toInt
+    int idx = find_index(id);
+    if (idx < 0) { return not_found(t"todo {id} not found"); }
+    return ok(_todos[idx]);
+}
+
+func create_todo(req) {
+    json body = req.json;                    // body is parsed for you
+    json todo = {"id": _next_id, "title": body["title"], "done": false};
+    push(_todos, todo);
+    _next_id = _next_id + 1;
+    return created(todo);                    // 201 Created
+}
+
+get("/todos",      "list_todos");
+get("/todos/:id",  "show_todo");
+
+post("/todos",     "create_todo");
+body_schema({"title": "str", "done?": "bool"});   // invalid body → 422, never reaches the handler
+
+serve();
+```
+
+Run it and poke at it:
+
+```bash
+tulpar examples/wings_todo_api.tpr
+
+curl http://127.0.0.1:8484/todos
+curl -X POST http://127.0.0.1:8484/todos -d '{"title":"buy milk"}'
+curl http://127.0.0.1:8484/todos/3
+curl -X POST http://127.0.0.1:8484/todos -d '{"oops":1}'   # → 422
+```
+
+### What just happened
+
+- **`req.params.id`** holds the `:id` from the path — always a string, so
+  `toInt(...)` it.
+- **`req.json`** is the request body, already parsed into an object.
+- **`body_schema({...})`** attaches a schema to the route *above* it. A request
+  with a missing/mis-typed field gets a `422` automatically — your handler only
+  ever runs on valid input. The `?` suffix (`"done?"`) marks an optional field.
+- **`ok` / `created` / `not_found`** are thin helpers that set the right status.
+  A handler can also just `return {...}` for a plain `200`.
+- The full example adds `PUT`, `DELETE`, and `?done=&limit=` query filtering via
+  `query_int` / `query_bool`. Visit **http://127.0.0.1:8484/docs** for an
+  auto-generated Swagger UI built from your `body_schema`s.
+
+## Stage 2 — Auth: login, tokens, protected routes
+
+Now make some routes private. The flow is the classic one: *log in, get a
+token, call protected endpoints with it.* Three new ideas carry the weight —
+**dependency injection**, **route groups**, and **response models**.
+
+```tulpar
+import "wings";
+
+array _users  = [];
+json  _tokens = {};        // "token-1" → user_id   (a global dict as a store)
+
+func seed() {
+    push(_users, {"id": 1, "username": "ada",  "password": "1234", "role": "user"});
+    push(_users, {"id": 2, "username": "root", "password": "admin","role": "admin"});
+}
+seed();
+
+func user_by_id(int id) {
+    for (u in _users) { if (u["id"] == id) { return u; } }
+    return {};
+}
+
+// A DEPENDENCY: runs before the handler, produces a value — or short-circuits
+// with a response (here 401) so the handler never runs.
+func current_user(req) {
+    str auth = req["headers"]["Authorization"];
+    str prefix = "Bearer ";
+    if (length(auth) <= length(prefix)) {
+        return unauthorized("Bearer token required");
+    }
+    str token = substring(auth, length(prefix), length(auth));
+    if (_wings_has_key(_tokens, token) == false) {
+        return unauthorized("invalid token");
+    }
+    return user_by_id(_tokens[token]);       // becomes dep("current_user")
+}
+
+func login(req) {
+    json body = req.json;
+    for (u in _users) {
+        if (u["username"] == body["username"] && u["password"] == body["password"]) {
+            str token = "token-" + toString(u["id"]);
+            _tokens[token] = u["id"];        // persists across requests (see note)
+            return {"token": token, "role": u["role"]};
+        }
+    }
+    return unauthorized("bad credentials");
+}
+
+func me(req)    { return ok(dep("current_user")); }
+
+func admin(req) {
+    json u = dep("current_user");
+    if (u["role"] != "admin") { return forbidden("admins only"); }
+    return ok({"secret": "launch codes 🔐"});
+}
+
+// group() registers these under a shared "/api" prefix.
+func protected_routes() {
+    get("/me", "me");
+    depends("current_user");                                   // attach DI to the route above
+    response_model({"id": "int", "username": "str", "role": "str"});  // hides "password"
+
+    get("/admin", "admin");
+    depends("current_user");
+}
+
+post("/login", "login");
+body_schema({"username": "str", "password": "str"});
+
+group("/api", "protected_routes");   // → /api/me, /api/admin
+serve();
+```
+
+```bash
+tulpar examples/wings_auth_api.tpr
+
+# 1) log in → get a token
+curl -X POST http://127.0.0.1:8484/login -d '{"username":"ada","password":"1234"}'
+# 2) no token → 401
+curl -i http://127.0.0.1:8484/api/me
+# 3) with token → profile, WITHOUT the password field (response_model)
+curl http://127.0.0.1:8484/api/me -H "Authorization: Bearer token-1"
+# 4) ada is not an admin → 403
+curl http://127.0.0.1:8484/api/admin -H "Authorization: Bearer token-1"
+```
+
+### What just happened
+
+- **`depends("current_user")`** attaches a dependency to the route declared
+  right above it. The dependency runs first; if it returns a response (a dict
+  with a status, like `unauthorized(...)`), the handler is skipped. Otherwise
+  its return value is stashed for **`dep("current_user")`** to read. Auth logic
+  lives in one place instead of being copy-pasted into every handler.
+- **`group("/api", "protected_routes")`** calls your function and prefixes every
+  route it registers with `/api`. `depends` / `response_model` always bind to
+  the **most recently registered** route, so they go directly under their
+  `get`/`post` line.
+- **`response_model({...})`** filters a successful response down to the declared
+  fields — a clean way to keep secrets (`password`) out of the wire.
+
+:::note[A global dict really is a usable store]
+`_tokens[token] = uid` writes into a global object, and that write **survives
+across requests** — so a global dict works as an in-memory session/token/cache
+table. (Arrays behave the same: `push(_global, x)` persists too.) Per-request
+data — the request object, locals, the response you build — is reclaimed after
+each request, so only writes rooted in a global stick around.
+:::
+
+## Stage 3 — Persistence with SQLite
+
+In-memory state vanishes when the process exits. Stage 3 is the **same Todo
+API**, but backed by a real SQLite file — restart the server and your data is
+still there.
+
+```tulpar
+import "wings";
+
+// Open the DB once; create the table if it's missing. SQLite has no bool, so
+// "done" is stored as 0/1 and converted back when we read.
+int _db = db_open("notes.db");
+db_execute(_db, "CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0);");
+
+// There are NO parameterised queries — you build SQL by concatenation. So you
+// MUST escape user text: double single quotes and wrap. Integers are made safe
+// with toInt(); never interpolate raw user strings.
+func sql_str(str s) {
+    return "'" + replace(s, "'", "''") + "'";
+}
+
+func row_to_note(json row) {
+    return {"id": toInt(row["id"]), "title": row["title"], "done": (toInt(row["done"]) == 1)};
+}
+
+func list_notes(req) {
+    array rows = db_query(_db, "SELECT * FROM notes ORDER BY id;");
+    array out = [];
+    for (row in rows) { push(out, row_to_note(row)); }
+    return {"data": out, "count": length(out)};
+}
+
+func create_note(req) {
+    json body = req.json;
+    str title_sql = sql_str(body["title"]);     // prepare values, keep the t-string simple
+    db_execute(_db, t"INSERT INTO notes (title, done) VALUES ({title_sql}, 0);");
+    int new_id = db_last_insert_id(_db);
+    array rows = db_query(_db, t"SELECT * FROM notes WHERE id = {toString(new_id)};");
+    return created(row_to_note(rows[0]));
+}
+
+get("/notes",  "list_notes");
+post("/notes", "create_note");
+body_schema({"title": "str", "done?": "bool"});
+
+serve();
+```
+
+```bash
+tulpar examples/wings_notes_db.tpr
+
+curl -X POST http://127.0.0.1:8484/notes -d '{"title":"buy milk"}'
+curl -X POST http://127.0.0.1:8484/notes -d "{\"title\":\"ada's note\"}"   # the quote is escaped, not an injection
+curl http://127.0.0.1:8484/notes
+# Ctrl+C the server, run it again → your notes are STILL there.
+```
+
+### What just happened
+
+- **`db_open(path)`** returns a handle; open it once into a global.
+- **`db_execute(db, sql)`** runs `INSERT`/`UPDATE`/`DELETE` (returns the affected
+  row count); **`db_query(db, sql)`** runs a `SELECT` and returns an array of row
+  objects keyed by column name; **`db_last_insert_id(db)`** gives the new rowid.
+- **Building SQL safely:** there is no `?`-parameter binding, so you assemble SQL
+  strings yourself. Run every piece of user **text** through an escaper like
+  `sql_str` (it doubles `'` → `''`), and pass **numbers** through `toInt`. Prepare
+  the values into locals first so your `t"..."` interpolation stays readable.
+
+## Where to go next
+
+- **[Wings Cookbook](/ecosystem/wings-cookbook/)** — task-oriented recipes:
+  pagination, file uploads, CSV downloads, caching, static files, CORS.
+- **[HTTP Server reference](/ecosystem/http-server/)** — every function, plus
+  middleware, OpenAPI, TLS, and the single-thread vs. pooled serve modes.
+- **[ORM](/ecosystem/orm/)** — a higher-level data layer over SQLite when raw
+  SQL gets repetitive.
