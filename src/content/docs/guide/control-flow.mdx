@@ -23,6 +23,34 @@ if (age >= 18 && age < 65) {
 }`}
 />
 
+## Ternary Operator
+
+`cond ? then : else` is the expression form of if/else — it **produces a value**,
+so you can use it inline in an assignment, a function argument, or a `return`.
+Only the chosen branch is evaluated (lazy), so a side effect in the untaken
+branch never fires.
+
+<TulparPlayground
+	title="Ternary"
+	code={String.raw`int age = 20;
+str status = age >= 18 ? "adult" : "minor";
+print(status);                       // adult
+
+// Nesting is right-associative — a clean grade ladder
+func grade(int s) {
+    return s >= 90 ? "A" : s >= 80 ? "B" : s >= 70 ? "C" : "F";
+}
+print(grade(85));                    // B
+
+// Works inline as a function argument
+func abs(int n) { return n < 0 ? 0 - n : n; }
+print(abs(0 - 42));                  // 42`}
+/>
+
+It binds looser than every other operator (including `&&` / `||`), so
+`a + b > 4 ? x : y` parses as `((a + b) > 4) ? x : y`, and
+`a ? b : c ? d : e` parses as `a ? b : (c ? d : e)`.
+
 ## While Loop
 
 <TulparPlayground

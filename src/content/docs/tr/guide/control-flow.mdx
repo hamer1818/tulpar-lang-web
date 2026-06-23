@@ -23,6 +23,34 @@ if (yas >= 18 && yas < 65) {
 }`}
 />
 
+## Ternary (Üçlü) Operatör
+
+`cond ? then : else`, if/else'in ifade biçimidir — bir **değer üretir**, yani
+atama, fonksiyon argümanı veya `return` içinde tek satırda kullanılır. Yalnızca
+seçilen dal değerlendirilir (tembel), bu yüzden seçilmeyen daldaki bir yan etki
+asla tetiklenmez.
+
+<TulparPlayground
+	title="Ternary"
+	code={String.raw`int yas = 20;
+str durum = yas >= 18 ? "yetişkin" : "çocuk";
+print(durum);                        // yetişkin
+
+// İç içe kullanım sağ-asosiyatiftir — temiz bir not merdiveni
+func grade(int p) {
+    return p >= 90 ? "A" : p >= 80 ? "B" : p >= 70 ? "C" : "F";
+}
+print(grade(85));                    // B
+
+// Fonksiyon argümanı içinde tek satırda
+func mutlak(int n) { return n < 0 ? 0 - n : n; }
+print(mutlak(0 - 42));               // 42`}
+/>
+
+Diğer tüm operatörlerden (`&&` / `||` dahil) daha gevşek bağlar; yani
+`a + b > 4 ? x : y` ifadesi `((a + b) > 4) ? x : y` olarak,
+`a ? b : c ? d : e` ifadesi ise `a ? b : (c ? d : e)` olarak ayrıştırılır.
+
 ## While Döngüsü
 
 <TulparPlayground
