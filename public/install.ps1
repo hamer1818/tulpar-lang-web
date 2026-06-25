@@ -283,7 +283,7 @@ if ($verifyEnabled -and $gpgExe) {
                 $gpgVerifyEnabled = $true
                 Write-Note "GPG imzasi dogrulandi (anahtar $TulparReleaseKeyFp)."
             } elseif ($gpgText -match "NO_PUBKEY") {
-                Write-Warn "GPG anahtari yerel keyring'de yok; release-public.asc'i import edip yeniden calistirin."
+                Write-Note "GPG anahtari keyring'de yok; SHA-256 ile dogrulaniyor. Istersen release-public.asc'i import edip GPG imza dogrulamasini da acabilirsin (zorunlu degil)."
             } elseif ($gpgText -match "GOODSIG") {
                 Write-Warn "GPG imzasi gecerli ama beklenen TulparLang Release anahtarindan degil."
             } else {
@@ -517,7 +517,8 @@ Show-TulparArt
 Write-Host ""
 Write-Host "Deneme:" -ForegroundColor Cyan
 Write-Host "  tulpar --version"
-Write-Host "  tulpar --repl"
+Write-Host "  tulpar --help"
+Write-Host "  tulpar merhaba.tpr      # bir .tpr dosyasini AOT derleyip calistirir"
 Write-Host ""
 Write-Host "Guncellemek icin:" -ForegroundColor Cyan
 Write-Host "  tulpar update            # built-in (varsa)"
