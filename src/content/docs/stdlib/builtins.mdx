@@ -66,6 +66,40 @@ POSIX/ECMAScript syntax via `std::regex`.
 | `file_exists(path)` | Check existence | `bool ok = file_exists("x");` |
 | `file_glob(pattern)` | Shell-style `*` `?` glob | `array f = file_glob("./*.tpr");` |
 
+## Crypto & security
+
+Built on an in-tree SHA-256 — no OpenSSL dependency, available everywhere
+the runtime runs.
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `sha256(s)` | Lowercase 64-char hex digest | `str h = sha256(body);` |
+| `hmac_sha256(key, msg)` | Keyed MAC (RFC 2104), 64-char hex | `str sig = hmac_sha256(secret, data);` |
+| `password_hash(pw)` | PBKDF2-HMAC-SHA256, self-describing | `str h = password_hash(pw);` |
+| `password_verify(pw, stored)` | Constant-time check vs `password_hash` | `bool ok = password_verify(pw, h);` |
+| `secure_token(n)` | CSPRNG base62 string, `n` chars | `str t = secure_token(48);` |
+| `base64_encode(s)` / `base64_decode(s)` | Standard base64 (byte-safe) | `str b = base64_encode(raw);` |
+
+Guidance:
+
+- **Passwords** → `password_hash` / `password_verify`. Never store bare
+  `sha256(pw)` (unsalted, fast to brute-force).
+- **Session / API tokens, salts** → `secure_token`, *not* `randint`
+  (which is not cryptographically secure).
+- **Signing / authentication** (signed cookies, webhook signatures,
+  JWT-style tokens) → `hmac_sha256` with a long random secret. Verify by
+  recomputing the MAC and comparing.
+
+`hmac_sha256` is what the [`wings_jwt`](/ecosystem/package-manager/)
+package uses to issue and verify HS256 session tokens:
+
+```tulpar
+import "wings_jwt" as jwt;
+
+str token = jwt.sign_ttl({"sub": "42", "role": "admin"}, SECRET, 3600);
+json v = jwt.verify(token, SECRET);   // {"ok":1,"claims":{…}} | {"ok":0,"error":…}
+```
+
 ## CSV
 
 | Function | Description | Example |

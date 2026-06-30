@@ -29,3 +29,37 @@ description: Tulpar'daki temel yerleşik fonksiyonlar.
 | `push(arr, val)` | Diziye eleman ekler | `push(arr, 10);` |
 | `pop(arr)` | Diziden son elemanı çıkarır ve döndürür | `int val = pop(arr);` |
 | `range(n)` | 0'dan n-1'e kadar sayı dizisi oluşturur | `array r = range(5);` |
+
+## Kriptografi & güvenlik
+
+Ağaç-içi (in-tree) SHA-256 üzerine kurulu — OpenSSL bağımlılığı yok,
+runtime'ın çalıştığı her yerde mevcut.
+
+| Fonksiyon | Açıklama | Örnek |
+|-----------|----------|-------|
+| `sha256(s)` | 64 karakter küçük-harf hex özet | `str h = sha256(body);` |
+| `hmac_sha256(key, msg)` | Anahtarlı MAC (RFC 2104), 64 karakter hex | `str sig = hmac_sha256(secret, data);` |
+| `password_hash(pw)` | PBKDF2-HMAC-SHA256, kendini tanımlayan | `str h = password_hash(pw);` |
+| `password_verify(pw, stored)` | `password_hash`'e karşı sabit-zamanlı doğrulama | `bool ok = password_verify(pw, h);` |
+| `secure_token(n)` | CSPRNG base62 string, `n` karakter | `str t = secure_token(48);` |
+| `base64_encode(s)` / `base64_decode(s)` | Standart base64 (bayt-güvenli) | `str b = base64_encode(raw);` |
+
+Rehber:
+
+- **Şifreler** → `password_hash` / `password_verify`. Asla çıplak
+  `sha256(pw)` saklama (tuzsuz, hızlı brute-force).
+- **Oturum / API token'ları, tuzlar** → `secure_token` (`randint` değil —
+  o kriptografik güvenli değil).
+- **İmzalama / kimlik doğrulama** (imzalı çerez, webhook imzası, JWT
+  tarzı token) → uzun rastgele bir gizli anahtarla `hmac_sha256`. MAC'i
+  yeniden hesaplayıp karşılaştırarak doğrula.
+
+`hmac_sha256`, [`wings_jwt`](/tr/ecosystem/package-manager/) paketinin
+HS256 oturum token'ları üretip doğrulamak için kullandığı yapı taşıdır:
+
+```tulpar
+import "wings_jwt" as jwt;
+
+str token = jwt.sign_ttl({"sub": "42", "role": "admin"}, SECRET, 3600);
+json v = jwt.verify(token, SECRET);   // {"ok":1,"claims":{…}} | {"ok":0,"error":…}
+```

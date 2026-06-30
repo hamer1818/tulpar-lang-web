@@ -129,10 +129,107 @@ in `tulpar_modules/` is the fallback for everything else.
 
 ## Publishing
 
-`tulpar pkg publish` bundles every `.tpr` source in your project and uploads
-it to the registry under your manifest's `name` + `version` (both required).
-Authentication is a bearer token — pass `--token <tok>` or set
-`TULPAR_PUBLISH_TOKEN`:
+Packages on `pkg.tulparlang.dev` are published from **public GitHub
+repositories** — the registry fetches and caches your source at a ref you pin,
+so what installs is immutable and independent of GitHub's uptime. There are two
+ways to publish:
+
+- **From a GitHub repo (recommended, self-serve)** — for anyone with an approved
+  account. You point the registry at your public repo + ref and it fetches the
+  source.
+- **Bundle upload via the CLI** — `tulpar pkg publish`, owner/maintainer-level
+  (bearer token). Uploads your project's `.tpr` sources directly.
+
+Either way, **every new package version is reviewed by the registry owner**
+before it appears in the public catalog.
+
+### 1. Create an account
+
+Go to [pkg.tulparlang.dev](https://pkg.tulparlang.dev) and either:
+
+- **Sign in with GitHub** (recommended) — links your GitHub identity, which is
+  required to publish a repo; or
+- **Register with email + password**.
+
+New accounts start in a **pending** state.
+
+### 2. Get approved
+
+The registry owner reviews new accounts and approves or rejects them. You can
+sign in and see your status on your
+[account page](https://pkg.tulparlang.dev/account), but you can't publish until
+you're **approved** — this keeps the catalog curated.
+
+### 3. Prepare your repo
+
+Your package lives in a **public GitHub repo you own**. At the ref you publish
+(a tag, branch, or commit), the repo must contain the package's **entry file**:
+
+- By default, `<name>.tpr` at the repo root (e.g. `wings_jwt.tpr`), or
+- any path you pass as `entry` (e.g. `src/mypkg.tpr`).
+
+Tag a release so the ref is stable:
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+### 4. Publish from the web
+
+Sign in, then open
+[pkg.tulparlang.dev/publish](https://pkg.tulparlang.dev/publish) and fill in:
+
+| Field        | Example             | Notes                                            |
+| ------------ | ------------------- | ------------------------------------------------ |
+| Package name | `my_pkg`            | The name users `tulpar pkg add`.                 |
+| Version      | `1.0.0`             | Semver; immutable once published.                |
+| GitHub repo  | `you/my_pkg`        | `owner/name`; must be **under your GitHub login**. |
+| Ref          | `v1.0.0`            | Tag, branch, or commit SHA.                      |
+| Entry file   | `my_pkg.tpr`        | Optional; defaults to `<name>.tpr`.              |
+| Description  | `One-line summary`  | Optional.                                        |
+
+On submit, the registry fetches
+`https://raw.githubusercontent.com/<repo>/<ref>/<entry>`, caches the bytes, and
+records the version as **pending owner approval**.
+
+### Publish via the API
+
+The web form posts to the registry's HTTP API; you can call it directly with
+your session token (or the owner can use the publish token):
+
+```http
+POST https://api.pkg.tulparlang.dev/v1/publish/github
+Authorization: Bearer <session-or-publish-token>
+Content-Type: application/json
+
+{
+  "name": "my_pkg",
+  "version": "1.0.0",
+  "repo": "you/my_pkg",
+  "ref": "v1.0.0",
+  "entry": "my_pkg.tpr",
+  "description": "One-line summary"
+}
+```
+
+`entry` and `description` are optional. **Ownership:** a non-owner account may
+only publish repos whose owner matches its linked GitHub login
+(case-insensitive); the owner (or a holder of the registry's publish token) may
+publish any repo.
+
+### 5. Approval → public
+
+A freshly published version is **hidden** from the public catalog (and 404s on
+direct fetch) until the owner approves it. Once approved it shows up in
+`tulpar pkg search` and installs with `tulpar pkg add`. Versions are
+**immutable** — a published `(name, version)` is pinned forever; re-publishing
+the same pair returns `409 Conflict`.
+
+### CLI publishing (bundle upload)
+
+The owner/maintainer path bundles every `.tpr` in your project and uploads the
+bytes directly — no GitHub repo needed. Auth is a bearer token (`--token <tok>`
+or `TULPAR_PUBLISH_TOKEN`):
 
 ```bash
 export TULPAR_PUBLISH_TOKEN="…"
@@ -140,12 +237,24 @@ tulpar pkg publish --dry-run     # bundle + show what would ship, no upload
 tulpar pkg publish               # POST to <registry>/v1/publish
 ```
 
-The registry target follows the same resolution as installs (`--registry`
-flag → `[registry] url` → `TULPAR_REGISTRY` → the default
-`https://api.pkg.tulparlang.dev`). `--dry-run` skips the POST so you can
-inspect the bundle without a token.
+The registry target follows the same resolution as installs (`--registry` flag
+→ `[registry] url` → `TULPAR_REGISTRY` → the default
+`https://api.pkg.tulparlang.dev`). `--dry-run` skips the POST so you can inspect
+the bundle without a token.
+
+### Errors
+
+| Status | Meaning |
+| ------ | ------- |
+| `401 authentication required` | Not signed in (and no publish token). |
+| `403 account not approved` | Your account is still pending or was rejected. |
+| `403 github_required` | Publishing a repo needs a linked GitHub login — sign in with GitHub. |
+| `403 not_your_repo` | The repo isn't under your GitHub login. |
+| `409 conflict` | `(name, version)` already published — versions are immutable. |
+| `502 fetch_failed` | The registry couldn't fetch the source — check the repo/ref/entry are public and correct. |
 
 ## Roadmap
 
-- Multi-file packages via tar/zip extract from registry URLs.
+- Private-repo publishing (token-scoped fetch).
+- Multi-file packages from a repo (tarball extract).
 - Package signing (the lockfile already records a SHA-256 per dependency).

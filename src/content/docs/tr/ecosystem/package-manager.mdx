@@ -130,10 +130,105 @@ anlamına gelir — `wings`'i yerel bir `wings.tpr` ile gölgeleyemezsiniz — v
 
 ## Yayınlama
 
-`tulpar pkg publish`, projenizdeki her `.tpr` kaynağını paketler ve
-manifest'inizdeki `name` + `version` (ikisi de zorunlu) altında registry'ye
-yükler. Kimlik doğrulama bir bearer token'dır — `--token <tok>` geç veya
-`TULPAR_PUBLISH_TOKEN` ayarla:
+`pkg.tulparlang.dev`'deki paketler **public GitHub repo'larından** yayınlanır —
+registry, kaynağı sabitlediğin bir ref'te kendisi çekip cache'ler; böylece
+yüklenen şey değişmez (immutable) ve GitHub'ın erişilebilirliğinden bağımsızdır.
+İki yayınlama yolu var:
+
+- **GitHub repo'sundan (önerilen, self-serve)** — onaylı hesabı olan herkes için.
+  Registry'yi public repo'na + ref'ine yönlendirirsin, kaynağı o çeker.
+- **CLI ile bundle yükleme** — `tulpar pkg publish`, owner/maintainer seviyesi
+  (bearer token). Projenin `.tpr` kaynaklarını doğrudan yükler.
+
+Her iki yolda da **her yeni paket sürümü, public katalogda görünmeden önce
+registry sahibinin onayından geçer**.
+
+### 1. Hesap aç
+
+[pkg.tulparlang.dev](https://pkg.tulparlang.dev)'e git ve ya:
+
+- **GitHub ile giriş yap** (önerilen) — bir repo yayınlamak için gereken GitHub
+  kimliğini bağlar; ya da
+- **E-posta + şifre ile kayıt ol**.
+
+Yeni hesaplar **pending** (beklemede) durumunda başlar.
+
+### 2. Onaylan
+
+Registry sahibi yeni hesapları inceleyip onaylar veya reddeder. Giriş yapıp
+durumunu [hesap sayfanda](https://pkg.tulparlang.dev/account) görebilirsin, ama
+**onaylanana** kadar yayınlayamazsın — bu, kataloğu küratörlü tutar.
+
+### 3. Repo'nu hazırla
+
+Paketin, **sahibi olduğun public bir GitHub repo'sunda** yaşar. Yayınladığın
+ref'te (tag, branch veya commit) repo, paketin **giriş dosyasını** içermeli:
+
+- Varsayılan olarak, repo kökünde `<name>.tpr` (ör. `wings_jwt.tpr`), ya da
+- `entry` olarak verdiğin herhangi bir yol (ör. `src/mypkg.tpr`).
+
+Ref'in sabit olması için bir sürüm tag'le:
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+### 4. Web'den yayınla
+
+Giriş yap, sonra
+[pkg.tulparlang.dev/publish](https://pkg.tulparlang.dev/publish)'i aç ve doldur:
+
+| Alan         | Örnek               | Not                                              |
+| ------------ | ------------------- | ------------------------------------------------ |
+| Paket adı    | `my_pkg`            | Kullanıcıların `tulpar pkg add` yapacağı ad.     |
+| Sürüm        | `1.0.0`             | Semver; yayınlanınca değişmez.                   |
+| GitHub repo  | `you/my_pkg`        | `owner/name`; **kendi GitHub login'in** altında olmalı. |
+| Ref          | `v1.0.0`            | Tag, branch veya commit SHA.                     |
+| Giriş dosyası| `my_pkg.tpr`        | Opsiyonel; varsayılan `<name>.tpr`.              |
+| Açıklama     | `Tek satır özet`    | Opsiyonel.                                       |
+
+Gönderince registry,
+`https://raw.githubusercontent.com/<repo>/<ref>/<entry>`'i çeker, baytları
+cache'ler ve sürümü **owner onayı bekliyor** olarak kaydeder.
+
+### API ile yayınla
+
+Web formu, registry'nin HTTP API'sine POST eder; doğrudan kendi session
+token'ınla (ya da owner publish token'ıyla) çağırabilirsin:
+
+```http
+POST https://api.pkg.tulparlang.dev/v1/publish/github
+Authorization: Bearer <session-veya-publish-token>
+Content-Type: application/json
+
+{
+  "name": "my_pkg",
+  "version": "1.0.0",
+  "repo": "you/my_pkg",
+  "ref": "v1.0.0",
+  "entry": "my_pkg.tpr",
+  "description": "Tek satır özet"
+}
+```
+
+`entry` ve `description` opsiyonel. **Sahiplik:** owner olmayan bir hesap, yalnız
+`owner`'ı kendi bağlı GitHub login'iyle eşleşen repo'ları yayınlayabilir
+(büyük/küçük harf duyarsız); owner (veya registry publish token'ı olan) her
+repo'yu yayınlayabilir.
+
+### 5. Onay → public
+
+Yeni yayınlanan bir sürüm, owner onaylayana kadar public katalogda **gizlidir**
+(doğrudan erişimde 404 döner). Onaylanınca `tulpar pkg search`'te görünür ve
+`tulpar pkg add` ile yüklenir. Sürümler **değişmezdir** — yayınlanmış bir
+`(name, version)` sonsuza dek sabitlenir; aynı çifti yeniden yayınlamak
+`409 Conflict` döner.
+
+### CLI ile yayınlama (bundle yükleme)
+
+Owner/maintainer yolu, projendeki her `.tpr`'yi paketleyip baytları doğrudan
+yükler — GitHub repo'su gerekmez. Kimlik doğrulama bir bearer token'dır
+(`--token <tok>` ya da `TULPAR_PUBLISH_TOKEN`):
 
 ```bash
 export TULPAR_PUBLISH_TOKEN="…"
@@ -144,4 +239,21 @@ tulpar pkg publish               # <registry>/v1/publish'e POST
 Registry hedefi install'larla aynı çözümlemeyi izler (`--registry` flag'i →
 `[registry] url` → `TULPAR_REGISTRY` → varsayılan
 `https://api.pkg.tulparlang.dev`). `--dry-run` POST'u atlar, böylece bundle'ı
-token olmadan inceleyebilirsiniz.
+token olmadan inceleyebilirsin.
+
+### Hatalar
+
+| Durum | Anlamı |
+| ----- | ------ |
+| `401 authentication required` | Giriş yapılmamış (ve publish token yok). |
+| `403 account not approved` | Hesabın hâlâ pending ya da reddedilmiş. |
+| `403 github_required` | Repo yayınlamak için bağlı bir GitHub login gerekir — GitHub ile giriş yap. |
+| `403 not_your_repo` | Repo senin GitHub login'in altında değil. |
+| `409 conflict` | `(name, version)` zaten yayınlanmış — sürümler değişmez. |
+| `502 fetch_failed` | Registry kaynağı çekemedi — repo/ref/entry public ve doğru mu kontrol et. |
+
+## Yol haritası
+
+- Private-repo yayınlama (token-kapsamlı çekme).
+- Repo'dan çok-dosyalı paketler (tarball çıkarma).
+- Paket imzalama (lockfile zaten her bağımlılık için bir SHA-256 tutuyor).
