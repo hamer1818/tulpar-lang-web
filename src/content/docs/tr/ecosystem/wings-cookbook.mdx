@@ -1,6 +1,6 @@
 ---
 title: Wings Tarif Kitabı
-description: Göreve dönük Wings tarifleri — CRUD API'ler, auth middleware, dependency injection, validation, sayfalama, dosya yükleme, statik dosyalar, route grupları, response model, cache, dosya indirme ve SQLite destekli API'ler.
+description: Göreve dönük Wings tarifleri — CRUD API'ler, auth middleware, dependency injection, JWT authentication, validation, sayfalama, dosya yükleme, statik dosyalar, route grupları, response model, cache, dosya indirme ve SQLite destekli API'ler.
 ---
 
 [Wings](/tr/ecosystem/http-server/) ile gerçekten kurduğun şeyler için kısa,
@@ -127,6 +127,65 @@ serve(8080);
 GET /profile                       → 401
 GET /profile  (Authorization: tok) → {"hello":"Ada","uid":1}
 ```
+
+## JWT authentication nasıl eklerim?
+
+Gerçek bir login akışı için — token'ı bir kez üret, sonra diğer tüm route'ları
+onunla koru — [`wings_jwt`](https://api.pkg.tulparlang.dev) paketini (token
+imzalar/doğrular) Wings'in yerleşik `jwt_guard` middleware'iyle (her istekte
+`Authorization` header'ını kontrol eder ve claim'leri `req["jwt"]`'e enjekte
+eder) birleştir. Paketi bir kez kur:
+
+```bash
+tulpar pkg add wings_jwt
+```
+
+```tulpar
+import "wings";
+import "wings_jwt" as jwt;
+
+str SECRET = "dev-secret-degistir";   // gerçek deployment'ta env'den yükle
+
+func login(req) {
+    json b = req["json"];
+    if (b["username"] != "ada" || b["password"] != "s3cret") {
+        return unauthorized("hatalı kimlik bilgisi");
+    }
+    str token = jwt.sign_ttl({"sub": "1", "role": "admin"}, SECRET, 3600);
+    return ok({"token": token});
+}
+
+func me(req) {
+    return ok({"sub": req["jwt"]["sub"], "role": req["jwt"]["role"]});
+}
+
+post("/login", "login");
+get("/me", "me");
+
+jwt_guard(SECRET);      // yukarıda kayıtlı her şeyi koru...
+jwt_public("/login");   // ...bu hariç
+serve(8080);
+```
+
+```bash
+curl localhost:8080/me
+# → 401 (token yok)
+
+curl -X POST -d '{"username":"ada","password":"s3cret"}' localhost:8080/login
+# → {"token":"eyJhbGciOiJIUzI1NiIs..."}
+
+curl -H "Authorization: Bearer <token>" localhost:8080/me
+# → {"sub":"1","role":"admin"}
+```
+
+`jwt_guard`, global bir `use()` middleware'i bağlar, yani kayıtlı **her**
+handler'dan önce çalışır — o yüzden korumak istediğin tüm route'lar zaten
+kayıtlıyken en sona çağır. `jwt_public(path)` bir path'i muaf tutar (tam eşleşme
+ya da sondaki `*` ile prefix); `/healthz`, `/metrics`, `/docs` ve
+`/openapi.json` varsayılan olarak muaftır. `wings_jwt` ve `jwt_guard` aynı wire
+formatını konuşur (HS256, base64url segmentleri), yani login'de
+`jwt.sign_ttl` ile imzalanan bir token, sonraki her istekte `jwt_guard`'a karşı
+sorunsuz doğrulanır.
 
 ## İstek gövdesini nasıl doğrularım?
 

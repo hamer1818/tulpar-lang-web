@@ -1,6 +1,6 @@
 ---
 title: Wings Cookbook
-description: Task-oriented Wings recipes — CRUD APIs, auth middleware, dependency injection, validation, pagination, file uploads, static files, route groups, response models, caching, file downloads, and SQLite-backed APIs.
+description: Task-oriented Wings recipes — CRUD APIs, auth middleware, dependency injection, JWT authentication, validation, pagination, file uploads, static files, route groups, response models, caching, file downloads, and SQLite-backed APIs.
 ---
 
 Short, copy-paste recipes for the things you actually build with
@@ -128,6 +128,65 @@ serve(8080);
 GET /profile                       → 401
 GET /profile  (Authorization: tok) → {"hello":"Ada","uid":1}
 ```
+
+## How do I add JWT authentication?
+
+For a real login flow — issue a token once, then guard every other route with
+it — combine the [`wings_jwt`](https://api.pkg.tulparlang.dev) package (signs
+and verifies tokens) with Wings' built-in `jwt_guard` middleware (checks the
+`Authorization` header on every request and injects the claims into
+`req["jwt"]`). Install the package once:
+
+```bash
+tulpar pkg add wings_jwt
+```
+
+```tulpar
+import "wings";
+import "wings_jwt" as jwt;
+
+str SECRET = "dev-secret-change-me";   // load from env in real deployments
+
+func login(req) {
+    json b = req["json"];
+    if (b["username"] != "ada" || b["password"] != "s3cret") {
+        return unauthorized("bad credentials");
+    }
+    str token = jwt.sign_ttl({"sub": "1", "role": "admin"}, SECRET, 3600);
+    return ok({"token": token});
+}
+
+func me(req) {
+    return ok({"sub": req["jwt"]["sub"], "role": req["jwt"]["role"]});
+}
+
+post("/login", "login");
+get("/me", "me");
+
+jwt_guard(SECRET);      // protect everything registered above...
+jwt_public("/login");   // ...except this one
+serve(8080);
+```
+
+```bash
+curl localhost:8080/me
+# → 401 (no token)
+
+curl -X POST -d '{"username":"ada","password":"s3cret"}' localhost:8080/login
+# → {"token":"eyJhbGciOiJIUzI1NiIs..."}
+
+curl -H "Authorization: Bearer <token>" localhost:8080/me
+# → {"sub":"1","role":"admin"}
+```
+
+`jwt_guard` wires up a global `use()` middleware, so it runs before *every*
+handler registered — call it last, after all routes it should protect are
+already registered. `jwt_public(path)` exempts a path (exact match, or a
+trailing `*` for a prefix); `/healthz`, `/metrics`, `/docs`, and
+`/openapi.json` are exempt by default. `wings_jwt` and `jwt_guard` speak the
+same wire format (HS256, base64url segments), so a token signed with
+`jwt.sign_ttl` at login verifies cleanly against `jwt_guard` on every
+subsequent request.
 
 ## How do I validate the request body?
 
