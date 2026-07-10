@@ -1,0 +1,147 @@
+---
+title: Sıkça Sorulan Sorular
+description: Tulpar programlama dili hakkında sık sorulan sorular — nedir, ne kadar hızlıdır, VM'i var mı ve production için hazır mı.
+head:
+  - tag: script
+    attrs:
+      type: application/ld+json
+    content: |
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Tulpar nedir?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Tulpar; LLVM 18-22 arka uçlu, statik tipli, AOT (ahead-of-time) derlenen bir programlama dilidir. HTTP, JSON, SQLite, bir ORM ve OpenAPI üretimi doğrudan runtime'a gömülüdür; bir API kurmak için harici framework veya bağımlılık kurulumu gerekmez."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Tulpar ne kadar hızlı?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Tulpar, LLVM üzerinden derleme zamanında (AOT) native bir ikili dosyaya derlenir; fib gibi CPU-ağırlıklı benchmark'larda C'nin yaklaşık 1.37-1.9 katı sürede çalışır ve dahili Wings sunucu havuzuyla keep-alive HTTP benchmark'ında saniyede yaklaşık 36 bin isteğe ulaşır — Go ve Rust ile aynı performans sınıfındadır."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Tulpar'ın bir VM'i, bytecode yorumlayıcısı ya da REPL'i var mı?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Hayır. Tulpar, Haziran 2026'da bytecode VM'ini ve REPL'ini kaldırarak C, Rust ve Go'nun izlediği tek AOT/LLVM çalıştırma yoluna geçti. `tulpar dosya.tpr` komutu her zaman AOT ile derleyip native ikiliyi çalıştırır; yorumlayıcı fallback'i yoktur."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Tulpar ücretsiz ve açık kaynak mı?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Evet. Tulpar MIT lisanslıdır ve github.com/hamer1818/TulparLang adresinde açık kaynak olarak geliştirilir."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Tulpar hangi platformlarda çalışır?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Linux, macOS ve Windows (hem MSVC hem MinGW araç zincirleriyle). Derleyici CMake ile inşa edilir ve LLVM 18 veya üzerini gerektirir."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Tulpar nasıl kurulur?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "macOS/Linux'ta `curl -fsSL https://tulparlang.dev/install.sh | bash`, Windows'ta `iwr -useb https://tulparlang.dev/install.ps1 | iex` komutunu çalıştırın. Hazır derlenmiş ikili dosyalar da GitHub releases sayfasından indirilebilir."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Tulpar'ın bir paket yöneticisi var mı?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Evet — tulpar.toml manifestosu ve tulpar.lock kilit dosyasıyla çalışan, path/URL/registry bağımlılık türlerini destekleyen `tulpar pkg`."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Tulpar; C, Go veya Rust ile nasıl karşılaştırılır?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Tulpar, Python kadar kolay bir sözdizimini AOT/LLVM derlemesiyle C sınıfı native performansla birleştirirken; C, Go ve Rust'ın üçüncü parti kütüphanelere bıraktığı HTTP sunucusu, JSON, SQLite, ORM ve OpenAPI üretimini de doğrudan sağlar."
+            }
+          }
+        ]
+      }
+---
+
+Tulpar'ın ne olduğu, nasıl performans gösterdiği ve nasıl inşa edildiğine dair
+hızlı cevaplar. Burada yer almayan konular için [Başlarken](/tr/intro/getting-started/)
+rehberine ve [Dil Referansı](/tr/reference/language/)'na bakabilirsiniz.
+
+## Tulpar nedir?
+
+Tulpar; LLVM 18-22 arka uçlu, statik tipli, **AOT (ahead-of-time) derlenen**
+bir programlama dilidir. HTTP, JSON, SQLite, bir ORM ve OpenAPI üretimi
+doğrudan runtime'a gömülüdür; bir API kurmak için harici framework veya
+bağımlılık kurulumu gerekmez.
+
+## Tulpar ne kadar hızlı?
+
+Tulpar, LLVM üzerinden derleme zamanında (AOT) native bir ikili dosyaya
+derlenir; `fib` gibi CPU-ağırlıklı benchmark'larda C'nin **yaklaşık 1.37-1.9
+katı** sürede çalışır ve dahili Wings sunucu havuzuyla keep-alive HTTP
+benchmark'ında saniyede **yaklaşık 36 bin isteğe** ulaşır — Go ve Rust ile
+aynı performans sınıfındadır. Ayrıntılı yöntem için
+[Benchmark Sonuçları](/tr/ecosystem/benchmarks/)'na bakın.
+
+## Tulpar'ın bir VM'i, bytecode yorumlayıcısı ya da REPL'i var mı?
+
+Hayır. Tulpar, Haziran 2026'da bytecode VM'ini ve REPL'ini kaldırarak C, Rust
+ve Go'nun izlediği tek AOT/LLVM çalıştırma yoluna geçti. `tulpar dosya.tpr`
+komutu her zaman AOT ile derleyip native ikiliyi çalıştırır; yorumlayıcı
+fallback'i yoktur — yani başarılı bir çalıştırma, AOT hattının gerçekten
+çalıştığı anlamına gelir.
+
+## Tulpar ücretsiz ve açık kaynak mı?
+
+Evet. Tulpar MIT lisanslıdır ve
+[GitHub](https://github.com/hamer1818/TulparLang) üzerinde açık kaynak olarak
+geliştirilir.
+
+## Tulpar hangi platformlarda çalışır?
+
+Linux, macOS ve Windows (hem MSVC hem MinGW araç zincirleriyle). Derleyici
+CMake ile inşa edilir ve LLVM 18 veya üzerini gerektirir.
+
+## Tulpar nasıl kurulur?
+
+```bash
+curl -fsSL https://tulparlang.dev/install.sh | bash
+```
+
+```powershell
+iwr -useb https://tulparlang.dev/install.ps1 | iex
+```
+
+Hazır derlenmiş ikili dosyalar
+[GitHub releases](https://github.com/hamer1818/TulparLang/releases)
+sayfasından da indirilebilir. Ayrıntılar için [Kurulum](/tr/intro/installation/)
+sayfasına bakın.
+
+## Tulpar'ın bir paket yöneticisi var mı?
+
+Evet — `tulpar.toml` manifestosu ve `tulpar.lock` kilit dosyasıyla çalışan,
+path/URL/registry bağımlılık türlerini destekleyen `tulpar pkg`. Bkz.
+[Paket Yöneticisi](/tr/ecosystem/package-manager/).
+
+## Tulpar; C, Go veya Rust ile nasıl karşılaştırılır?
+
+Tulpar, Python kadar kolay bir sözdizimini AOT/LLVM derlemesiyle C sınıfı
+native performansla birleştirirken; C, Go ve Rust'ın üçüncü parti
+kütüphanelere bıraktığı HTTP sunucusu, JSON, SQLite, ORM ve OpenAPI üretimini
+de doğrudan sağlar. Kod karşılaştırması için
+[Tulpar ve C Karşılaştırması](/tr/guide/tulpar-vs-c/) sayfasına bakın.

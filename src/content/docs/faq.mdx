@@ -1,0 +1,144 @@
+---
+title: FAQ
+description: Frequently asked questions about the Tulpar programming language — what it is, how fast it is, whether it has a VM, and if it's production-ready.
+head:
+  - tag: script
+    attrs:
+      type: application/ld+json
+    content: |
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is Tulpar?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Tulpar is a statically-typed, AOT-compiled programming language with an LLVM backend (LLVM 18 through 22). It ships HTTP, JSON, SQLite, an ORM and OpenAPI generation built directly into the runtime, so building an API needs no external framework or package manager install."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How fast is Tulpar?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Tulpar compiles ahead-of-time to a native binary via LLVM, landing at roughly 1.37x to 1.9x the runtime of equivalent C on CPU-bound benchmarks like fib, and around 36k req/s on a keep-alive HTTP benchmark using the built-in Wings server pool — in the same performance class as Go and Rust."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does Tulpar have a VM, bytecode interpreter, or REPL?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. Tulpar dropped its bytecode VM and REPL in June 2026 in favor of a single AOT/LLVM execution path, the same model C, Rust, and Go use. Running `tulpar file.tpr` always AOT-compiles and runs a native binary; there is no interpreter fallback."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is Tulpar free and open source?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Tulpar is MIT-licensed and developed in the open on GitHub at github.com/hamer1818/TulparLang."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What platforms does Tulpar run on?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Linux, macOS, and Windows (both MSVC and MinGW toolchains). The compiler is built with CMake and LLVM 18 or newer."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I install Tulpar?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Run the one-line installer: `curl -fsSL https://tulparlang.dev/install.sh | bash` on macOS/Linux, or `iwr -useb https://tulparlang.dev/install.ps1 | iex` on Windows. Prebuilt binaries are also available from the GitHub releases page."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does Tulpar have a package manager?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes — `tulpar pkg`, backed by a `tulpar.toml` manifest and a `tulpar.lock` lockfile, with path, URL, and registry dependency specs."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How does Tulpar compare to C, Go, or Rust?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Tulpar targets Python-level ease of syntax with C-class native performance via AOT/LLVM compilation, while also including the batteries — HTTP server, JSON, SQLite, ORM, and OpenAPI generation — that C, Go, and Rust leave to third-party libraries. See the side-by-side comparison pages for code examples."
+            }
+          }
+        ]
+      }
+---
+
+Quick answers about what Tulpar is, how it performs, and how it's built. For
+anything not covered here, the [Getting Started](/intro/getting-started/)
+guide and [Language Reference](/reference/language/) go deeper.
+
+## What is Tulpar?
+
+Tulpar is a statically-typed, **AOT-compiled** programming language with an
+LLVM backend (LLVM 18 through 22). It ships HTTP, JSON, SQLite, an ORM, and
+OpenAPI generation built directly into the runtime, so building an API needs
+no external framework or dependency install.
+
+## How fast is Tulpar?
+
+Tulpar compiles ahead-of-time to a native binary via LLVM, landing at roughly
+**1.37x to 1.9x the runtime of equivalent C** on CPU-bound benchmarks like
+`fib`, and around **36k req/s** on a keep-alive HTTP benchmark using the
+built-in Wings server pool — the same performance class as Go and Rust. See
+[Benchmarks](/ecosystem/benchmarks/) for the full methodology.
+
+## Does Tulpar have a VM, bytecode interpreter, or REPL?
+
+No. Tulpar dropped its bytecode VM and REPL in June 2026 in favor of a single
+AOT/LLVM execution path — the same model C, Rust, and Go use. Running
+`tulpar file.tpr` always AOT-compiles and runs a native binary; there is no
+interpreter fallback, so a successful run means the AOT pipeline genuinely
+ran.
+
+## Is Tulpar free and open source?
+
+Yes. Tulpar is MIT-licensed and developed in the open on
+[GitHub](https://github.com/hamer1818/TulparLang).
+
+## What platforms does Tulpar run on?
+
+Linux, macOS, and Windows (both MSVC and MinGW toolchains). The compiler is
+built with CMake and requires LLVM 18 or newer.
+
+## How do I install Tulpar?
+
+```bash
+curl -fsSL https://tulparlang.dev/install.sh | bash
+```
+
+```powershell
+iwr -useb https://tulparlang.dev/install.ps1 | iex
+```
+
+Prebuilt binaries are also available from the
+[GitHub releases](https://github.com/hamer1818/TulparLang/releases) page. See
+[Installation](/intro/installation/) for details.
+
+## Does Tulpar have a package manager?
+
+Yes — `tulpar pkg`, backed by a `tulpar.toml` manifest and a `tulpar.lock`
+lockfile, with path, URL, and registry dependency specs. See
+[Package Manager](/ecosystem/package-manager/).
+
+## How does Tulpar compare to C, Go, or Rust?
+
+Tulpar targets Python-level ease of syntax with C-class native performance
+via AOT/LLVM compilation, while also including the batteries — HTTP server,
+JSON, SQLite, ORM, and OpenAPI generation — that C, Go, and Rust leave to
+third-party libraries. See [Tulpar vs C](/guide/tulpar-vs-c/) for a
+side-by-side code comparison.
