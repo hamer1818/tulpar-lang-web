@@ -1,0 +1,5729 @@
+# AOT-compiled, LLVM-backed programming language
+Source: https://tulparlang.dev/
+
+As easy as Python, as fast as C. A statically-typed, AOT-compiled language with an LLVM 18 backend and a batteries-included HTTP / JSON / SQLite / OpenAPI stack — no framework required.
+
+<div class="tlp-landing">
+
+<section class="tlp-hero">
+	<div class="tlp-hero__content">
+		<span class="tlp-eyebrow">AOT · LLVM 18 · batteries included</span>
+		<h1 class="tlp-hero__title">Build production APIs<span>without the framework</span></h1>
+		<p class="tlp-hero__lead">
+			As easy as Python, as fast as C. A statically-typed, AOT-compiled
+			language with HTTP, JSON, SQLite, an ORM and OpenAPI built right into
+			the runtime — no <code>npm install</code>, no pip, no dependencies.
+		</p>
+		<div class="tlp-hero__actions">
+			<a class="tlp-btn tlp-btn--primary" href="/intro/getting-started/">Get Started →</a>
+			<a class="tlp-btn tlp-btn--ghost" href="#playground">Open Playground</a>
+			<a class="tlp-btn tlp-btn--minimal" href="https://github.com/hamer1818/TulparLang">View on GitHub ↗</a>
+		</div>
+		<div class="tlp-hero__stats">
+			<div class="tlp-hero__stat"><b>~36k</b><span>req/s · Tulpar pool</span></div>
+			<div class="tlp-hero__stat"><b>~1.9× C</b><span>fib · native AOT</span></div>
+			<div class="tlp-hero__stat"><b>0</b><span>external dependencies</span></div>
+		</div>
+	</div>
+
+	<div class="tlp-hero__preview">
+		<div class="tlp-window">
+			<div class="tlp-window__bar">
+				<span class="tlp-window__dot tlp-window__dot--r"></span>
+				<span class="tlp-window__dot tlp-window__dot--y"></span>
+				<span class="tlp-window__dot tlp-window__dot--g"></span>
+				<span class="tlp-window__name">api.tpr</span>
+				<span class="tlp-window__live">running</span>
+			</div>
+
+			```tulpar
+			import "wings";
+			import "orm";
+
+			orm_open("app.db");
+			define_model("users", { "name": "TEXT", "age": "INTEGER" });
+
+			func list_users(req)  { return ok(orm_all("users")); }
+			func create_user(req) { return created(orm_create("users", req.json)); }
+
+			get("/users",  "list_users");
+			post("/users", "create_user");
+
+			serve(8080);   // + Swagger UI, /openapi.json, /metrics, /healthz
+			```
+		</div>
+	</div>
+</section>
+
+<section class="tlp-section">
+	<div class="tlp-section__head">
+		<span class="tlp-eyebrow">Benchmarks</span>
+		<h2>Fast where it counts</h2>
+		<p>Throughput on <code>GET /</code> → JSON <code>{"{"}"hello":"world"{"}"}</code>, keep-alive, native load tester, one 14-vCPU box. Each runtime in its recommended single-process config.</p>
+	</div>
+
+	<div class="tlp-bench">
+		<div class="tlp-bench__row tlp-bench__row--hero">
+			<div class="tlp-bench__name">Tulpar<span class="tlp-bench__tag">pool · 14c</span></div>
+			<div class="tlp-bench__track"><div class="tlp-bench__fill" style="--val:100%"></div></div>
+			<div class="tlp-bench__val">~36k req/s</div>
+		</div>
+		<div class="tlp-bench__row">
+			<div class="tlp-bench__name">Go net/http<span class="tlp-bench__tag">14c</span></div>
+			<div class="tlp-bench__track"><div class="tlp-bench__fill" style="--val:83%"></div></div>
+			<div class="tlp-bench__val">~30k req/s</div>
+		</div>
+		<div class="tlp-bench__row">
+			<div class="tlp-bench__name">Node.js http<span class="tlp-bench__tag">1c</span></div>
+			<div class="tlp-bench__track"><div class="tlp-bench__fill" style="--val:24%"></div></div>
+			<div class="tlp-bench__val">~8.7k req/s</div>
+		</div>
+		<div class="tlp-bench__row">
+			<div class="tlp-bench__name">FastAPI<span class="tlp-bench__tag">uvicorn · 1w</span></div>
+			<div class="tlp-bench__track"><div class="tlp-bench__fill" style="--val:10%"></div></div>
+			<div class="tlp-bench__val">~3.5k req/s</div>
+		</div>
+		<p class="tlp-bench__note">
+			And latency stays low: <strong>p50 0.32 ms</strong> (Tulpar) vs 3.3 ms (FastAPI). On CPU, fib lands at <strong>1.37× C</strong> (Windows / MinGW) to <strong>~1.9× C</strong> (Linux gcc -O2) — Rust/Go class either way. <a href="/ecosystem/benchmarks/">Full methodology →</a>
+		</p>
+	</div>
+</section>
+
+<section class="tlp-section">
+	<div class="tlp-section__head">
+		<span class="tlp-eyebrow">Features</span>
+		<h2>Everything you need is already in the box</h2>
+	</div>
+
+	<div class="tlp-bento">
+		<div class="tlp-bento__item tlp-bento__item--feature">
+			<div class="tlp-bento__icon">🚀</div>
+			<h3>An API on day one</h3>
+			<p><code>import "wings"</code>, register a route, <code>serve(8080)</code> — done. You get OpenAPI 3.0 + Swagger UI auto-generation, schema validation (invalid body → 422), dependency injection, structured logging, keep-alive, plus built-in <code>/healthz</code> and <code>/metrics</code> (JSON + Prometheus) for free.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">⚡</div>
+			<h3>C-class performance</h3>
+			<p>AOT-compiled via LLVM 18 to a standalone native binary.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">🗄️</div>
+			<h3>SQLite + ORM</h3>
+			<p>Embedded SQLite and an Active-Record ORM — no driver to wire up.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">🧰</div>
+			<h3>Editor tooling</h3>
+			<p>Bundled LSP, <code>tulpar fmt</code>, and a VS Code extension.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">📦</div>
+			<h3>Package manager</h3>
+			<p><code>tulpar pkg</code> with a <code>tulpar.toml</code> manifest and lockfile.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">🌍</div>
+			<h3>UTF-8 · TR + EN</h3>
+			<p>Unicode identifiers and bilingual compiler diagnostics.</p>
+		</div>
+	</div>
+</section>
+
+<section id="playground" class="tlp-section">
+	<div class="tlp-section__head">
+		<span class="tlp-eyebrow">Live playground</span>
+		<h2>Try it right here in your browser</h2>
+		<p>No install, no setup. Edit the code and hit <strong>Run</strong> — it executes in the page.</p>
+	</div>
+
+	**hello.tpr — recursion + the ternary operator**
+
+```tulpar
+// Classic recursion, one-line branches with  cond ? a : b
+func fib(int n) {
+    return n < 2 ? n : fib(n - 1) + fib(n - 2);
+}
+
+for (int i = 0; i < 12; i++) {
+    print("fib(" + toString(i) + ") = " + toString(fib(i)));
+}
+```
+</section>
+
+<section class="tlp-section">
+	<div class="tlp-section__head">
+		<span class="tlp-eyebrow">From zero to a REST API</span>
+		<h2>A persistent CRUD service in one file</h2>
+		<p>Model, routes and server in a single <code>.tpr</code> — boots with <code>/healthz</code>, <code>/metrics</code>, <code>/openapi.json</code> and a Swagger UI for free.</p>
+	</div>
+
+```tulpar
+
+orm_open("app.db");
+define_model("users", {
+    "id":   "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "name": "TEXT NOT NULL",
+    "age":  "INTEGER"
+});
+
+func list_users(req)  { return ok(orm_all("users")); }
+
+func create_user(req) {
+    int id = orm_create("users", req.json);
+    return created(orm_find("users", id));
+}
+
+get("/users",  "list_users");
+post("/users", "create_user");
+body_schema({"name": "str", "age?": "int"});   // invalid body → 422, automatically
+
+serve(8080);
+```
+
+Want the guided version? The **[Wings Tutorial](/ecosystem/wings-tutorial/)**
+builds three complete apps step by step — REST, token auth, and a SQLite-backed API.
+
+</section>
+
+<div class="tlp-cta">
+	## Ready in one command
+
+	<p>Install the toolchain, then compile and run your first program. macOS, Linux, and Windows.</p>
+
+	<div class="tlp-cta__cmd"><span class="tlp-prompt">$ </span>curl -fsSL https://tulparlang.dev/install.sh | bash</div>
+
+	<div style="margin-top:1.5rem">
+		[Get Started →](/intro/getting-started/) &nbsp;·&nbsp; [Installation](/intro/installation/) &nbsp;·&nbsp; [Language Guide](/guide/syntax/)
+	</div>
+</div>
+
+</div>
+
+---
+
+# Benchmarks
+Source: https://tulparlang.dev/ecosystem/benchmarks/
+
+How Tulpar performs against C / Go / Node.js / FastAPI on CPU and HTTP workloads.
+
+Tulpar's tagline is "as easy as Python, as fast as C". On CPU it sits in
+Rust/Go territory; on HTTP its multi-core `listen_pool` server out-throughputs
+Go's `net/http` and leaves FastAPI far behind — all from a single self-contained
+binary with no runtime to ship.
+
+## CPU benchmarks
+
+`benchmarks/fib.tpr` uses the typed AOT path (explicit `: int` return type) for
+native LLVM `i64` codegen. The recursion depth is read from an env var so LLVM
+can't partially evaluate the result at compile time.
+
+| Environment                          | C            | Tulpar AOT | Ratio       |
+| ------------------------------------ | -----------: | ---------: | ----------- |
+| Windows 11 / MinGW64, `fib(35)`, best-of-3 | 83 ms  | 114 ms     | **1.37× C** |
+| Linux WSL2 / gcc 15 `-O2`, `fib(40)`, best-of-5 | 140 ms | 261 ms | **1.86× C** |
+
+**The ratio depends on the C compiler, not just on Tulpar.** Both targets are
+LLVM/AOT-native; the gap is wider against `gcc -O2` (a very aggressive C) than
+against MinGW's older GCC. Either way Tulpar lands in the **~1.4–1.9× C** band —
+the same neighbourhood as Rust and Go, and orders of magnitude ahead of
+interpreted Python.
+
+:::note[Why no `loopsum` here]
+The old `loopsum` (sum `0..n`) is **not** a valid Tulpar-vs-C row: LLVM's
+scalar-evolution pass folds the series to its closed form `n·(n-1)/2` at compile
+time — even with an opaque runtime `n` — so the Tulpar binary returns in ~5 ms
+and measures process startup, not the loop. `fib`, genuine recursion LLVM can't
+fold, is the load-bearing CPU number.
+:::
+
+## HTTP throughput
+
+`benchmarks/loadtest` (a native C load generator) hammers each server with
+`GET /` returning JSON `{"hello":"world"}` over keep-alive connections,
+concurrency swept 1–12 (kept under the box's core count so the load generator
+never starves the server), 4 s per level, best run confirmed by a second pass.
+Box: 14-vCPU WSL2. **Each runtime in its recommended single-process config.**
+
+| Server                | req/sec | p50 latency | Configuration                         |
+| --------------------- | ------: | ----------: | ------------------------------------- |
+| **Tulpar `listen_pool`** | **~36k** | **0.32 ms** | all 14 cores, 1 process            |
+| Go `net/http`         |    ~30k | 0.38 ms     | all cores (default), 1 process        |
+| Node.js `http`        |   ~8.7k | 1.06 ms     | 1 thread (default)                    |
+| FastAPI (uvicorn)     |   ~3.5k | 3.31 ms     | 1 worker (default)                    |
+| Tulpar `listen`       | ~4–4.7k | 0.22 ms     | 1 thread, **serial** accept loop      |
+
+Threading models differ and are labelled above: `listen_pool` and Go's
+`net/http` use every core out of the box, while Node and a single uvicorn worker
+default to one. Tulpar's single-thread `listen()` is a **serial** accept loop —
+it has the lowest per-request latency (0.22 ms p50) but serialises keep-alive
+connections, so for throughput use `listen_pool` (or `listen_async`). Notably,
+single-thread `listen()` trails single-thread Node here; Tulpar's lead comes
+from `listen_pool` scaling cleanly across cores (p50 stays at 0.32 ms at 36k
+req/s, with a clean sub-millisecond tail).
+
+Versus FastAPI specifically, Tulpar also wins decisively on latency (~10×
+lower p50) and footprint — see the dedicated
+[Wings vs FastAPI writeup](https://github.com/hamer1818/TulparLang/blob/main/benchmarks/WINGS_VS_FASTAPI.md)
+(p50 0.31 ms vs 28 ms under load, 6.7 MB vs 54 MB RSS, 2 MB self-contained
+binary vs Python + ~50 MB of deps).
+
+## What got us here
+
+**Hot-path optimisations applied:**
+
+- `call(handler_name)` dlsym cache (256-slot FNV-1a hash) — eliminates the symbol-table walk per request.
+- TCP_NODELAY on accept — removes Nagle's 40ms batching delay on small JSON responses (+13% req/sec).
+- Static thread-local recv buffer — drops a 64 KB malloc/free pair per keep-alive request.
+- Per-request arena reset + per-request malloc region — bounded memory on long-running servers without leaking.
+- Thread-local scratch buffers in built-ins — non-TLS statics raced under `listen_pool` (a `toString` buffer caused ~1.1% spurious 404s until fixed).
+- `break` / `continue` real codegen — was silently no-op'd before, prevents LLVM from emitting suboptimal phi nodes around induction variables.
+
+**Trade-offs we explicitly skipped** (analysed, low value):
+
+- Object-key inline caching (`req["method"]` ~0.3 % of HTTP path).
+- String concat coalescing (`a + b + c` ~0.1 % of HTTP path).
+
+## Methodology
+
+- **CPU:** `gcc -O2` (Linux gcc 15 / Windows MinGW64). Best-of-N wall-clock. The
+  workload input is opaque to the compiler (read at runtime) so `-O2` can't
+  constant-fold it, and `N` is large enough that process startup is negligible.
+- **HTTP:** native `benchmarks/loadtest`, single box, keep-alive, concurrency
+  kept ≤ core count so the load generator and server don't fight for CPU.
+  Toolchains: Go 1.23, Node 22, Python 3.14 + FastAPI/uvicorn. Servers run in
+  their default single-process configuration (core usage labelled per row).
+- Absolute numbers are box-specific; treat the **ratios and latency** as the
+  portable signal. Reproduce CPU via `benchmarks/run_benchmarks.sh`; the HTTP
+  servers + driver used here are minimal equivalents returning the same JSON.
+
+---
+
+# Debugger
+Source: https://tulparlang.dev/ecosystem/debugger/
+
+Step through Tulpar code with breakpoints, stack frames, and variable inspection — straight from VS Code or any DAP-aware client.
+
+Tulpar ships a Debug Adapter Protocol (DAP) server: `tulpar debug
+<file.tpr>` opens a stdio JSON-RPC adapter that any DAP client can
+drive. Pair it with the official VS Code extension and you get the
+familiar **Run and Debug** panel — set breakpoints in `.tpr` files,
+hit F5, step through statements, inspect locals, all backed by
+real DWARF debug info that the AOT pipeline emits when you pass
+`--debug`.
+
+Under the hood: `tulpar debug` AOT-builds your program with
+`--debug` (full source-level DWARF), spawns `gdb
+--interpreter=mi3` against the resulting binary, and translates
+between DAP requests and gdb/MI commands. The result is a debugger
+backed by gdb's stability while the front-end uses VS Code's UI.
+
+## Requirements
+
+- **Tulpar** with the DAP server (`tulpar debug` command, available
+  since Plan 07 Part B).
+- **gdb** on your `PATH`. Linux distros ship it; on Windows install
+  via MSYS2 (`pacman -S mingw-w64-x86_64-gdb`); on macOS install
+  via `brew install gdb`. If `gdb` is missing the adapter returns
+  a structured "failed to spawn gdb" failure on `launch` so the
+  client sees a clear error instead of a hang.
+- **VS Code** with the [`vscode-tulpar`](https://marketplace.visualstudio.com/items?itemName=hamer1818.vscode-tulpar)
+  extension v0.4.0 or newer (also on [Open VSX](https://open-vsx.org/extension/hamer1818/vscode-tulpar)).
+
+## VS Code: F5 in 30 seconds
+
+1. Install the **Tulpar** extension from the Marketplace or Open VSX.
+2. Open any `.tpr` file in VS Code.
+3. Click the gutter next to a line number to set a breakpoint.
+4. Press **F5** (or run the **`Tulpar: Debug File`** command from
+   the Command Palette). The extension AOT-builds your file with
+   debug info, spawns the DAP server, and hits your breakpoint.
+
+You can also drop a permanent launch config under
+`.vscode/launch.json` — the extension contributes a snippet under
+**Add Configuration… → Tulpar Debug**:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "tulpar",
+      "request": "launch",
+      "name": "Tulpar: Debug Active File",
+      "program": "${file}",
+      "stopOnEntry": false
+    }
+  ]
+}
+```
+
+## What works today
+
+| DAP feature           | Status | Notes                                                      |
+| --------------------- | :----: | ---------------------------------------------------------- |
+| Line breakpoints      |   ✅   | Click the gutter or use `setBreakpoints` over DAP.         |
+| Run to completion     |   ✅   | `configurationDone` → `-exec-run` → `terminated` event.    |
+| Stop on breakpoint    |   ✅   | `*stopped,reason=breakpoint-hit` → DAP `stopped` event.    |
+| Stack trace           |   ✅   | `-stack-list-frames` → DAP `StackFrame[]` with file/line.  |
+| Locals / parameters   |   ✅   | `-stack-list-variables --simple-values`. Leaf values only. |
+| Continue              |   ✅   | `-exec-continue` → resume + downstream `stopped`/`terminated`. |
+| Step over             |   ✅   | `next` → `-exec-next`.                                     |
+| Step into             |   ✅   | `stepIn` → `-exec-step`.                                   |
+| Step out              |   ✅   | `stepOut` → `-exec-finish`.                                |
+| Pause                 |   ✅   | `pause` → `-exec-interrupt` (SIGINT → DAP `reason=pause`). |
+| Console output        |   ✅   | gdb `~"..."` console + `@"..."` target streams → DAP `output`. |
+| Terminate / disconnect|   ✅   | Sends `-gdb-exit`, reaps subprocess.                       |
+
+## What's not wired up yet
+
+| DAP feature                | Why deferred                                                   |
+| -------------------------- | -------------------------------------------------------------- |
+| `evaluate` / watch         | Needs a per-frame expression evaluator over `-data-evaluate-expression`. |
+| `setVariable`              | Same machinery as evaluate, plus `-gdb-set var`.               |
+| Conditional / log breakpoints | `-break-insert` accepts conditions, but the result wiring + UI fields aren't plumbed. |
+| Function / data / instruction breakpoints | Less-used categories; ordinary line breakpoints carry the F5 workflow today. |
+| Struct / array drill-down  | Variables currently surface as the gdb-printed string. Switching to per-leaf `-var-create` is the next iteration. |
+| `restart` request          | VS Code tears down + relaunches today, which works; the explicit `restart` DAP command would skip the extra round-trip. |
+
+## Running the adapter directly
+
+If you're integrating with a non-VS Code DAP client, the adapter
+shape is:
+
+```bash
+tulpar debug path/to/program.tpr
+```
+
+stdin and stdout are owned by the DAP wire (`Content-Length:
+N\r\n\r\n<json>` framing, same as LSP). Every diagnostic line goes
+to stderr only. The adapter advertises capabilities on
+`initialize` and emits the `initialized` event when ready for
+`setBreakpoints`.
+
+The full DAP exchange shape:
+
+```
+client → initialize        → response (capabilities)
+client ←                     event(initialized)
+client → launch            → response (AOT build + gdb spawn)
+client → setBreakpoints    → response (verified Breakpoint[])
+client → configurationDone → response (-exec-run; program starts)
+client ←                     event(stopped) // breakpoint hit
+client → threads           → response ([{id:1, name:"main"}])
+client → stackTrace        → response (StackFrame[])
+client → scopes            → response ([{name:"Locals", variablesReference: …}])
+client → variables         → response (Variable[])
+client → continue          → response (allThreadsContinued=true)
+client ←                     event(terminated)
+client → disconnect        → response, adapter exits
+```
+
+## Diagnostics + troubleshooting
+
+The adapter logs every line to stderr with a `[dap]` prefix:
+
+```
+[dap] tulpar debug adapter starting (program: hello.tpr)
+[dap] launch: building hello.tpr with debug info...
+[dap] launch: build OK, binary=hello.exe
+[dap] gdb<< (gdb)
+[dap] gdb<< 1^done,bkpt={number="1",...}
+[dap] request 'evaluate' rejected: not implemented yet
+[dap] adapter shutting down
+```
+
+When debugging the debugger itself, redirect stderr to a file —
+stdout is owned by DAP and any leaked byte breaks framing.
+
+## How this fits with the rest of the toolchain
+
+- **`--debug` flag for `tulpar build`** — emits `!DICompileUnit` +
+  per-function `DISubprogram` + per-statement `DILocation` +
+  per-variable `DILocalVariable` / `DIGlobalVariableExpression`
+  into the LLVM IR. Optimizer runs the `verify` pipeline (`-O0`)
+  so the source mapping stays 1:1.
+- **`tulpar debug`** — the DAP server. Invokes the AOT pipeline
+  with `--debug` internally and feeds the resulting binary to
+  gdb.
+- **`vscode-tulpar` extension** — DAP client side. Registers a
+  `DebugAdapterDescriptorFactory` that spawns `tulpar debug
+  <program>` whenever you press F5 on a `.tpr` file.
+
+The three pieces share one DWARF emit pipeline; if you can `gdb
+./your_binary` and see your `.tpr` lines, the VS Code experience
+just works.
+
+---
+
+# HTTP Client
+Source: https://tulparlang.dev/ecosystem/http-client/
+
+Outbound HTTP/HTTPS requests via http_get, http_post, and friends. Built-in JSON convenience wrappers.
+
+`lib/http_client.tpr` is the embedded outbound HTTP library. Use it
+to call other APIs from inside a Tulpar program — no extra dependency,
+no `npm install`.
+
+```tulpar
+
+json r = http_get("http://api.example.com/users/1");
+if (r["ok"]) {
+    print("status=" + toString(r["status"]));
+    print("body=" + r["body"]);
+}
+```
+
+## Verbs
+
+| Helper                                | Wraps                                    |
+| ------------------------------------- | ---------------------------------------- |
+| `http_get(url)`                       | `GET` with empty body                    |
+| `http_post(url, body)`                | `POST` with raw string body              |
+| `http_put(url, body)`                 | `PUT`                                    |
+| `http_delete(url)`                    | `DELETE`                                 |
+| `http_get_json(url)`                  | `GET` + `fromJson(body)` if response 2xx |
+| `http_post_json(url, data)`           | `POST` `toJson(data)` + parse response   |
+| `http_request(method, url, body)`     | The underlying primitive                 |
+
+## Response shape
+
+Every helper returns the same envelope:
+
+```tulpar
+json r = http_get("http://api.example.com/");
+
+if (r["ok"]) {
+    int status = r["status"];        // 200, 404, ...
+    json headers = r["headers"];     // case-sensitive header map
+    str body = r["body"];            // raw response body
+} else {
+    str why = r["error"];            // "connect failed", "TLS handshake failed", ...
+}
+```
+
+The `_json` variants additionally parse `r["body"]` and put the result
+in `r["data"]`:
+
+```tulpar
+json r = http_get_json("http://api.example.com/users/1");
+if (r["ok"]) {
+    json user = r["data"];
+    print("hello " + user["name"]);
+}
+```
+
+## HTTPS
+
+`https://` URLs work when Tulpar was built with OpenSSL. Without it,
+the call returns `{"ok": 0, "error": "TLS not compiled in (build Tulpar
+with OpenSSL to enable https://)"}`.
+
+To enable TLS on MSYS2:
+
+```bash
+pacman -S mingw-w64-x86_64-openssl
+# then rebuild Tulpar
+./build.sh
+```
+
+The CMake configuration auto-detects OpenSSL via `find_package(OpenSSL)`
+and toggles the `TULPAR_HAS_TLS=1` define. SNI is set automatically,
+certificate verification is currently `SSL_VERIFY_NONE` until a
+configurable trust-store path lands.
+
+## Async (non-blocking) requests
+
+Every verb has an `_async` twin that returns a promise instead of
+blocking: `http_get_async`, `http_post_async`, `http_put_async`,
+`http_delete_async` (wrapping the `http_request_async` built-in). The
+request runs on a worker pool while the [async event loop](/guide/async/)
+keeps pumping other coroutines, so you can fan out to several upstreams
+at once and `gather` the results:
+
+```tulpar
+
+async func dashboard() {
+    // Three upstreams fetched concurrently — total time ~ the slowest one.
+    var r = await gather(
+        http_get_async("http://api/users"),
+        http_get_async("http://api/orders"),
+        http_get_async("http://api/stats")
+    );
+    return r;
+}
+
+var data = await dashboard();
+print(toString(data[0]["status"]));   // 200
+```
+
+The resolved value is the same `{ ok, status, headers, body }` envelope
+as the blocking client. Worker-pool size defaults to 4; override it with
+the `TULPAR_HTTP_POOL` environment variable. See the
+[Async / Await guide](/guide/async/) for the full concurrency model,
+including error handling when a request rejects.
+
+## Limits & roadmap
+
+Today:
+
+- Plain HTTP/1.0 (no keep-alive on the client side)
+- HTTPS via OpenSSL when compiled in
+- 8 MB response cap to avoid runaway memory on misbehaving servers
+- No automatic redirect following
+- No chunked transfer-encoding support
+
+Roadmap:
+
+- HTTP/1.1 keep-alive on the client (connection pool)
+- Redirect following with cycle detection
+- Chunked transfer-encoding
+- Configurable trust-store path for production TLS verification
+
+---
+
+# HTTP Server (Wings)
+Source: https://tulparlang.dev/ecosystem/http-server/
+
+Wings is Tulpar's batteries-included HTTP framework — keep-alive connections, /healthz, /metrics, OpenAPI auto-gen, multi-threaded request handling, structured logging.
+
+Wings is the embedded HTTP framework that ships with Tulpar. It's
+designed to take you from `import "wings"` to a production-shaped
+JSON API in under 20 lines of code, with health checks, metrics,
+OpenAPI documentation, and multi-threaded request handling already
+wired up.
+
+## Hello world
+
+```tulpar
+
+func index(req) {
+    return {"hello": "world"};
+}
+
+get("/", index);          // bind the handler by name — not a string
+serve();                  // no port → default 8484; serve(8080) for explicit
+```
+
+That's a complete HTTP/1.1 server with keep-alive, CORS-friendly default
+headers, and `/healthz` + `/metrics` auto-registered. Routes bind the
+handler **function** (`index`, not `"index"`) — a typo is a compile
+error, not a silent 404.
+
+Calling `serve()` with no port uses Tulpar's default **8484** (ASCII `T` =
+84 → binary `01010100`, the "Tulpar port"); if it's already taken it walks up
+(8485, 8486, …) so a second app still starts. Pass an explicit port —
+`serve(8080)` — and Wings binds exactly that, telling you if it's in use
+rather than silently moving. `serve()` is `listen()`; both accept the same
+optional port.
+
+## Routing
+
+```tulpar
+get("/users/:id", show_user);   // path params arrive in req.params
+post("/users", create_user);
+put("/users/:id", update_user);
+del("/users/:id", delete_user);
+
+func show_user(req) {
+    return orm_find("users", toInt(req.params.id));
+}
+```
+
+Each handler receives the request as its first parameter (`req`). You
+can read fields with dotted access — `req.params.id`, `req.query.page`,
+`req.json` (auto-parsed body). The same data is also on the global
+`_request`, so a handler that takes no parameter still works:
+
+| Field          | Type         | Notes                                      |
+| -------------- | ------------ | ------------------------------------------ |
+| `method`       | `str`        | `GET`, `POST`, `PUT`, `DELETE`, …          |
+| `path`         | `str`        | URL path without the query string.         |
+| `raw_path`     | `str`        | Path + query as the client sent it.        |
+| `query`        | `json`       | Parsed `?k=v&...` (URL-decoded).           |
+| `headers`      | `json`       | Header map (case-sensitive keys).          |
+| `body`         | `str`        | Raw body bytes, length-bounded.            |
+
+## Middleware (`use`)
+
+Register a global middleware with `use("fn_name")`. Every registered
+middleware runs — in registration order — **before** the matched handler,
+across all serve modes (there's a single dispatch point). A middleware is a
+`func mw(req)` that either returns a response dict (`_status` set → the chain
+**short-circuits** and that response is sent) or returns `{}` (continue). It
+can mutate `req` in place, so later middleware and the handler see the change:
+
+```tulpar
+func require_auth(req) {
+    str token = req["headers"]["Authorization"];
+    if (length(token) == 0) {
+        return unauthorized("token required");   // short-circuit → 401
+    }
+    req["user"] = {"id": 1, "name": "Ada"};      // visible to the handler
+    return {};                                    // continue
+}
+
+use("require_auth");
+```
+
+When no middleware is registered the chain is zero-cost — Wings skips it
+entirely on the hot path.
+
+## Route groups (`group`)
+
+`group(prefix, register_fn)` runs `register_fn` (a function **name**) with a
+path prefix applied to every route it registers. The prefix is saved and
+restored around the call, so groups **nest**:
+
+```tulpar
+func api_v1() {
+    get("/users", "list_users");      // → /api/v1/users
+    post("/users", "create_user");    // → /api/v1/users
+}
+group("/api/v1", "api_v1");
+```
+
+`get` / `post` / `put` / `del` / `cached_get` all honor the active prefix, so
+inner `group(...)` calls concatenate (`/api/v1` + `/admin` → `/api/v1/admin`).
+
+## Dependency injection (`depends` / `dep`)
+
+FastAPI-style per-route dependencies. `depends("fn_name")` attaches a
+dependency to the **most recently registered** route; before the handler runs,
+each dependency is called with `req` and its return value is injected. The
+handler reads it with `dep("name")`. A dependency can short-circuit by
+returning a response dict (`_status` set) — exactly like middleware, but
+per-route and value-producing:
+
+```tulpar
+func current_user(req) {
+    str t = req["headers"]["Authorization"];
+    if (length(t) == 0) { return unauthorized("token required"); }
+    return {"id": 1, "name": "Ada"};
+}
+
+func profile(req) { return ok(dep("current_user")); }
+
+get("/profile", "profile");
+depends("current_user");
+```
+
+Resolved values live in a thread-local store, so they don't leak between
+concurrent requests under `listen_pool` / `listen_async`.
+
+## Single-thread vs multi-thread
+
+```tulpar
+listen(8080);          // single accept loop, keep-alive on each connection
+listen_async(8080);    // thread-per-connection, parallel recv/send
+```
+
+`listen()` is the battle-tested single-thread server: it serves multiple
+keep-alive requests on each accepted socket, but new connections wait
+until the current one returns to `accept()`. It has the **lowest
+per-request latency** (~0.22 ms p50) but, being a serial accept loop, it
+serialises concurrent keep-alive connections — so for raw throughput
+prefer `listen_pool` (which out-throughputs Go `net/http`). See the
+[Benchmarks](/ecosystem/benchmarks/) page for the full comparison.
+
+`listen_async()` spawns a detached worker per accepted TCP connection.
+Each worker does its own `recv` / parse / `send` in parallel; handler
+dispatch is serialised under `_wings_handler_mu` until LLVM thread-local
+globals land, but the network parts run concurrently. The win is:
+multi-thread accept (no one slow request blocks others) and parallel
+keep-alive serving for many idle clients.
+
+## Auto-routes
+
+If you don't register them yourself, `listen()` and `listen_async()`
+auto-register two routes that production deployments expect:
+
+### `/healthz`
+
+```json
+{
+  "status": "ok",
+  "uptime_s": 142,
+  "now": "2026-05-02T18:34:21Z"
+}
+```
+
+Drop-in compatible with Kubernetes liveness probes. Override by
+registering your own `GET /healthz` before calling `listen`.
+
+### `/metrics`
+
+```json
+{
+  "uptime_s": 142,
+  "requests_total": 5021,
+  "requests_2xx": 4998,
+  "requests_4xx": 23,
+  "requests_5xx": 0,
+  "routes": 7
+}
+```
+
+Tracks counters that Wings increments on every response. For Prometheus
+scrapers, add `?format=prom` to get text exposition format, or build a
+dedicated route with `wings_metrics_prom()`.
+
+## OpenAPI auto-generation
+
+```tulpar
+func openapi_handler() {
+    return wings_openapi("My API", "1.0.0");
+}
+get("/openapi.json", "openapi_handler");
+```
+
+`wings_openapi(title, version)` walks the registered routes and emits
+an OpenAPI 3.0 document. Swagger UI / Postman / Insomnia consume it
+directly. Today's coverage: every route's path + method + handler name.
+Request / response schemas are placeholder; richer route metadata is
+on the roadmap.
+
+## Structured logging
+
+```tulpar
+log_info("user signed up: " + email);
+log_error("payment failed: " + toString(code));
+```
+
+Output (one JSON object per line — log aggregator-friendly):
+
+```json
+{"@timestamp":"2026-05-02T18:34:21Z","level":"info","msg":"user signed up: a@b.c"}
+{"@timestamp":"2026-05-02T18:34:21Z","level":"error","msg":"payment failed: 502"}
+```
+
+The Wings access log itself uses the same format. To silence the
+per-request access line on benchmark / production paths, set
+`TULPAR_HTTP_QUIET=1`.
+
+## Response helpers
+
+Return a plain object and it's serialized as `200 application/json`. For
+other status codes, use the helpers instead of hand-writing the
+`{"_status": N}` envelope — they read as intent:
+
+```tulpar
+func get_user(req) {
+    json u = find_user();
+    if (!u) { return not_found("no such user"); }
+    return ok(u);                 // 200
+}
+
+func create_user(req) {
+    return created(new_user());   // 201
+}
+```
+
+Available: `ok(data)`, `created(data)` (201), `no_content()` (204),
+`bad_request(msg)` (400), `unauthorized(msg)` (401), `forbidden(msg)`
+(403), `not_found(msg)` (404), `conflict(msg)` (409), `server_error(msg)`
+(500). Error helpers share a uniform `{"error": msg}` body. `text(body)`
+returns plain text; `with_status(data, code)` sets any status.
+
+## Reading the request body
+
+A JSON request body is parsed for you — read `_request["json"]`
+directly, no `fromJson()` needed:
+
+```tulpar
+func create_user(req) {
+    json body = req.json;                  // already parsed
+    if (length(body["name"]) == 0) {
+        return bad_request("name required");
+    }
+    return created({"name": body["name"]});
+}
+```
+
+`req` (and the global `_request`) also carries `params` (path captures
+like `:id`), `query`, `headers`, `cookies`, `body` (raw), and `method` /
+`path`.
+
+## Validating the request body
+
+Attach a schema to a route with `body_schema()` right after registering it.
+The body is checked **before** your handler runs — an invalid body never
+reaches your code and gets an automatic `422` listing every offending field:
+
+```tulpar
+post("/users", create_user);
+body_schema({"name": "str", "age?": "int"});   // trailing ? = optional
+```
+
+```
+POST {"name": 123}  →  422 {"error":"validation failed",
+                            "fields":{"name":"expected str, got int"}}
+POST {}             →  422 {"fields":{"name":"required"}}
+POST {"name":"Ada"} →  reaches create_user
+```
+
+Types: `str`, `int`, `float`, `num` (int or float), `bool`, `array`,
+`object`, `json` (object or array), `any` (present, any type).
+
+## Typed query parameters
+
+`req["query"]` holds raw string values. The typed accessors coerce with a
+default fallback, so a list endpoint reads pagination/filters in one line
+instead of hand-checking presence and calling `toInt()`:
+
+```tulpar
+func list_items(req) {
+    int page  = query_int(req, "page", 1);     // ?page=2  → 2,  missing → 1
+    str sort  = query(req, "sort", "id");       // ?sort=name → "name"
+    bool desc = query_bool(req, "desc", false); // 1/true/yes → true, 0/false/no → false
+    return ok(fetch_items(page, sort, desc));
+}
+```
+
+`query_int` returns the fallback on a missing or empty value; `query_bool`
+accepts `1`/`true`/`yes` and `0`/`false`/`no` (case-insensitive) and falls
+back otherwise.
+
+## Response model (output shaping)
+
+The symmetric counterpart to `body_schema()`: attach a schema to the most
+recently registered route to **filter successful output** down to only the
+declared fields. Anything not listed (a `password_hash`, an `_internal` flag)
+is dropped before serialization, so a handler can return its full row without
+leaking secrets:
+
+```tulpar
+get("/users/:id", "show_user");
+response_model({"id": "int", "name": "str"});   // password etc. dropped
+```
+
+Works on a single object or an array of objects. Errors (status ≥ 400) bypass
+filtering, so a `{"error": ...}` body is never stripped.
+
+## File uploads (multipart/form-data)
+
+For `multipart/form-data` requests, read text fields with
+`form(req, name, fallback)` and uploaded files with `uploaded_files(req)` —
+an array of `{name, filename, content_type, data, size}`. File `data` carries
+the **raw bytes** (binary-safe, length-tracked), so PNGs and other binaries
+round-trip byte-exact:
+
+```tulpar
+func upload(req) {
+    str title = form(req, "title", "");
+    for (f in uploaded_files(req)) {
+        write_file("./uploads/" + f["filename"], f["data"]);
+    }
+    return created({"title": title, "count": length(uploaded_files(req))});
+}
+post("/upload", "upload");
+```
+
+Parsing is lazy (only when you call `form` / `uploaded_files`) and backed by
+the native `parse_multipart` builtin. Each call re-parses; for many fields,
+call `form_data(req)` once and read the returned `{fields, files}` directly.
+
+## Interactive docs (Swagger UI)
+
+`serve()` auto-mounts **`/docs`** (Swagger UI) backed by **`/openapi.json`**,
+generated from your routes — `:id` path params and every `body_schema()`
+become OpenAPI parameters and request bodies. Set the title/version with
+`docs_info("Users API", "1.0.0")` before `serve()`. Opt out with the env var
+`TULPAR_WINGS_NODOCS=1` or by claiming `/docs` yourself.
+
+## Keeping in-memory state (auto-persist)
+
+Wings recycles each request's memory after the response (an arena reset),
+so a value a handler built is gone once the request ends. To keep data in
+a long-lived **global** — the in-memory "database" pattern — just write to
+the global; Tulpar handles the rest. Writes rooted in a global
+(`push(_users, u)`, `_users[i]["name"] = v`, `_g = v`) are **auto-persisted
+at compile time** — no manual call needed:
+
+```tulpar
+
+json _users = [{"id": 1, "name": "Ada"}];
+int _next_id = 2;
+
+func list_users(req) { return ok(_users); }
+
+func create_user(req) {
+    json body = req.json;
+    json u = {"id": _next_id, "name": body["name"]};
+    _next_id = _next_id + 1;
+    push(_users, u);              // push into a global → auto-persisted
+    return created(u);
+}
+
+get("/users", list_users);
+post("/users", create_user);
+serve(8080);                      // serve() == listen()
+```
+
+:::tip
+Auto-persist is a runtime write barrier: storing request data into anything
+that outlives the request (a global, or an object already kept in one) is
+deep-copied automatically, while response objects and local scratch values are
+left untouched so the hot path stays free. It is value-flow based, so it also
+covers a global reached through a local alias
+(`let x = _users[i]; x["name"] = v;`). For larger or multi-process data, use
+the [database](/stdlib/database/) instead.
+:::
+
+## Custom responses
+
+The default `200 application/json` plus CORS headers covers most cases. For a
+custom **content type** with a plain-string body, return the `_raw` /
+`_content_type` envelope — Wings sends the string verbatim instead of
+JSON-encoding it:
+
+```tulpar
+func export_csv(req) {
+    str body = "id,name\n1,Ada\n2,Linus\n";
+    return {"_raw": body, "_content_type": "text/csv; charset=utf-8"};
+}
+```
+
+:::caution
+Don't `return http_create_response(...)` from a handler. That builtin returns a
+**complete HTTP wire string**, but the dispatcher treats a handler's return
+value as data to serialize — so the string gets wrapped again as JSON. Use the
+`_raw` envelope above, or the streaming pattern below.
+:::
+
+When you also need **custom headers** — a `Content-Disposition` download
+filename, say — write the full response to the socket yourself with
+`http_create_response(...)`, then return `{"_stream": 1}` so Wings knows you've
+already handled the wire and skips its own framing:
+
+```tulpar
+func download_csv(req) {
+    str body = "id,name\n1,Ada\n2,Linus\n";
+    json headers = {"Content-Disposition": "attachment; filename=\"users.csv\""};
+    str wire = http_create_response(200, "text/csv; charset=utf-8", body, headers, 0);
+    socket_send(wings_current_fd(), wire);
+    return {"_stream": 1};
+}
+```
+
+`http_create_response(status, content_type, body, headers, keep_alive)` is the
+underlying primitive; `wings_current_fd()` is the active request socket. This
+same `{"_stream": 1}` pattern is how you'd implement SSE or a WebSocket upgrade.
+
+## Static file serving (`static`)
+
+`static(url_prefix, dir)` mounts a directory under a URL prefix. Files are
+served as a **404-fallback**: real routes (exact or `:param`) always match
+first, and static is the catch-all checked only when nothing else matches:
+
+```tulpar
+static("/static", "./public");   // GET /static/app.css → ./public/app.css
+```
+
+A directory-style request (the mount root, or a path ending in `/`) serves
+`index.html`, so you can host a single-page app straight from root:
+
+```tulpar
+static("/", "./public");   // GET / → ./public/index.html
+```
+
+Path traversal (`..`) is rejected. Text assets (`html`/`css`/`js`/`json`/
+`svg`/`txt`) get a correct `Content-Type`; everything else falls back to
+`application/octet-stream`. Binary assets (a PNG with embedded NULs) round-trip
+byte-exact, since `read_file` / `http_create_response` are length-tracked
+rather than `strlen`-based.
+
+## HTTPS (Wings TLS)
+
+Wings ships an HTTPS listener alongside the plain-HTTP one. Same
+handler API, same routing — only the listen call changes:
+
+```tulpar
+
+func home() {
+    return {"message": "Hello over TLS", "secure": true};
+}
+
+get("/", "home");
+
+wings_tls(8443, "./server.crt", "./server.key");
+```
+
+That's a complete HTTPS server. Every accepted connection runs
+through `SSL_accept` → `SSL_read` → handler dispatch → `SSL_write`
+→ `SSL_shutdown`. The `SSL_CTX` is built once at startup; cert and
+key files are read at the point of `wings_tls(...)`, not on every
+request.
+
+### Cert + key
+
+For local dev, generate a self-signed cert valid for a year:
+
+```bash
+openssl req -x509 -newkey rsa:2048 \
+    -keyout server.key -out server.crt \
+    -days 365 -nodes \
+    -subj "/CN=localhost" \
+    -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+```
+
+Client side, `curl --insecure https://127.0.0.1:8443/` trusts the
+self-signed cert; browsers will show a warning and let you click
+through.
+
+For production, point at your real cert chain — Let's Encrypt's
+`/etc/letsencrypt/live/<domain>/fullchain.pem` and `privkey.pem`
+are the canonical pair, and `wings_tls` reads them like any other
+PEM file:
+
+```tulpar
+wings_tls(443,
+    "/etc/letsencrypt/live/tulparlang.dev/fullchain.pem",
+    "/etc/letsencrypt/live/tulparlang.dev/privkey.pem");
+```
+
+### Build requirement
+
+`wings_tls` is OpenSSL-backed. Tulpar's `find_package(OpenSSL)`
+must have succeeded at CMake time — on Linux that means `apt
+install libssl-dev` before building, on MSYS2 Windows it's
+`pacman -S mingw-w64-x86_64-openssl`, and macOS picks it up from
+`brew install openssl`. If OpenSSL wasn't linked in, `tls_init`
+returns 0 and `wings_tls` prints an error and exits before binding
+the socket.
+
+### What's not in v1 yet
+
+- **TLS keep-alive.** Each accepted TLS connection serves one
+  request and closes. The plain-HTTP `listen()` does multi-request
+  keep-alive; the TLS path will pick that up as part of the
+  partial-read state machine work that lands alongside
+  `_wings_serve_one_request`-style splitting.
+- **Client-cert verification (mTLS).** The TLS context is
+  configured for server-auth-only today. Adding `SSL_CTX_set_verify`
+  + CA bundle loading is a small follow-up.
+- **HTTP/2 + ALPN.** The framework speaks HTTP/1.1 over TLS;
+  HTTP/2 negotiation via ALPN is a future addition.
+
+---
+
+# ORM (lib/orm)
+Source: https://tulparlang.dev/ecosystem/orm/
+
+Active-Record style helpers over the embedded SQLite. orm_open / define_model / orm_create / orm_find / orm_all / orm_where / orm_update / orm_delete.
+
+`lib/orm.tpr` is a tiny Active-Record style mini-ORM that turns
+verbose `db_execute` / `db_query` calls into something that reads
+like the rest of your code.
+
+```tulpar
+
+orm_open("app.db");
+
+define_model("users", {
+    "id":   "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "name": "TEXT NOT NULL",
+    "age":  "INTEGER"
+});
+
+int id = orm_create("users", {"name": "Hamza", "age": 23});
+json u = orm_find("users", id);
+print(u["name"]);  // "Hamza"
+
+orm_update("users", id, {"age": 24});
+array adults = orm_where("users", "age >= 18");
+orm_delete("users", id);
+
+orm_close();
+```
+
+## Model definition
+
+`define_model(table, columns)` registers a table + creates it on disk
+with `CREATE TABLE IF NOT EXISTS`. The `columns` map preserves insertion
+order so the generated DDL matches what you typed:
+
+```tulpar
+define_model("posts", {
+    "id":         "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "user_id":    "INTEGER NOT NULL",
+    "title":      "TEXT NOT NULL",
+    "body":       "TEXT",
+    "created_at": "TEXT DEFAULT (datetime('now'))"
+});
+```
+
+The values are SQL type clauses passed verbatim — anything SQLite
+accepts in a `CREATE TABLE` column position works (`INTEGER`, `TEXT`,
+`REAL`, `BLOB`, `PRIMARY KEY`, `NOT NULL`, `DEFAULT (...)`, `REFERENCES
+other(id)`, …).
+
+## CRUD reference
+
+| Function                                   | Returns          | Notes                                              |
+| ------------------------------------------ | ---------------- | -------------------------------------------------- |
+| `orm_open(path)`                           | `int` handle     | `:memory:` works for tests.                        |
+| `orm_close()`                              | —                |                                                    |
+| `define_model(table, columns)`             | —                | Idempotent (uses `CREATE TABLE IF NOT EXISTS`).    |
+| `orm_create(table, attrs)`                 | `int` last id    | Truthy values only — pass `0` / `""` outside the dict. |
+| `orm_find(table, id)`                      | `json` row or `{}` |                                                  |
+| `orm_all(table)`                           | `array<json>`    | Full table dump.                                    |
+| `orm_where(table, where_sql)`              | `array<json>`    | `where_sql` is a raw fragment — sanitise input!    |
+| `orm_update(table, id, attrs)`             | `int` 1/0        | Only changes columns present in `attrs`.            |
+| `orm_delete(table, id)`                    | `int` 1          |                                                    |
+
+## SQL escaping
+
+Identifier and value escaping are both built in:
+
+- Idents go through `_orm_quote_ident` (`"col"` with `"` doubled).
+- Values go through `_orm_quote_value` — every value is rendered as a
+  single-quoted string with `'` doubled. SQLite coerces string ↔ numeric
+  on `INSERT` for typed columns, so you don't need separate `int` /
+  `float` paths.
+
+This is "safe by default" for the create / find / all / update / delete
+paths. The `orm_where(table, where_sql)` helper does **not** escape its
+SQL fragment — that's the explicit escape hatch for queries you want to
+build by hand. Sanitise user input before passing it through.
+
+## Wings + ORM example
+
+A four-route REST API in 30 lines:
+
+```tulpar
+
+orm_open("app.db");
+define_model("posts", {
+    "id":    "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "title": "TEXT NOT NULL",
+    "body":  "TEXT"
+});
+
+func list_posts()   { return orm_all("posts"); }
+func show_post()    { return orm_find("posts", toInt(_request["params"]["id"])); }
+func create_post()  {
+    int id = orm_create("posts", _request["body"]);
+    return orm_find("posts", id);
+}
+func delete_post()  {
+    orm_delete("posts", toInt(_request["params"]["id"]));
+    return {"ok": 1};
+}
+
+get("/posts",      "list_posts");
+get("/posts/:id",  "show_post");
+post("/posts",     "create_post");
+del("/posts/:id",  "delete_post");
+
+listen_async(8080);
+```
+
+## Roadmap
+
+- Typed query builder (`Posts.where("user_id", "=", 1).limit(10)`).
+- Migrations / schema versioning.
+- Eager-load joins (`orm_with("posts", "user")`).
+- Prepared statement reuse — currently every call rebuilds the SQL.
+
+---
+
+# Package Manager
+Source: https://tulparlang.dev/ecosystem/package-manager/
+
+tulpar pkg, tulpar.toml manifest format, tulpar.lock lockfile, and the path / url / registry version specs.
+
+`tulpar pkg` is the built-in package manager for Tulpar. It manages
+project dependencies via a small TOML manifest (`tulpar.toml`) and
+writes a deterministic lockfile (`tulpar.lock`) on every install so
+your `tulpar_modules/` tree is reproducible across machines.
+
+The official package registry lives at
+[**pkg.tulparlang.dev**](https://pkg.tulparlang.dev) — point
+`[registry] url` there in your manifest to install community packages.
+
+## Quick start
+
+```bash
+# Inside an empty project directory
+tulpar pkg init my-api
+
+# Add a local-path dependency (development)
+tulpar pkg add greeter@path:../greeter
+
+# Add a single-file URL dependency
+tulpar pkg add lodash@url:http://my-cdn/lodash.tpr
+
+# Add a semver-style registry dependency (requires [registry] url in tulpar.toml)
+tulpar pkg add wings@1.2.3
+
+# Vendor everything into ./tulpar_modules
+tulpar pkg install
+```
+
+After `tulpar pkg install`, the consumer can `import "greeter"` and the
+runtime resolves it from `tulpar_modules/greeter/greeter.tpr`.
+
+## Manifest format
+
+`tulpar.toml` is a deliberately tiny TOML subset — string values only,
+top-level keys plus `[registry]` and `[dependencies]` tables.
+
+```toml
+name = "my-api"
+version = "0.1.0"
+description = "Tulpar HTTP API example"
+author = "Hamza"
+license = "MIT"
+
+[registry]
+url = "https://api.pkg.tulparlang.dev"   # the API base; this is also the default
+
+[dependencies]
+wings          = "1.2.3"                       # registry
+greeter        = "path:../greeter"             # local sibling dir
+lodash         = "url:http://cdn/lodash.tpr"   # single-file URL
+```
+
+## Version specs
+
+| Form                        | Meaning                                                    |
+| --------------------------- | ---------------------------------------------------------- |
+| `path:./local/dir`          | Recursively copy `*.tpr` from a local directory.           |
+| `url:http://example.com/x.tpr` | Plain HTTP fetch of a single `.tpr` file.               |
+| `1.2.3`                     | Exact version from the registry.                           |
+| `^1.2.3` / `~1.2.3`         | Semver range — caret (within major) / tilde (within minor).|
+| `>=1.0,<2.0` / `*` / `latest` | Comparator/compound range, or highest published version. |
+
+For an exact version Tulpar hits the registry directly. For a **range**
+(`^`, `~`, a `<`/`>`/`=` comparator, a comma-compound, or `*`/`latest`) it
+first fetches the package's published versions from
+`<registry>/v1/packages/<name>`, picks the highest one that satisfies the
+range, then downloads
+`<registry>/v1/packages/<name>/versions/<version>/source`.
+
+A registry version spec requires a registry URL — `[registry] url = "..."`
+in the manifest, the `--registry` flag, or the `TULPAR_REGISTRY` env var
+(default `https://api.pkg.tulparlang.dev`). `https://` URLs require Tulpar to
+be built with OpenSSL (`pacman -S mingw-w64-x86_64-openssl` on MSYS2).
+
+## Lockfile
+
+After every successful `pkg install`, Tulpar writes `tulpar.lock` next
+to your manifest:
+
+```toml
+# tulpar.lock — auto-generated by `tulpar pkg install`.
+# DO NOT EDIT. Commit alongside tulpar.toml so re-installs are reproducible.
+
+[resolved]
+wings   = "https://api.pkg.tulparlang.dev/v1/packages/wings/versions/1.2.3/source"
+greeter = "path:../greeter"
+lodash  = "url:http://cdn/lodash.tpr"
+```
+
+The lockfile records the **fully resolved URL or path** plus a **SHA-256**
+of the downloaded bytes for each dependency, so a re-install on another
+machine fetches the exact same bytes — even if the registry's `latest`
+pointer moves. A re-install that finds the same URL serving a different
+SHA-256 than the lockfile records is refused rather than silently
+overwritten.
+
+## Module resolution
+
+When the AOT compiler sees `import "name"`, it tries (in order):
+
+1. The embedded standard library (`wings`, `router`, `http_client`, `orm`, `test`, …).
+2. A bundle-local sibling — `<importing-file's-dir>/name.tpr` — so a multi-file package's internal imports resolve to its own files.
+3. The literal path `./name`.
+4. The literal path with `.tpr` appended (`./name.tpr`).
+5. `./tulpar_modules/<name>/<name>.tpr` — the vendored entry-point convention.
+6. `./tulpar_modules/<name>.tpr` — single-file vendor.
+
+That ordering means the embedded stdlib names (`wings`, `orm`, …) always win
+— you can't shadow `wings` with a local `wings.tpr` — and a vendored package
+in `tulpar_modules/` is the fallback for everything else.
+
+## Subcommands
+
+| Command                                | Effect                                                       |
+| -------------------------------------- | ------------------------------------------------------------ |
+| `tulpar pkg init [name]`               | Create a starter `tulpar.toml` (refuses to overwrite).       |
+| `tulpar pkg list`                      | Print package metadata + dependencies.                       |
+| `tulpar pkg add <name>[@<ver-spec>]`   | Add or update a manifest dependency line.                    |
+| `tulpar pkg remove <name>`             | Drop a manifest dependency line.                             |
+| `tulpar pkg install`                   | Vendor every dep into `tulpar_modules/` + write `tulpar.lock`. |
+| `tulpar pkg search <query>`            | Search the registry catalog by name/description.            |
+| `tulpar pkg info <name>`               | Print a package's registry metadata + published versions.   |
+| `tulpar pkg publish [--dry-run]`       | Bundle the project's sources and POST them to the registry. |
+
+## Publishing
+
+Packages on `pkg.tulparlang.dev` are published from **public GitHub
+repositories** — the registry fetches and caches your source at a ref you pin,
+so what installs is immutable and independent of GitHub's uptime. There are two
+ways to publish:
+
+- **From a GitHub repo (recommended, self-serve)** — for anyone with an approved
+  account. You point the registry at your public repo + ref and it fetches the
+  source.
+- **Bundle upload via the CLI** — `tulpar pkg publish`, owner/maintainer-level
+  (bearer token). Uploads your project's `.tpr` sources directly.
+
+Either way, **every new package version is reviewed by the registry owner**
+before it appears in the public catalog.
+
+### 1. Create an account
+
+Go to [pkg.tulparlang.dev](https://pkg.tulparlang.dev) and either:
+
+- **Sign in with GitHub** (recommended) — links your GitHub identity, which is
+  required to publish a repo; or
+- **Register with email + password**.
+
+New accounts start in a **pending** state.
+
+### 2. Get approved
+
+The registry owner reviews new accounts and approves or rejects them. You can
+sign in and see your status on your
+[account page](https://pkg.tulparlang.dev/account), but you can't publish until
+you're **approved** — this keeps the catalog curated.
+
+### 3. Prepare your repo
+
+Your package lives in a **public GitHub repo you own**. At the ref you publish
+(a tag, branch, or commit), the repo must contain the package's **entry file**:
+
+- By default, `<name>.tpr` at the repo root (e.g. `wings_jwt.tpr`), or
+- any path you pass as `entry` (e.g. `src/mypkg.tpr`).
+
+Tag a release so the ref is stable:
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+### 4. Publish from the web
+
+Sign in, then open
+[pkg.tulparlang.dev/publish](https://pkg.tulparlang.dev/publish) and fill in:
+
+| Field        | Example             | Notes                                            |
+| ------------ | ------------------- | ------------------------------------------------ |
+| Package name | `my_pkg`            | The name users `tulpar pkg add`.                 |
+| Version      | `1.0.0`             | Semver; immutable once published.                |
+| GitHub repo  | `you/my_pkg`        | `owner/name`; must be **under your GitHub login**. |
+| Ref          | `v1.0.0`            | Tag, branch, or commit SHA.                      |
+| Entry file   | `my_pkg.tpr`        | Optional; defaults to `<name>.tpr`.              |
+| Description  | `One-line summary`  | Optional.                                        |
+
+On submit, the registry fetches
+`https://raw.githubusercontent.com/<repo>/<ref>/<entry>`, caches the bytes, and
+records the version as **pending owner approval**.
+
+### Publish via the API
+
+The web form posts to the registry's HTTP API; you can call it directly with
+your session token (or the owner can use the publish token):
+
+```http
+POST https://api.pkg.tulparlang.dev/v1/publish/github
+Authorization: Bearer <session-or-publish-token>
+Content-Type: application/json
+
+{
+  "name": "my_pkg",
+  "version": "1.0.0",
+  "repo": "you/my_pkg",
+  "ref": "v1.0.0",
+  "entry": "my_pkg.tpr",
+  "description": "One-line summary"
+}
+```
+
+`entry` and `description` are optional. **Ownership:** a non-owner account may
+only publish repos whose owner matches its linked GitHub login
+(case-insensitive); the owner (or a holder of the registry's publish token) may
+publish any repo.
+
+### 5. Approval → public
+
+A freshly published version is **hidden** from the public catalog (and 404s on
+direct fetch) until the owner approves it. Once approved it shows up in
+`tulpar pkg search` and installs with `tulpar pkg add`. Versions are
+**immutable** — a published `(name, version)` is pinned forever; re-publishing
+the same pair returns `409 Conflict`.
+
+### CLI publishing (bundle upload)
+
+The owner/maintainer path bundles every `.tpr` in your project and uploads the
+bytes directly — no GitHub repo needed. Auth is a bearer token (`--token <tok>`
+or `TULPAR_PUBLISH_TOKEN`):
+
+```bash
+export TULPAR_PUBLISH_TOKEN="…"
+tulpar pkg publish --dry-run     # bundle + show what would ship, no upload
+tulpar pkg publish               # POST to <registry>/v1/publish
+```
+
+The registry target follows the same resolution as installs (`--registry` flag
+→ `[registry] url` → `TULPAR_REGISTRY` → the default
+`https://api.pkg.tulparlang.dev`). `--dry-run` skips the POST so you can inspect
+the bundle without a token.
+
+### Errors
+
+| Status | Meaning |
+| ------ | ------- |
+| `401 authentication required` | Not signed in (and no publish token). |
+| `403 account not approved` | Your account is still pending or was rejected. |
+| `403 github_required` | Publishing a repo needs a linked GitHub login — sign in with GitHub. |
+| `403 not_your_repo` | The repo isn't under your GitHub login. |
+| `409 conflict` | `(name, version)` already published — versions are immutable. |
+| `502 fetch_failed` | The registry couldn't fetch the source — check the repo/ref/entry are public and correct. |
+
+## Roadmap
+
+- Private-repo publishing (token-scoped fetch).
+- Multi-file packages from a repo (tarball extract).
+- Package signing (the lockfile already records a SHA-256 per dependency).
+
+---
+
+# Tooling — LSP, Formatter, VS Code
+Source: https://tulparlang.dev/ecosystem/tooling/
+
+tulpar --lsp language server, tulpar fmt formatter, and the official VS Code extension.
+
+Tulpar ships its own editor tooling — no separate "language plugin"
+project to clone, no node-based shim. Three pieces:
+
+1. **`tulpar --lsp`** — a Language Server Protocol implementation in C++
+   that any LSP-aware editor can spawn.
+2. **`tulpar fmt`** — a gofmt-style idempotent formatter.
+3. **VS Code extension** — pre-configured client that wraps both.
+
+## Language Server (`tulpar --lsp`)
+
+Speaks the full LSP base protocol over stdio JSON-RPC. Capabilities
+advertised today:
+
+| Capability                        | What it gives you                                   |
+| --------------------------------- | --------------------------------------------------- |
+| `textDocument/publishDiagnostics` | Parser + codegen errors, structured ranges, did-you-mean hints. |
+| `textDocument/hover`              | Function signatures + leading-comment doc strings (user funcs + 80+ builtins). |
+| `textDocument/completion`         | User functions, builtins, keywords, lib modules.    |
+| `textDocument/definition`         | Jump from a call site to the declaration.           |
+| `textDocument/references`         | Find every call site of a symbol.                   |
+| `textDocument/rename`             | Atomic rename across declaration + every call.      |
+
+Diagnostics use a process-global "structured sink" — the same Rust-style
+caret-and-hint output the CLI prints, but emitted as LSP `Diagnostic`
+objects with proper `range`, `severity`, and `source: "tulpar"`.
+
+## Formatter (`tulpar fmt`)
+
+```bash
+tulpar fmt path/to/file.tpr            # print formatted version to stdout
+tulpar fmt path/to/file.tpr --write    # rewrite the file in place
+```
+
+Two passes:
+
+**Indentation pass** — based on `{` / `}` brace depth. 4-space indent.
+Closing braces line up with their opener. Trailing whitespace stripped.
+Runs of 2+ blank lines collapsed to 1. Exactly one trailing newline.
+
+**Token-spacing pass** — preserves string literal and comment content
+unchanged, normalises everything else:
+
+- `,` and `;`: no space before, exactly one after (unless followed by a closer).
+- `:` (return type / object key): no space before, one after.
+- Binary operators (`+`, `-`, `*`, `/`, `==`, `!=`, `<=`, `>=`, `&&`, `||`, `+=` …): exactly one space on each side.
+- Unary `-`: kept tight (`-x`, `return -1`).
+- `(` and `[`: no padding inside.
+- Keywords: `if(...)` → `if (...)`, `}else{` → `} else {`, `try{}catch(e){}finally{}` all spaced.
+
+Idempotent: `fmt(fmt(s)) == fmt(s)`.
+
+## VS Code extension
+
+Install the bundled `.vsix` (search "Tulpar" once it's on the marketplace):
+
+```bash
+code --install-extension vscode-tulpar-0.3.0.vsix
+```
+
+The extension auto-spawns `tulpar --lsp` per workspace and forwards every
+LSP capability above. It also adds:
+
+- Status bar buttons: ▶ Tulpar Run, 📦 Tulpar Build.
+- Commands: `Tulpar: Run File`, `Tulpar: Build (AOT)`, `Tulpar: Open REPL`, …
+- 30+ snippets covering Wings, ORM, http_client, OpenAPI, regex, datetime, the package manifest, and more.
+- Syntax highlighting for the full Tulpar grammar including the typed-return form.
+
+When you edit `tulpar.executablePath` or toggle `tulpar.diagnostics.enabled`,
+the extension restarts the LSP automatically — no window reload needed.
+
+## Editors other than VS Code
+
+`tulpar --lsp` is a plain stdio LSP server. To use it from Neovim,
+Emacs, JetBrains, Sublime, or anything LSP-aware, point the editor's
+language-client config at `tulpar --lsp` and set the file pattern to
+`*.tpr`. Example for Neovim's built-in LSP:
+
+```lua
+vim.lsp.config('tulpar', {
+  cmd = { 'tulpar', '--lsp' },
+  filetypes = { 'tulpar' },
+  root_markers = { 'tulpar.toml', '.git' },
+})
+vim.lsp.enable('tulpar')
+```
+
+---
+
+# TulparAPI (lib/tulpar_api)
+Source: https://tulparlang.dev/ecosystem/tulpar-api/
+
+A FastAPI-style micro-framework for building JSON APIs in Tulpar — decorators, middleware, response helpers.
+
+`lib/tulpar_api` is a higher-level wrapper over the [Wings HTTP
+server](/ecosystem/http-server/) tuned for the
+JSON-API-with-decorators feel of Python's FastAPI. If Wings is the
+"low-level routing primitives", TulparAPI is the "batteries-included
+defaults".
+
+## Hello, API
+
+```tulpar
+
+
+api_init("Hello API", "1.0.0");
+
+func say_hello(json req) {
+    return api_json_response({
+        "message": "Hello from Tulpar!"
+    });
+}
+
+api_get("/", "say_hello");
+api_run(8080);
+```
+
+`tulpar hello.tpr` and you've got a JSON API on port 8080. No build
+step, no codegen, no extra config files.
+
+## Routes
+
+The four HTTP verbs each have a registration helper. The path supports
+`:param` placeholders the same way Wings does.
+
+| Helper | HTTP method |
+|--------|-------------|
+| `api_get(path, handler_name)` | GET |
+| `api_post(path, handler_name)` | POST |
+| `api_put(path, handler_name)` | PUT |
+| `api_delete(path, handler_name)` | DELETE |
+
+Handler signature: `func name(json req) { ... }` returning a response.
+
+The `req` JSON contains:
+
+- `req["method"]` — `"GET"`, `"POST"`, …
+- `req["path"]` — `"/users/42"`
+- `req["params"]` — path parameters (`req["params"]["id"]` for `:id`)
+- `req["query"]` — parsed query string
+- `req["body"]` — parsed JSON body (POST/PUT only)
+- `req["headers"]` — request headers as JSON
+
+## Response helpers
+
+| Helper | Use it for |
+|--------|------------|
+| `api_json_response(obj)` | 200 with JSON body |
+| `api_json_response_status(obj, status)` | Custom status code with JSON body |
+| `api_success_response(message, data)` | Conventional `{ok, message, data}` envelope, status 200 |
+| `api_error_response(message, status)` | Conventional `{error, message}` envelope, custom status |
+
+## Middleware
+
+`api_use(name)` registers a built-in middleware. The shipping ones:
+
+| Name | Effect |
+|------|--------|
+| `"logger"` | Logs `method path status time_ms` for every request |
+| `"cors"` | Adds permissive `Access-Control-*` headers |
+| `"auth"` | Bearer-token validation (configurable) |
+| `"rate-limit"` | Per-IP throttling |
+
+```tulpar
+api_init("My API", "1.0.0");
+api_use("logger");
+api_use("cors");
+```
+
+## Worked example: user CRUD
+
+```tulpar
+
+
+api_init("User Management API", "1.0.0");
+api_use("logger");
+api_use("cors");
+
+json _users = [];
+int _next_id = 0;
+
+func list_users(json req) {
+    return api_json_response({
+        "users": _users,
+        "count": len(_users)
+    });
+}
+
+func get_user(json req) {
+    int id = toInt(req["params"]["id"]);
+    for (int i = 0; i < len(_users); i++) {
+        if (_users[i]["id"] == id) {
+            return api_json_response(_users[i]);
+        }
+    }
+    return api_error_response("User not found", 404);
+}
+
+func create_user(json req) {
+    _next_id = _next_id + 1;
+    json u = {
+        "id": _next_id,
+        "name": req["body"]["name"],
+        "email": req["body"]["email"]
+    };
+    push(_users, u);
+    return api_json_response_status({
+        "message": "User created",
+        "user": u
+    }, 201);
+}
+
+api_get("/users", "list_users");
+api_get("/users/:id", "get_user");
+api_post("/users", "create_user");
+
+api_run(8080);
+```
+
+`curl http://localhost:8080/users` returns `{"users":[],"count":0}`.
+
+## TulparAPI vs Wings — which to use?
+
+| | Wings | TulparAPI |
+|--|-------|-----------|
+| Style | Low-level primitives | FastAPI-style decorators |
+| Default response shape | You build the HTTP string | JSON envelope helpers |
+| Middleware | Manual mutex pattern | `api_use("name")` |
+| Best for | Custom protocols, fine-grained control | JSON APIs, prototypes |
+
+Both run on the same underlying socket loop and thread model.
+TulparAPI delegates to Wings internally — pick the one that matches
+the layer you want to think at.
+
+---
+
+# Wings Cookbook
+Source: https://tulparlang.dev/ecosystem/wings-cookbook/
+
+Task-oriented Wings recipes — CRUD APIs, auth middleware, dependency injection, JWT authentication, validation, pagination, file uploads, static files, route groups, response models, caching, file downloads, and SQLite-backed APIs.
+
+Short, copy-paste recipes for the things you actually build with
+[Wings](/ecosystem/http-server/). Every snippet below is a complete program —
+drop it in a `.tpr` file and run `tulpar app.tpr`. Each one has been compiled
+and exercised with `curl`, so the request/response shapes are exactly what you
+get.
+
+:::tip
+Routes bind a handler by **name** (`get("/", "index")`), the server starts with
+`serve(port)`, and a handler returns a plain object that becomes
+`200 application/json`. Those three facts cover most of what follows.
+:::
+
+## How do I build a JSON CRUD API?
+
+Keep the data in a global and write to it — Wings auto-persists writes rooted in
+a global, so your in-memory "database" survives across requests.
+
+```tulpar
+
+json _todos = [{"id": 1, "title": "Learn Wings", "done": false}];
+int _next_id = 2;
+
+func list_todos(req) { return ok(_todos); }
+
+func get_todo(req) {
+    int id = toInt(req["params"]["id"]);
+    for (t in _todos) {
+        if (t["id"] == id) { return ok(t); }
+    }
+    return not_found("no such todo");
+}
+
+func create_todo(req) {
+    json body = req["json"];
+    json t = {"id": _next_id, "title": body["title"], "done": false};
+    _next_id = _next_id + 1;
+    push(_todos, t);
+    return created(t);
+}
+
+func delete_todo(req) {
+    int id = toInt(req["params"]["id"]);
+    json kept = [];
+    for (t in _todos) {
+        if (t["id"] != id) { push(kept, t); }
+    }
+    _todos = kept;
+    return no_content();
+}
+
+get("/todos", "list_todos");
+get("/todos/:id", "get_todo");
+post("/todos", "create_todo");
+del("/todos/:id", "delete_todo");
+serve(8080);
+```
+
+```
+GET  /todos      → [{"id":1,"title":"Learn Wings","done":false}]
+POST /todos      → 201 {"id":2,"title":"...","done":false}
+GET  /todos/2    → {"id":2,...}
+GET  /todos/99   → 404 {"error":"no such todo"}
+DELETE /todos/2  → 204
+```
+
+## How do I protect routes with middleware?
+
+`use("fn")` registers a global middleware that runs before every handler.
+Return a response (status set via a helper) to **short-circuit**; return `{}`
+to continue.
+
+```tulpar
+
+func require_token(req) {
+    str auth = req["headers"]["Authorization"];
+    if (auth != "Bearer s3cret") {
+        return unauthorized("valid token required");
+    }
+    return {};
+}
+
+func secret(req) { return ok({"data": "classified"}); }
+
+use("require_token");
+get("/secret", "secret");
+serve(8080);
+```
+
+```
+GET /secret                                → 401
+GET /secret  (Authorization: Bearer x)     → 401
+GET /secret  (Authorization: Bearer s3cret)→ {"data":"classified"}
+```
+
+## How do I do per-route auth (dependency injection)?
+
+When only *some* routes need a guard — and you want the resolved value inside
+the handler — use a dependency. `depends("fn")` attaches it to the
+most-recently-registered route; read the result with `dep("name")`.
+
+```tulpar
+
+func current_user(req) {
+    str t = req["headers"]["Authorization"];
+    if (length(t) == 0) { return unauthorized("token required"); }
+    return {"id": 1, "name": "Ada"};
+}
+
+func profile(req) {
+    json u = dep("current_user");
+    return ok({"hello": u["name"], "uid": u["id"]});
+}
+
+get("/profile", "profile");
+depends("current_user");
+serve(8080);
+```
+
+```
+GET /profile                       → 401
+GET /profile  (Authorization: tok) → {"hello":"Ada","uid":1}
+```
+
+## How do I add JWT authentication?
+
+For a real login flow — issue a token once, then guard every other route with
+it — combine the [`wings_jwt`](https://api.pkg.tulparlang.dev) package (signs
+and verifies tokens) with Wings' built-in `jwt_guard` middleware (checks the
+`Authorization` header on every request and injects the claims into
+`req["jwt"]`). Install the package once:
+
+```bash
+tulpar pkg add wings_jwt
+```
+
+```tulpar
+
+str SECRET = "dev-secret-change-me";   // load from env in real deployments
+
+func login(req) {
+    json b = req["json"];
+    if (b["username"] != "ada" || b["password"] != "s3cret") {
+        return unauthorized("bad credentials");
+    }
+    str token = jwt.sign_ttl({"sub": "1", "role": "admin"}, SECRET, 3600);
+    return ok({"token": token});
+}
+
+func me(req) {
+    return ok({"sub": req["jwt"]["sub"], "role": req["jwt"]["role"]});
+}
+
+post("/login", "login");
+get("/me", "me");
+
+jwt_guard(SECRET);      // protect everything registered above...
+jwt_public("/login");   // ...except this one
+serve(8080);
+```
+
+```bash
+curl localhost:8080/me
+# → 401 (no token)
+
+curl -X POST -d '{"username":"ada","password":"s3cret"}' localhost:8080/login
+# → {"token":"eyJhbGciOiJIUzI1NiIs..."}
+
+curl -H "Authorization: Bearer <token>" localhost:8080/me
+# → {"sub":"1","role":"admin"}
+```
+
+`jwt_guard` wires up a global `use()` middleware, so it runs before *every*
+handler registered — call it last, after all routes it should protect are
+already registered. `jwt_public(path)` exempts a path (exact match, or a
+trailing `*` for a prefix); `/healthz`, `/metrics`, `/docs`, and
+`/openapi.json` are exempt by default. `wings_jwt` and `jwt_guard` speak the
+same wire format (HS256, base64url segments), so a token signed with
+`jwt.sign_ttl` at login verifies cleanly against `jwt_guard` on every
+subsequent request.
+
+## How do I validate the request body?
+
+Attach a schema with `body_schema()`. It runs **before** the handler, so an
+invalid body never reaches your code — it gets an automatic `422` listing every
+offending field.
+
+```tulpar
+
+func register(req) {
+    json b = req["json"];
+    return created({"name": b["name"], "email": b["email"]});
+}
+
+post("/register", "register");
+body_schema({
+    "name":  {"type": "str", "min": 2, "max": 40},
+    "email": {"type": "str", "regex": "^[^@]+@[^@]+$"},
+    "age?":  {"type": "int", "min": 13, "max": 120}   // trailing ? = optional
+});
+serve(8080);
+```
+
+```
+POST {"name":"A","email":"nope"}
+  → 422 {"error":"validation failed",
+         "fields":{"name":"min length 2","email":"must match ^[^@]+@[^@]+$"}}
+POST {"name":"Ada","email":"a@b.io"} → 201
+```
+
+## How do I paginate and filter with query params?
+
+The typed accessors coerce `?page=2&desc=true` with a fallback, so you read
+pagination in one line instead of hand-parsing strings.
+
+```tulpar
+
+json _items = [];
+
+func list_items(req) {
+    int page  = query_int(req, "page", 1);
+    int size  = query_int(req, "size", 10);
+    str sort  = query(req, "sort", "id");
+    bool desc = query_bool(req, "desc", false);
+    return ok({"page": page, "size": size, "sort": sort, "desc": desc});
+}
+
+get("/items", "list_items");
+serve(8080);
+```
+
+```
+GET /items?page=3&size=25&sort=name&desc=true
+  → {"page":3,"size":25,"sort":"name","desc":true}
+```
+
+`query_bool` accepts `1`/`true`/`yes` and `0`/`false`/`no` (case-insensitive).
+
+## How do I accept file uploads?
+
+Read text fields with `form(...)` and files with `uploaded_files(...)`. File
+`data` is the raw bytes (binary-safe), so it round-trips byte-exact.
+
+```tulpar
+
+func upload(req) {
+    str title = form(req, "title", "(untitled)");
+    json saved = [];
+    for (f in uploaded_files(req)) {
+        write_file("./uploads/" + f["filename"], f["data"]);
+        push(saved, {"name": f["filename"], "size": f["size"]});
+    }
+    return created({"title": title, "files": saved});
+}
+
+post("/upload", "upload");
+serve(8080);
+```
+
+```bash
+curl -F 'title=report' -F 'file=@sample.txt' localhost:8080/upload
+# → 201 {"title":"report","files":[{"name":"sample.txt","size":13}]}
+```
+
+## How do I serve static files?
+
+`static(prefix, dir)` mounts a directory as a **404-fallback** — real routes
+always win, static is the catch-all.
+
+```tulpar
+
+func health(req) { return ok({"status": "up"}); }
+
+get("/api/health", "health");
+static("/static", "./public");   // GET /static/app.css → ./public/app.css
+serve(8080);
+```
+
+```
+GET /static/index.html → file contents (text/html)
+GET /static/app.css    → file contents (text/css)
+GET /static/missing.js → 404
+GET /api/health        → {"status":"up"}
+```
+
+Text assets get a correct `Content-Type`; binaries (PNG, etc.) round-trip
+byte-exact. Path traversal (`..`) is rejected.
+
+## How do I version my API?
+
+`group(prefix, fn)` prefixes every route `fn` registers. Groups nest, so you
+can mount `/api/v1` and `/api/v2` side by side.
+
+```tulpar
+
+func v1_users(req) { return ok({"version": "v1", "users": []}); }
+func v2_users(req) { return ok({"version": "v2", "users": []}); }
+
+func api_v1() { get("/users", "v1_users"); }
+func api_v2() { get("/users", "v2_users"); }
+
+group("/api/v1", "api_v1");
+group("/api/v2", "api_v2");
+serve(8080);
+```
+
+```
+GET /api/v1/users → {"version":"v1","users":[]}
+GET /api/v2/users → {"version":"v2","users":[]}
+```
+
+## How do I hide secret fields from the response?
+
+`response_model(schema)` filters successful output down to the declared fields
+— a `password_hash` or internal flag is dropped before serialization, so a
+handler can return its full row without leaking.
+
+```tulpar
+
+func show_user(req) {
+    return ok({"id": 1, "name": "Ada", "email": "ada@x.io",
+               "password_hash": "$2b$...", "_internal": "audit-7"});
+}
+
+get("/users/:id", "show_user");
+response_model({"id": "int", "name": "str", "email": "str"});
+serve(8080);
+```
+
+```
+GET /users/1 → {"id":1,"name":"Ada","email":"ada@x.io"}
+               (password_hash + _internal dropped)
+```
+
+Errors (status ≥ 400) bypass filtering, so a `{"error": ...}` body survives.
+
+## How do I cache a hot endpoint?
+
+For a response that's a pure function of the path (config, version banner),
+`cached_get` serves every hit after the first from a pinned wire buffer —
+skipping handler dispatch and JSON serialization entirely.
+
+```tulpar
+
+func app_config(req) {
+    return ok({"name": "MyApp", "features": ["a", "b"], "version": "3.1.0"});
+}
+
+cached_get("/config", "app_config");
+serve(8080);
+```
+
+Use it only when the output doesn't depend on the request or wall-clock time
+(the cache freezes the first result). There's no invalidation API yet —
+re-caching happens at restart.
+
+## How do I return a CSV (or trigger a file download)?
+
+For a custom content type, return the `_raw` / `_content_type` envelope (a
+plain string body, no JSON wrapping):
+
+```tulpar
+
+func export_csv(req) {
+    str body = "id,name\n1,Ada\n2,Linus\n";
+    return {"_raw": body, "_content_type": "text/csv; charset=utf-8"};
+}
+
+get("/export.csv", "export_csv");
+serve(8080);
+```
+
+When you also need custom headers — a `Content-Disposition` download filename —
+write the full response to the socket yourself and signal `{"_stream": 1}` so
+Wings doesn't wrap it:
+
+```tulpar
+
+func download_csv(req) {
+    str body = "id,name\n1,Ada\n2,Linus\n";
+    json headers = {"Content-Disposition": "attachment; filename=\"users.csv\""};
+    str wire = http_create_response(200, "text/csv; charset=utf-8", body, headers, 0);
+    socket_send(wings_current_fd(), wire);
+    return {"_stream": 1};   // "I already wrote the socket; don't build a response"
+}
+
+get("/download.csv", "download_csv");
+serve(8080);
+```
+
+## How do I back my API with SQLite?
+
+Swap the in-memory global for the [ORM](/ecosystem/orm/): define a model once,
+then `orm_create` / `orm_find` / `orm_all` give you persistent rows.
+
+```tulpar
+
+orm_open("./app.db");
+define_model("users", {
+    "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "name": "TEXT",
+    "email": "TEXT"
+});
+
+func list_users(req) { return ok(orm_all("users")); }
+
+func create_user(req) {
+    json b = req["json"];
+    int id = orm_create("users", {"name": b["name"], "email": b["email"]});
+    return created(orm_find("users", id));
+}
+
+func get_user(req) {
+    json u = orm_find("users", toInt(req["params"]["id"]));
+    if (length(keys(u)) == 0) { return not_found("no such user"); }
+    return ok(u);
+}
+
+get("/users", "list_users");
+post("/users", "create_user");
+get("/users/:id", "get_user");
+serve(8080);
+```
+
+```
+POST /users {"name":"Ada","email":"a@b.io"} → 201 {"id":1,"name":"Ada",...}
+GET  /users                                  → [{"id":1,...}]
+GET  /users/1                                → {"id":1,...}
+```
+
+## Where next?
+
+- [HTTP Server (Wings)](/ecosystem/http-server/) — the full reference: serve
+  modes, the request object, response helpers, OpenAPI, `/docs`, and TLS.
+- [ORM (lib/orm)](/ecosystem/orm/) — models, queries, and updates.
+- [Package Manager](/ecosystem/package-manager/) — publish your Wings app's
+  reusable pieces.
+
+---
+
+# Wings Tutorial — From Zero to a Real App
+Source: https://tulparlang.dev/ecosystem/wings-tutorial/
+
+A guided, three-stage walkthrough that builds real Wings applications — a REST Todo API, a token-auth API with dependency injection, and a SQLite-backed persistent API. Each stage is a complete program you can run.
+
+The [Cookbook](/ecosystem/wings-cookbook/) gives you copy-paste recipes; the
+[HTTP Server reference](/ecosystem/http-server/) lists every function. This
+page is different: it's a **guided tutorial** that builds up three complete
+applications so you learn the language *and* the framework together, one
+concept at a time.
+
+Each stage ships as a runnable file in the repo's `examples/` folder, fully
+commented in Turkish. Open them alongside this page:
+
+| Stage | File | What it teaches |
+| ----- | ---- | --------------- |
+| 1 | `examples/wings_todo_api.tpr`  | REST routing, path params, JSON body, validation, query filters, auto-docs |
+| 2 | `examples/wings_auth_api.tpr`  | Middleware, dependency injection, route groups, response models, status helpers |
+| 3 | `examples/wings_notes_db.tpr`  | SQLite persistence, building safe SQL, surviving restarts |
+
+:::tip[The three facts that cover most of Wings]
+1. A route binds a handler **by name**: `get("/", "index")`.
+2. A handler takes `req` and **returns a plain object** → `200 application/json`.
+3. The server starts with `serve()` (default port `8484`). `/docs` and
+   `/openapi.json` come for free.
+:::
+
+## Stage 1 — A REST Todo API
+
+Start with the smallest thing that's still a *real* API: an in-memory list of
+todos exposed over the five REST verbs.
+
+```tulpar
+
+array _todos  = [];
+int   _next_id = 1;
+
+func seed() {
+    push(_todos, {"id": 1, "title": "Learn Tulpar",  "done": true});
+    push(_todos, {"id": 2, "title": "Write an API",  "done": false});
+    _next_id = 3;
+}
+seed();
+
+// id → index in _todos (-1 = not found). Returning an index is the simplest
+// way to "point at" a row without references.
+func find_index(int id) {
+    for (int i = 0; i < length(_todos); i++) {
+        if (_todos[i]["id"] == id) { return i; }
+    }
+    return -1;
+}
+
+func list_todos(req) {
+    return {"data": _todos, "count": length(_todos)};
+}
+
+func show_todo(req) {
+    int id  = toInt(req.params.id);          // params are always strings → toInt
+    int idx = find_index(id);
+    if (idx < 0) { return not_found(t"todo {id} not found"); }
+    return ok(_todos[idx]);
+}
+
+func create_todo(req) {
+    json body = req.json;                    // body is parsed for you
+    json todo = {"id": _next_id, "title": body["title"], "done": false};
+    push(_todos, todo);
+    _next_id = _next_id + 1;
+    return created(todo);                    // 201 Created
+}
+
+get("/todos",      "list_todos");
+get("/todos/:id",  "show_todo");
+
+post("/todos",     "create_todo");
+body_schema({"title": "str", "done?": "bool"});   // invalid body → 422, never reaches the handler
+
+serve();
+```
+
+Run it and poke at it:
+
+```bash
+tulpar examples/wings_todo_api.tpr
+
+curl http://127.0.0.1:8484/todos
+curl -X POST http://127.0.0.1:8484/todos -d '{"title":"buy milk"}'
+curl http://127.0.0.1:8484/todos/3
+curl -X POST http://127.0.0.1:8484/todos -d '{"oops":1}'   # → 422
+```
+
+### What just happened
+
+- **`req.params.id`** holds the `:id` from the path — always a string, so
+  `toInt(...)` it.
+- **`req.json`** is the request body, already parsed into an object.
+- **`body_schema({...})`** attaches a schema to the route *above* it. A request
+  with a missing/mis-typed field gets a `422` automatically — your handler only
+  ever runs on valid input. The `?` suffix (`"done?"`) marks an optional field.
+- **`ok` / `created` / `not_found`** are thin helpers that set the right status.
+  A handler can also just `return {...}` for a plain `200`.
+- The full example adds `PUT`, `DELETE`, and `?done=&limit=` query filtering via
+  `query_int` / `query_bool`. Visit **http://127.0.0.1:8484/docs** for an
+  auto-generated Swagger UI built from your `body_schema`s.
+
+## Stage 2 — Auth: login, tokens, protected routes
+
+Now make some routes private. The flow is the classic one: *log in, get a
+token, call protected endpoints with it.* Three new ideas carry the weight —
+**dependency injection**, **route groups**, and **response models**.
+
+```tulpar
+
+array _users  = [];
+json  _tokens = {};        // "token-1" → user_id   (a global dict as a store)
+
+func seed() {
+    push(_users, {"id": 1, "username": "ada",  "password": "1234", "role": "user"});
+    push(_users, {"id": 2, "username": "root", "password": "admin","role": "admin"});
+}
+seed();
+
+func user_by_id(int id) {
+    for (u in _users) { if (u["id"] == id) { return u; } }
+    return {};
+}
+
+// A DEPENDENCY: runs before the handler, produces a value — or short-circuits
+// with a response (here 401) so the handler never runs.
+func current_user(req) {
+    str auth = req["headers"]["Authorization"];
+    str prefix = "Bearer ";
+    if (length(auth) <= length(prefix)) {
+        return unauthorized("Bearer token required");
+    }
+    str token = substring(auth, length(prefix), length(auth));
+    if (_wings_has_key(_tokens, token) == false) {
+        return unauthorized("invalid token");
+    }
+    return user_by_id(_tokens[token]);       // becomes dep("current_user")
+}
+
+func login(req) {
+    json body = req.json;
+    for (u in _users) {
+        if (u["username"] == body["username"] && u["password"] == body["password"]) {
+            str token = "token-" + toString(u["id"]);
+            _tokens[token] = u["id"];        // persists across requests (see note)
+            return {"token": token, "role": u["role"]};
+        }
+    }
+    return unauthorized("bad credentials");
+}
+
+func me(req)    { return ok(dep("current_user")); }
+
+func admin(req) {
+    json u = dep("current_user");
+    if (u["role"] != "admin") { return forbidden("admins only"); }
+    return ok({"secret": "launch codes 🔐"});
+}
+
+// group() registers these under a shared "/api" prefix.
+func protected_routes() {
+    get("/me", "me");
+    depends("current_user");                                   // attach DI to the route above
+    response_model({"id": "int", "username": "str", "role": "str"});  // hides "password"
+
+    get("/admin", "admin");
+    depends("current_user");
+}
+
+post("/login", "login");
+body_schema({"username": "str", "password": "str"});
+
+group("/api", "protected_routes");   // → /api/me, /api/admin
+serve();
+```
+
+```bash
+tulpar examples/wings_auth_api.tpr
+
+# 1) log in → get a token
+curl -X POST http://127.0.0.1:8484/login -d '{"username":"ada","password":"1234"}'
+# 2) no token → 401
+curl -i http://127.0.0.1:8484/api/me
+# 3) with token → profile, WITHOUT the password field (response_model)
+curl http://127.0.0.1:8484/api/me -H "Authorization: Bearer token-1"
+# 4) ada is not an admin → 403
+curl http://127.0.0.1:8484/api/admin -H "Authorization: Bearer token-1"
+```
+
+### What just happened
+
+- **`depends("current_user")`** attaches a dependency to the route declared
+  right above it. The dependency runs first; if it returns a response (a dict
+  with a status, like `unauthorized(...)`), the handler is skipped. Otherwise
+  its return value is stashed for **`dep("current_user")`** to read. Auth logic
+  lives in one place instead of being copy-pasted into every handler.
+- **`group("/api", "protected_routes")`** calls your function and prefixes every
+  route it registers with `/api`. `depends` / `response_model` always bind to
+  the **most recently registered** route, so they go directly under their
+  `get`/`post` line.
+- **`response_model({...})`** filters a successful response down to the declared
+  fields — a clean way to keep secrets (`password`) out of the wire.
+
+:::note[A global dict really is a usable store]
+`_tokens[token] = uid` writes into a global object, and that write **survives
+across requests** — so a global dict works as an in-memory session/token/cache
+table. (Arrays behave the same: `push(_global, x)` persists too.) Per-request
+data — the request object, locals, the response you build — is reclaimed after
+each request, so only writes rooted in a global stick around.
+:::
+
+## Stage 3 — Persistence with SQLite
+
+In-memory state vanishes when the process exits. Stage 3 is the **same Todo
+API**, but backed by a real SQLite file — restart the server and your data is
+still there.
+
+```tulpar
+
+// Open the DB once; create the table if it's missing. SQLite has no bool, so
+// "done" is stored as 0/1 and converted back when we read.
+int _db = db_open("notes.db");
+db_execute(_db, "CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0);");
+
+// There are NO parameterised queries — you build SQL by concatenation. So you
+// MUST escape user text: double single quotes and wrap. Integers are made safe
+// with toInt(); never interpolate raw user strings.
+func sql_str(str s) {
+    return "'" + replace(s, "'", "''") + "'";
+}
+
+func row_to_note(json row) {
+    return {"id": toInt(row["id"]), "title": row["title"], "done": (toInt(row["done"]) == 1)};
+}
+
+func list_notes(req) {
+    array rows = db_query(_db, "SELECT * FROM notes ORDER BY id;");
+    array out = [];
+    for (row in rows) { push(out, row_to_note(row)); }
+    return {"data": out, "count": length(out)};
+}
+
+func create_note(req) {
+    json body = req.json;
+    str title_sql = sql_str(body["title"]);     // prepare values, keep the t-string simple
+    db_execute(_db, t"INSERT INTO notes (title, done) VALUES ({title_sql}, 0);");
+    int new_id = db_last_insert_id(_db);
+    array rows = db_query(_db, t"SELECT * FROM notes WHERE id = {toString(new_id)};");
+    return created(row_to_note(rows[0]));
+}
+
+get("/notes",  "list_notes");
+post("/notes", "create_note");
+body_schema({"title": "str", "done?": "bool"});
+
+serve();
+```
+
+```bash
+tulpar examples/wings_notes_db.tpr
+
+curl -X POST http://127.0.0.1:8484/notes -d '{"title":"buy milk"}'
+curl -X POST http://127.0.0.1:8484/notes -d "{\"title\":\"ada's note\"}"   # the quote is escaped, not an injection
+curl http://127.0.0.1:8484/notes
+# Ctrl+C the server, run it again → your notes are STILL there.
+```
+
+### What just happened
+
+- **`db_open(path)`** returns a handle; open it once into a global.
+- **`db_execute(db, sql)`** runs `INSERT`/`UPDATE`/`DELETE` (returns the affected
+  row count); **`db_query(db, sql)`** runs a `SELECT` and returns an array of row
+  objects keyed by column name; **`db_last_insert_id(db)`** gives the new rowid.
+- **Building SQL safely:** there is no `?`-parameter binding, so you assemble SQL
+  strings yourself. Run every piece of user **text** through an escaper like
+  `sql_str` (it doubles `'` → `''`), and pass **numbers** through `toInt`. Prepare
+  the values into locals first so your `t"..."` interpolation stays readable.
+
+## Where to go next
+
+- **[Wings Cookbook](/ecosystem/wings-cookbook/)** — task-oriented recipes:
+  pagination, file uploads, CSV downloads, caching, static files, CORS.
+- **[HTTP Server reference](/ecosystem/http-server/)** — every function, plus
+  middleware, OpenAPI, TLS, and the single-thread vs. pooled serve modes.
+- **[ORM](/ecosystem/orm/)** — a higher-level data layer over SQLite when raw
+  SQL gets repetitive.
+
+---
+
+# Advanced Examples
+Source: https://tulparlang.dev/examples/advanced/
+
+Advanced Tulpar examples covering networking, file I/O, and databases.
+
+:::note
+These examples use **native** features — TCP sockets, SQLite, and the
+filesystem — that aren't bundled in the browser playground. They're shown as
+code; run them with the Tulpar CLI (`tulpar app.tpr`). For runnable in-browser
+snippets, see the [Basic Examples](/examples/basic/).
+:::
+
+## Chat Server
+
+A simple TCP chat server that echoes messages back to the client.
+
+```tulpar
+print("Starting server...");
+
+// Create server socket listening on 127.0.0.1:8080
+int sockfd = socket_server("127.0.0.1", 8080);
+if (sockfd == -1) {
+    print("Failed to start server");
+    return;
+}
+
+print("Server listening on 127.0.0.1:8080");
+
+// Accept a connection
+int client_sock = socket_accept(sockfd);
+if (client_sock == -1) {
+    print("Accept failed");
+    socket_close(sockfd);
+    return;
+}
+
+print("Client connected");
+
+// Receive message
+str msg = socket_receive(client_sock, 1024);
+print("Received: " + msg);
+
+// Send response
+socket_send(client_sock, "Hello from Tulpar Server!");
+
+// Close connections
+socket_close(client_sock);
+socket_close(sockfd);
+print("Server closed");
+```
+
+## Database Management
+
+An example of creating a table, inserting data, and querying it using SQLite.
+
+```tulpar
+print("Opening database...");
+int db = db_open("query_test.db");
+
+if (db != 0) {
+    print("Creating table...");
+    db_query(db, "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT);");
+
+    print("Inserting data...");
+    db_query(db, "INSERT INTO users (name) VALUES ('Tulpar');");
+
+    print("Querying data...");
+    array results = db_query(db, "SELECT * FROM users;");
+
+    print("Results:");
+    print(results);
+
+    print("Closing database...");
+    db_close(db);
+}
+```
+
+For a higher-level data layer, see the [ORM](/ecosystem/orm/) and the
+[Wings Cookbook](/ecosystem/wings-cookbook/) SQLite recipe.
+
+## File Operations
+
+Reading, writing, and modifying files.
+
+```tulpar
+str filename = "test_file.txt";
+
+// Write to file
+write_file(filename, "Hello Tulpar!\nThis is a test file.");
+
+// Check if exists
+if (file_exists(filename)) {
+    // Read content
+    str content = read_file(filename);
+    print("Content:", content);
+
+    // Append data
+    append_file(filename, "\nNew line added.");
+}
+```
+
+---
+
+# Basic Examples
+Source: https://tulparlang.dev/examples/basic/
+
+Learn from example programs written in Tulpar.
+
+## Calculator
+
+**Calculator**
+
+```tulpar
+int a = 10;
+int b = 5;
+
+print("=== TulparLang Calculator ===");
+print("First:", a);
+print("Second:", b);
+
+print("Sum:", a + b);
+print("Difference:", a - b);
+print("Product:", a * b);
+print("Division:", a / b);
+```
+
+> Note: The web Playground does not support interactive input functions like `inputInt` yet.  
+> To test the fully interactive version, run this example with the Tulpar CLI.
+
+## Fibonacci Sequence
+
+**Fibonacci**
+
+```tulpar
+func fibonacci(int n) {
+    if (n <= 1) {
+        return n;
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+print("Fibonacci sequence:");
+for (int i = 0; i < 10; i++) {
+    print("F(" + toString(i) + ") =", fibonacci(i));
+}
+```
+
+## JSON Data Processing
+
+**JSON Data Processing**
+
+```tulpar
+arrayJson users = {
+    "data": [
+        {"name": "Alice", "age": 25, "role": "Developer"},
+        {"name": "Bob", "age": 30, "role": "Designer"},
+        {"name": "Charlie", "age": 35, "role": "Manager"}
+    ]
+};
+
+// Process user data
+for (int i = 0; i < length(users["data"]); i++) {
+    arrayJson user = users["data"][i];
+    str name = user["name"];
+    int age = user["age"];
+    str role = user["role"];
+    
+    print(name, "-", age, "years old -", role);
+}
+```
+
+## String Processing
+
+**String Processing**
+
+```tulpar
+str email = "  HAMZA@EXAMPLE.COM  ";
+
+// Clean and parse email
+str clean = lower(trim(email));
+array parts = split(clean, "@");
+
+if (length(parts) >= 2) {
+    str username = parts[0];
+    str domain = parts[1];
+
+    print("Username:", username);
+    print("Domain:", domain);
+    print("Valid:", contains(domain, "."));
+} else {
+    print("Invalid email:", clean);
+}
+```
+
+## Mathematical Computation
+
+**Math Computation**
+
+```tulpar
+// Calculate circle properties
+float radius = 5.0;
+float pi = 3.14159;
+
+float area = pi * pow(radius, 2.0);
+float circumference = 2.0 * pi * radius;
+
+print("Radius:", radius);
+print("Area:", area);
+print("Circumference:", circumference);
+
+// Random point in circle
+float angle = random() * 2.0 * pi;
+float r = random() * radius;
+float x = r * cos(angle);
+float y = r * sin(angle);
+
+print("Random point: (", x, ",", y, ")");
+```
+
+---
+
+# FAQ
+Source: https://tulparlang.dev/faq/
+
+Frequently asked questions about the Tulpar programming language — what it is, how fast it is, whether it has a VM, and if it's production-ready.
+
+Quick answers about what Tulpar is, how it performs, and how it's built. For
+anything not covered here, the [Getting Started](/intro/getting-started/)
+guide and [Language Reference](/reference/language/) go deeper.
+
+## What is Tulpar?
+
+Tulpar is a statically-typed, **AOT-compiled** programming language with an
+LLVM backend (LLVM 18 through 22). It ships HTTP, JSON, SQLite, an ORM, and
+OpenAPI generation built directly into the runtime, so building an API needs
+no external framework or dependency install.
+
+## How fast is Tulpar?
+
+Tulpar compiles ahead-of-time to a native binary via LLVM, landing at roughly
+**1.37x to 1.9x the runtime of equivalent C** on CPU-bound benchmarks like
+`fib`, and around **36k req/s** on a keep-alive HTTP benchmark using the
+built-in Wings server pool — the same performance class as Go and Rust. See
+[Benchmarks](/ecosystem/benchmarks/) for the full methodology.
+
+## Does Tulpar have a VM, bytecode interpreter, or REPL?
+
+No. Tulpar dropped its bytecode VM and REPL in June 2026 in favor of a single
+AOT/LLVM execution path — the same model C, Rust, and Go use. Running
+`tulpar file.tpr` always AOT-compiles and runs a native binary; there is no
+interpreter fallback, so a successful run means the AOT pipeline genuinely
+ran.
+
+## Is Tulpar free and open source?
+
+Yes. Tulpar is MIT-licensed and developed in the open on
+[GitHub](https://github.com/hamer1818/TulparLang).
+
+## What platforms does Tulpar run on?
+
+Linux, macOS, and Windows (both MSVC and MinGW toolchains). The compiler is
+built with CMake and requires LLVM 18 or newer.
+
+## How do I install Tulpar?
+
+```bash
+curl -fsSL https://tulparlang.dev/install.sh | bash
+```
+
+```powershell
+iwr -useb https://tulparlang.dev/install.ps1 | iex
+```
+
+Prebuilt binaries are also available from the
+[GitHub releases](https://github.com/hamer1818/TulparLang/releases) page. See
+[Installation](/intro/installation/) for details.
+
+## Does Tulpar have a package manager?
+
+Yes — `tulpar pkg`, backed by a `tulpar.toml` manifest and a `tulpar.lock`
+lockfile, with path, URL, and registry dependency specs. See
+[Package Manager](/ecosystem/package-manager/).
+
+## How does Tulpar compare to C, Go, or Rust?
+
+Tulpar targets Python-level ease of syntax with C-class native performance
+via AOT/LLVM compilation, while also including the batteries — HTTP server,
+JSON, SQLite, ORM, and OpenAPI generation — that C, Go, and Rust leave to
+third-party libraries. See [Tulpar vs C](/guide/tulpar-vs-c/) for a
+side-by-side code comparison.
+
+---
+
+# Arrays & JSON
+Source: https://tulparlang.dev/guide/arrays-json/
+
+Learn about arrays and JSON support in Tulpar.
+
+## Arrays
+
+Tulpar supports both mixed-type arrays and type-safe arrays.
+
+```tulpar
+// Type-safe arrays
+arrayInt numbers = [1, 2, 3, 4, 5];
+arrayStr names = ["Ada", "Linus", "Grace"];
+
+// Mixed-type arrays
+array mixed = [1, "two", 3.0];
+
+// Array operations
+int len = length(numbers);
+push(numbers, 6);
+int last = pop(numbers);
+```
+
+## JSON Objects
+
+Tulpar has first-class support for JSON objects.
+
+```tulpar
+// JSON objects
+arrayJson user = {
+    "name": "Hamza",
+    "age": 25,
+    "email": "hamza@example.com"
+};
+
+// Nested objects
+arrayJson company = {
+    "name": "Tech Corp",
+    "ceo": {
+        "name": "Hamza",
+        "contact": {
+            "email": "hamza@techcorp.com"
+        }
+    }
+};
+```
+
+### Accessing Data
+
+You can access data using bracket notation or dot notation.
+
+```tulpar
+// Bracket notation
+str name = user["name"];
+
+// Chained access
+str email = company["ceo"]["contact"]["email"];
+
+// Dot notation
+print(user.name);
+company.ceo.contact.email = "new@email.com";
+```
+
+### JSON Serialization
+
+Tulpar provides built-in functions for JSON serialization and deserialization.
+
+```tulpar
+arrayJson user = { "name": "Ada", "age": 25, "skills": ["C", "Go"] };
+
+// Convert to string
+str js = toJson(user);
+
+// Parse from string
+arrayJson back = fromJson(js);
+```
+
+---
+
+# Async / Await
+Source: https://tulparlang.dev/guide/async/
+
+Cooperative concurrency in Tulpar with async functions, await, sleep_async, gather, and the non-blocking HTTP client.
+
+Tulpar has a built-in **async/await** runtime: a single-threaded,
+cooperative event loop driving stackful coroutines. An `async func`
+returns a *promise* immediately; `await` suspends the current coroutine
+until that promise settles, letting other coroutines run in the
+meantime. This is the same model as JavaScript or Python `asyncio` —
+concurrency without the locking burden of raw OS threads.
+
+:::note
+This is different from [Concurrency (Threads)](/guide/concurrency/).
+Threads (`thread_create`) give you *parallel* OS threads with shared
+memory; async/await gives you *cooperative* single-threaded concurrency
+where tasks interleave only at `await` points. Use async for I/O-bound
+work (timers, HTTP), threads for CPU-bound parallel work.
+:::
+
+:::caution
+The async runtime needs a local install — copy these examples into a
+`.tpr` file and run them with `tulpar file.tpr`. The browser playground
+runs single-threaded WASM and does not host the coroutine scheduler.
+:::
+
+## Your first async function
+
+Mark a function `async` and it becomes a coroutine factory. Calling it
+does **not** run the body — it queues a task and hands you a promise.
+`await` is what actually drives it to a value.
+
+```tulpar
+async func slow_double(int n) {
+    // Non-blocking pause — the scheduler runs other tasks meanwhile.
+    await sleep_async(20);
+    return n * 2;
+}
+
+var p = slow_double(21);   // queued, returns a promise immediately
+int result = await p;      // drive it; suspends here until it settles
+print("slow_double(21) = " + toString(result));   // 42
+```
+
+`await` on a non-promise is the identity function, so `await 5` is just
+`5` — handy when a value might or might not be a promise.
+
+## Concurrency: spawn first, await later
+
+Because calling an `async func` queues the task right away, spawning two
+coroutines *before* awaiting them runs them concurrently. The total time
+is `max(tasks)`, not the sum.
+
+```tulpar
+async func greet(str who) {
+    await sleep_async(10);
+    print("hello " + who);
+    return 1;
+}
+
+// Both tasks are queued, then run concurrently while we await.
+var a = slow_double(21);
+var g = greet("world");
+
+int r = await a;
+await g;
+print("done");
+```
+
+The runtime drains all pending tasks at program exit, so a coroutine you
+spawned but never awaited still gets a chance to finish (Node-style).
+
+## sleep_async — the non-blocking timer
+
+`sleep_async(ms)` returns a promise that settles after `ms`
+milliseconds. Unlike the blocking `sleep(ms)`, it yields control to the
+scheduler, so the 10 ms task below settles before the 20 ms one even
+though it was spawned second:
+
+```tulpar
+async func after(int ms, int val) {
+    await sleep_async(ms);
+    return val;
+}
+
+var slow = after(20, 100);
+var fast = after(10, 1);
+int f = await fast;   // fast first — settles at ~10ms
+int s = await slow;   // ~20ms total, not 30ms
+```
+
+## gather — await many at once
+
+`gather(...)` awaits several promises concurrently and fulfils with an
+array of their results, **in argument order**. Non-promise arguments
+pass through unchanged. Total time is `max(children)`, not the sum.
+
+```tulpar
+async func fetch_user(int id) {
+    await sleep_async(20);
+    return "user-" + toString(id);
+}
+
+async func main_flow() {
+    var results = await gather(fetch_user(1), fetch_user(2), 99);
+    print(results[0]);   // user-1
+    print(results[1]);   // user-2
+    print(toString(results[2]));   // 99 (passed through)
+    return results;
+}
+
+await main_flow();
+```
+
+## Error handling — reject and try/catch
+
+A `throw` that escapes an `async func` **rejects** its promise. Awaiting
+a rejected promise re-raises the thrown value, so you catch it with the
+ordinary [`try` / `catch`](/guide/error-handling/) you'd use for any
+synchronous error:
+
+```tulpar
+async func boom(int n) {
+    await sleep_async(5);
+    throw "boom-" + toString(n);
+}
+
+try {
+    int r = await boom(1);
+    print("unreached");
+} catch (e) {
+    print("caught: " + e);   // caught: boom-1
+}
+```
+
+The rejection propagates across coroutine boundaries. A wrapping `async
+func` can catch a child's rejection with its own `try` / `catch`, and a
+coroutine that catches its own throw fulfils normally:
+
+```tulpar
+async func wrapper() {
+    try {
+        int r = await boom(2);
+        return "no-throw";
+    } catch (e) {
+        return "wrapper-caught: " + e;
+    }
+}
+
+str w = await wrapper();
+print(w);   // wrapper-caught: boom-2
+```
+
+If a child passed to `gather(...)` rejects, the rejection re-raises on
+the `gather` await — so a single `try` / `catch` around the `gather`
+covers every child. An async rejection that nobody awaits, or that
+reaches the top level uncaught, prints `Uncaught Exception` and exits
+with a non-zero status.
+
+## Non-blocking HTTP client
+
+The headline use of async I/O is the **non-blocking HTTP client**.
+`http_request_async(method, url, body)` returns a promise; the request
+runs on a worker pool while the event loop keeps pumping other
+coroutines. The `http_client` library wraps it with the usual verbs:
+
+```tulpar
+
+async func fetch_two(str a, str b) {
+    // Both requests fly concurrently — total time ~ max(a, b).
+    var r = await gather(http_get_async(a), http_get_async(b));
+    return r;
+}
+
+var out = await fetch_two("http://example.com/a", "http://example.com/b");
+print(toString(out[0]["status"]));   // 200
+print(out[0]["body"]);
+```
+
+The resolved value is the same `{ ok, status, headers, body }` envelope
+as the blocking [`http_get` / `http_post`](/ecosystem/http-client/)
+client. The wrappers are `http_get_async`, `http_post_async`,
+`http_put_async`, and `http_delete_async`. Worker-pool size defaults to
+4; override it with the `TULPAR_HTTP_POOL` environment variable.
+
+## How it works (and its limits)
+
+- **Stackful coroutines, not a state-machine transform.** An `async
+  func` compiles to an ordinary native function; `await` swaps the
+  coroutine's stack back to the scheduler (POSIX `ucontext` / Windows
+  Fibers). This keeps the compiler changes tiny and means you can
+  `await` anywhere — inside loops, `if`s, even across a `try` block.
+- **Single-threaded.** Coroutines never run nested or in parallel; one
+  either runs to completion or yields at an `await`. No locks needed for
+  coroutine-local state.
+- **Exception isolation.** Each coroutine carries its own exception-
+  handler context, so a `try` that spans an `await` works correctly even
+  while sibling coroutines throw and catch independently.
+- **Parameter limit.** `async func` supports up to **16** parameters.
+- **AOT-only.** Like every Tulpar feature, async lives only on the
+  AOT/LLVM path — there is no VM fallback.
+
+## When to reach for async vs threads
+
+| Use async/await | Use [threads](/guide/concurrency/) |
+| --- | --- |
+| I/O-bound work (HTTP, timers) | CPU-bound parallel work |
+| Many concurrent waits, little CPU | A few long-running compute jobs |
+| You want cooperative, lock-free tasks | You need true OS-level parallelism |
+
+For an HTTP server handling many connections, the [Wings](/ecosystem/http-server/)
+listeners already give you thread- and event-based concurrency; reach
+for async/await in client code that fans out to several upstreams.
+
+---
+
+# Concurrency (Threads & Mutexes)
+Source: https://tulparlang.dev/guide/concurrency/
+
+Run work in parallel with thread_create and protect shared state with mutex_lock / mutex_unlock.
+
+Tulpar exposes OS threads directly through three built-in functions:
+`thread_create`, `mutex_create`, and the `mutex_lock` / `mutex_unlock`
+pair. These are real OS threads — each call to `thread_create` spawns
+one, so cooperation with locks is your responsibility. For *cooperative*,
+single-threaded concurrency (non-blocking timers and HTTP), reach for
+[Async / Await](/guide/async/) instead.
+
+:::caution
+The web playground runs single-threaded WASM. The examples on this
+page need a local install — copy them into a `.tpr` file and run with
+`tulpar file.tpr`.
+:::
+
+## Spawning a thread
+
+`thread_create(handler_name, arg)` starts a new thread that calls the
+function named by the first argument, passing it the second argument
+as a single value. The return is a thread id (`int`); pair it with
+`thread_detach(id)` if you do not plan to join.
+
+```tulpar
+func worker(arg) {
+    print("Worker running with arg =", arg);
+}
+
+int t = thread_create("worker", 42);
+thread_detach(t);
+```
+
+The handler is looked up by **name** (string) the first time it runs
+and cached, so it must be a top-level function the AOT pipeline
+exported (the default for any `func` declaration).
+
+## Protecting shared state
+
+A counter mutated from multiple threads is the canonical race. Wrap
+the read-modify-write region in `mutex_lock` / `mutex_unlock`:
+
+```tulpar
+int counter = 0;
+int mu = mutex_create();
+
+func bump(arg) {
+    mutex_lock(mu);
+    counter = counter + 1;
+    mutex_unlock(mu);
+}
+
+for (int i = 0; i < 100; i++) {
+    int t = thread_create("bump", i);
+    thread_detach(t);
+}
+
+sleep(100);   // give the threads a moment to finish
+print("counter =", counter);
+```
+
+Hold the lock for the **shortest** region you can — typically only the
+write to shared state. The HTTP server in `lib/wings.tpr` uses exactly
+this pattern: it locks around handler dispatch and unlocks before the
+response is built and sent.
+
+## A worked example: threaded HTTP server
+
+`lib/wings.tpr` (the `Wings` framework) accepts new TCP connections in
+its main loop, then hands each connection to a worker thread. The core
+idiom looks like this:
+
+```tulpar
+
+
+func handle_root() {
+    return wings_text("hello from " + toString(thread_id()));
+}
+
+get("/", "handle_root");
+listen(8080);   // wings spawns one thread per connection internally
+```
+
+See [HTTP Server (Wings)](/ecosystem/http-server/) for the full
+framework — the threading happens inside `listen`, you don't have to
+wire it up yourself for the common case.
+
+## Rules of thumb
+
+- **Pass small values.** `thread_create` takes a single arg. For more
+  context, pack it into a `arrayJson` and unbox in the worker.
+- **Lock around shared writes only.** Reads of immutable data don't
+  need a lock; use one mutex per resource, not one global lock.
+- **Detach if you don't join.** A leaked thread handle is a real OS
+  thread that will never be reclaimed.
+- **Sleep is not synchronization.** `sleep(ms)` is for pacing, not for
+  waiting on a condition. Use a mutex + a flag the worker sets.
+
+## Async / await (cooperative coroutines)
+
+Separate from OS threads, Tulpar has **`async` / `await`** for cooperative
+concurrency on a single thread (added in v3.0.0). An `async func` returns a
+**promise** immediately; `await` suspends the caller until that promise
+settles, letting other coroutines run in the meantime.
+
+```tulpar
+async func slow_double(int n) {
+    await sleep_async(20);   // non-blocking pause — other tasks run
+    return n * 2;
+}
+
+async func greet(str who) {
+    await sleep_async(10);
+    print("hello " + who);
+    return 1;
+}
+
+// Spawn two coroutines; they run concurrently while we await.
+var a = slow_double(21);
+var g = greet("world");
+
+int result = await a;        // 42
+await g;
+print("done");
+```
+
+`greet` (10 ms timer) finishes **before** `slow_double` (20 ms) even though
+`slow_double` was spawned and awaited first — proof the two coroutines
+interleave rather than block.
+
+### How it works
+
+- **`async func`** compiles to a coroutine. Calling it spawns the task and
+  returns a pending promise; the body does not run until the event loop
+  pumps it (on the next `await` or at program exit).
+- **`await expr`** — if `expr` is a promise, suspend until it settles and
+  yield its value; inside a coroutine this hands control to the scheduler,
+  on the main thread it drives the loop until ready. `await` on a plain
+  value is the identity (`await 5 == 5`).
+- **`sleep_async(ms)`** returns a promise that fulfils after `ms`
+  milliseconds **without blocking** — unlike `sleep(ms)`, which blocks. Use
+  `await sleep_async(ms)` for non-blocking delays.
+- The runtime **drains all pending tasks at program exit**, so a
+  spawned-but-unawaited coroutine still completes (Node-style).
+
+A coroutine can await another coroutine, so you can compose async functions:
+
+```tulpar
+async func inc(int x) { await sleep_async(2); return x + 1; }
+async func chain(int x) {
+    int a = await inc(x);
+    int b = await inc(a);
+    return b;
+}
+print(await chain(40));   // 42
+```
+
+:::note
+`async`/`await` is an **AOT** feature (the default `tulpar run` / `tulpar
+build`). It is backed by a stackful-coroutine event loop, not a
+state-machine transform. `async`/`await` are reserved keywords.
+:::
+
+:::caution
+Threads (`thread_create`) and `async`/`await` are different tools: threads
+are real OS threads for parallelism; `async` is single-threaded cooperative
+scheduling for overlapping waits (timers, and—soon—async I/O). Don't mix a
+coroutine's `await` with blocking `sleep` inside the same task.
+:::
+
+---
+
+# Control Flow
+Source: https://tulparlang.dev/guide/control-flow/
+
+Learn about control flow statements in Tulpar.
+
+## If-Else Statements
+
+**If / Else**
+
+```tulpar
+int age = 18;
+
+if (age >= 18) {
+    print("Adult");
+} else {
+    print("Minor");
+}
+
+// Logical operators
+if (age >= 18 && age < 65) {
+    print("Working age");
+}
+```
+
+## Ternary Operator
+
+`cond ? then : else` is the expression form of if/else — it **produces a value**,
+so you can use it inline in an assignment, a function argument, or a `return`.
+Only the chosen branch is evaluated (lazy), so a side effect in the untaken
+branch never fires.
+
+**Ternary**
+
+```tulpar
+int age = 20;
+str status = age >= 18 ? "adult" : "minor";
+print(status);                       // adult
+
+// Nesting is right-associative — a clean grade ladder
+func grade(int s) {
+    return s >= 90 ? "A" : s >= 80 ? "B" : s >= 70 ? "C" : "F";
+}
+print(grade(85));                    // B
+
+// Works inline as a function argument
+func abs(int n) { return n < 0 ? 0 - n : n; }
+print(abs(0 - 42));                  // 42
+```
+
+It binds looser than every other operator (including `&&` / `||`), so
+`a + b > 4 ? x : y` parses as `((a + b) > 4) ? x : y`, and
+`a ? b : c ? d : e` parses as `a ? b : (c ? d : e)`.
+
+## While Loop
+
+**While Loop**
+
+```tulpar
+int i = 0;
+while (i < 10) {
+    print(i);
+    i++;
+}
+```
+
+## For Loop
+
+Tulpar supports both C-style for loops and for-each loops:
+
+**For Loops**
+
+```tulpar
+// C-style for loop
+for (int i = 0; i < 10; i++) {
+    print("i =", i);
+}
+
+// For-each with range
+for (i in range(10)) {
+    print("i =", i);
+}
+```
+
+## Match Expressions
+
+`match` is a Rust-style pattern match. Unlike a C `switch`, it is an
+**expression** — it produces a value, so you can assign it directly. Each arm
+is `pattern => body`; `_` is the catch-all wildcard. Arms support single
+literals, `|`-alternatives, and inclusive `lo .. hi` ranges.
+
+**Match as an expression**
+
+```tulpar
+func grade(int score) {
+    return match score {
+        90 => "A",
+        80 => "B",
+        70 => "C",
+        _  => "F"
+    };
+}
+
+print(grade(90));   // A
+print(grade(55));   // F  (no literal matched, fell through to _)
+```
+
+Patterns can match a set of values or a range. The subject is evaluated once,
+and the first matching arm wins:
+
+**Alternatives and ranges**
+
+```tulpar
+func bucket(int n) {
+    return match n {
+        0          => "zero",
+        1 | 2 | 3  => "small",
+        10 .. 20   => "teens",
+        _          => "big"
+    };
+}
+
+print(bucket(2));    // small
+print(bucket(15));   // teens
+print(bucket(99));   // big
+```
+
+`match` also works in statement position with block arms, and the subject may
+be any expression (int, string, or bool):
+
+**Statement-position match**
+
+```tulpar
+str cmd = "stop";
+match cmd {
+    "go"   => { print("moving"); },
+    "stop" => { print("halted"); },
+    _      => { print("idle"); }
+}
+```
+
+:::note
+v1 patterns match scalar values (int / string / bool). Struct/array
+destructuring patterns are planned for a later release.
+:::
+
+---
+
+# Error Handling
+Source: https://tulparlang.dev/guide/error-handling/
+
+Throw, catch, and clean up exceptions in Tulpar with try / catch / finally.
+
+Tulpar uses familiar `try` / `catch` / `finally` blocks combined with the
+`throw` statement. Anything you can store in a variable can be thrown —
+strings, numbers, JSON objects.
+
+## Basic try / catch
+
+A `throw` inside a `try` block transfers control immediately to the
+matching `catch` clause. The thrown value is bound to the catch
+parameter (`e` below).
+
+**Throw and catch**
+
+```tulpar
+try {
+    print("Inside try block");
+    throw "This is an error!";
+    print("This should NOT print");
+} catch (e) {
+    print("Caught exception: " + e);
+}
+print("After try-catch");
+```
+
+## Throwing structured errors
+
+You aren't limited to strings — throwing a JSON object is the common way
+to attach a `code`, a `message`, and any extra context the caller needs.
+
+**Object throw**
+
+```tulpar
+try {
+    arrayJson error = {
+        "message": "Something went wrong",
+        "code": 500
+    };
+    throw error;
+} catch (err) {
+    print("Caught error object:");
+    print("Message: " + err["message"]);
+    print("Code: " + toString(err["code"]));
+}
+```
+
+## finally — always run cleanup
+
+`finally` runs whether the `try` block completed normally, threw, or
+the `catch` itself re-threw. Use it for releasing files, sockets, or
+mutexes — anything that must execute regardless of the exit path.
+
+**finally always runs**
+
+```tulpar
+try {
+    print("Try block executing");
+    throw "Error with finally";
+} catch (e) {
+    print("Caught: " + e);
+} finally {
+    print("Finally block - always executes");
+}
+```
+
+When no exception is thrown, `catch` is skipped but `finally` still
+runs:
+
+**No exception path**
+
+```tulpar
+try {
+    print("Try block - no error");
+    int x = 5 + 3;
+    print("Result: " + toString(x));
+} catch (e) {
+    print("This should NOT print");
+} finally {
+    print("Finally runs anyway");
+}
+```
+
+## When to use it
+
+Tulpar does not use exceptions for normal control flow — the standard
+library returns sentinel values (`-1`, empty strings, JSON `null`) for
+expected failure paths. Reserve `throw` / `catch` for genuine
+error conditions that the caller cannot reasonably anticipate, such as:
+
+- I/O failures that escaped a higher-level retry loop
+- Programmer errors detected at runtime (bad input shape, contract
+  violations)
+- Wrapping panics from native code or third-party modules
+
+---
+
+# Functions
+Source: https://tulparlang.dev/guide/functions/
+
+Learn how to define and use functions in Tulpar.
+
+## Definition
+
+Functions are defined using the `func` keyword:
+
+```tulpar
+// Function definition
+func add(int a, int b) {
+    return a + b;
+}
+```
+
+## Recursion
+
+Tulpar supports recursive functions:
+
+```tulpar
+// Recursive function
+func fibonacci(int n) {
+    if (n <= 1) {
+        return n;
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+```
+
+## Calling Functions
+
+```tulpar
+// Function call
+int sum = add(5, 3);
+int fib = fibonacci(10);
+```
+
+## Lambdas
+
+Lambdas are anonymous functions written with the `=>` arrow. The body can be
+a single expression or a block. Store them in a variable and call them, or
+pass them around as values:
+
+```tulpar
+// Expression body
+var add = (int a, int b) => a + b;
+print(add(2, 3));            // 5
+
+// Block body
+var square = (int x) => { return x * x; };
+print(square(5));           // 25
+
+// Immediately invoked
+int r = ((int a, int b) => a + b)(3, 4);   // 7
+```
+
+## Closures
+
+A lambda (or nested function) captures variables from the scope where it is
+defined. The captured variables live on past the enclosing function's return,
+and mutations are shared — so you can build counters, accumulators, and
+factories:
+
+```tulpar
+// Factory: each adder captures its own `n`
+func make_adder(int n) {
+    return (int x) => n + x;
+}
+
+var add10 = make_adder(10);
+var add100 = make_adder(100);
+print(add10(5));    // 15
+print(add100(5));   // 105  (independent captures)
+
+// Mutating capture: a counter
+func make_counter() {
+    int count = 0;
+    return () => {
+        count = count + 1;
+        return count;
+    };
+}
+
+var tick = make_counter();
+print(tick());   // 1
+print(tick());   // 2
+print(tick());   // 3
+```
+
+:::note
+Lambdas and closures are fully supported on the AOT path (the default
+`tulpar run` / `tulpar build`). Capture works for parameters and locals across
+any nesting depth.
+:::
+
+---
+
+# Modules & Imports
+Source: https://tulparlang.dev/guide/modules/
+
+Learn how to organize your Tulpar code with modules and imports.
+
+## Importing Files
+
+You can include other Tulpar files using the `import` keyword. This allows you to reuse code and organize your project.
+
+```tulpar
+// Import a file
+
+
+// Use functions from the imported file
+int result = topla(10, 20);
+print("Result:", result);
+```
+
+## Shared State
+
+Imported files share the same global state. Variables defined in an imported file are accessible in the importing file.
+
+**Shared State**
+
+```tulpar
+// In utils.tpr
+float PI = 3.14159;
+
+// In main.tpr
+
+print("PI:", PI);
+```
+
+---
+
+# Structs
+Source: https://tulparlang.dev/guide/structs/
+
+Learn how to define and use custom types (structs) in Tulpar.
+
+## Defining Structs
+
+You can define custom data types using the `type` keyword.
+
+```tulpar
+// Type definition with default values
+type Person {
+    str name;
+    int age;
+    str city = "London";
+}
+```
+
+## Creating Instances
+
+You can create instances of your struct using a constructor-like syntax.
+
+```tulpar
+// Constructor with named arguments
+Person p1 = Person("Alice", 25, "Manchester");
+Person p2 = Person(name: "Bob", age: 30);  // Uses default city
+```
+
+## Accessing Fields
+
+Fields can be accessed and modified using dot notation.
+
+```tulpar
+// Access and modify
+print(p1.name, p1.age);
+p1.city = "Bristol";
+```
+
+## JSON Conversion
+
+Structs can be converted to and from JSON.
+
+```tulpar
+// Convert struct to JSON string
+str jsonStr = toJson(p1);
+
+// Create struct from JSON string
+Person p3 = fromJson("Person", jsonStr);
+```
+
+---
+
+# Syntax & Variables
+Source: https://tulparlang.dev/guide/syntax/
+
+Learn about Tulpar's syntax, data types, and variables.
+
+## Data Types
+
+Tulpar supports the following data types:
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `int` | Integer numbers | `int x = 42;` |
+| `float` | Floating-point numbers | `float pi = 3.14;` |
+| `str` | UTF-8 strings | `str name = "Hamza";` |
+| `bool` | Boolean values | `bool flag = true;` |
+| `array` | Mixed-type arrays | `array mix = [1, "text", 3.14];` |
+| `arrayInt` | Type-safe integer arrays | `arrayInt nums = [1, 2, 3];` |
+| `arrayFloat` | Type-safe float arrays | `arrayFloat vals = [1.5, 2.5];` |
+| `arrayStr` | Type-safe string arrays | `arrayStr names = ["Ada", "Linus"];` |
+| `arrayBool` | Type-safe boolean arrays | `arrayBool flags = [true, false];` |
+| `arrayJson` | JSON-like objects | `arrayJson obj = {"key": "value"};` |
+
+## Variables and Constants
+
+Variables are declared with their type:
+
+**Variables**
+
+```tulpar
+// Variable declaration
+int x = 10;
+float y = 3.14;
+str name = "TulparLang";
+bool active = true;
+
+// Compound assignment
+x += 5;   // x = 15
+x *= 2;   // x = 30
+
+// Increment/Decrement
+x++;      // x = 31
+x--;      // x = 30
+```
+
+## Number Literals
+
+Integers can be written in four bases. Underscores are not allowed —
+keep large numbers readable with comments instead.
+
+| Form | Example | Decimal value |
+|------|---------|---------------|
+| Decimal | `255` | 255 |
+| Hexadecimal | `0xFF` | 255 |
+| Octal | `0o755` | 493 |
+| Binary | `0b1010` | 10 |
+
+Floating-point numbers accept the standard C-style forms:
+
+```tulpar
+float pi      = 3.14;
+float small   = 1.0e-5;
+float large   = 6.02e23;
+```
+
+Integers above `i64` range trigger a compile-time warning and are
+clamped to `INT64_MAX` (2^63 − 1).
+
+## Strings & interpolation
+
+Strings are UTF-8 and concatenate with `+`. When either side of `+` is a
+string, the other operand is coerced to its text form automatically —
+`"count: " + 5` is `"count: 5"`, no `toString()` needed.
+
+For readable interpolation, use a **t-string** — prefix a string literal
+with `t` and embed expressions in `{ }`:
+
+```tulpar
+str name = "Hamza";
+int age = 24;
+
+// t-string: expressions in { } are evaluated and stitched in.
+print(t"{name} is {age} years old");
+
+// Any expression works inside the braces.
+int a = 3; int b = 4;
+print(t"sum = {a + b}, bigger = {a > b}");
+
+// Index access (inner quotes are fine):
+json user = {"name": "Ada", "role": "admin"};
+print(t"user {user["name"]} ({user["role"]})");
+
+// A literal brace is written \{ ... \}
+print(t"\{not interpolated\} but {age} is");
+```
+
+A t-string always produces a `str`, even when it is only an
+interpolation (`t"{n}"`). Write a literal brace as `\{` / `\}`. The plain
+`+` concatenation is still available when you prefer it.
+
+## Operator Precedence
+
+Operators are listed from **lowest to highest** precedence. Operators
+on the same row have equal precedence and associate left-to-right
+unless noted.
+
+| Tier | Operators | Associativity |
+|------|-----------|---------------|
+| 1 (lowest) | `=` `+=` `-=` `*=` `/=` | right |
+| 2 | `\|\|` | left |
+| 3 | `&&` | left |
+| 4 | `==` `!=` | left |
+| 5 | `<` `>` `<=` `>=` | left |
+| 6 | `+` `-` (binary) | left |
+| 7 | `*` `/` `%` | left |
+| 8 | `-` (unary), `!` | right |
+| 9 (highest) | `++` `--` (postfix), `()` call, `[]` index, `.` member | left |
+
+Use parentheses when in doubt — they read better than relying on
+precedence rules across more than one tier:
+
+```tulpar
+// Both compile, but the parenthesised form is clearer.
+int score = a + b * c;        // = a + (b * c)
+int score = a + (b * c);
+```
+
+## Comments
+
+Tulpar supports single-line and multi-line comments:
+
+**Comments**
+
+```tulpar
+// Single-line comment
+
+/*
+ Multi-line
+ block comment
+*/
+```
+
+---
+
+# Tulpar vs C Language
+Source: https://tulparlang.dev/guide/tulpar-vs-c/
+
+Compare the Tulpar language with C side by side using practical examples.
+
+## JSON vs Struct Usage
+
+
+  
+**Tulpar**
+
+
+**JSON vs Struct Usage**
+
+```tulpar
+arrayJson user = {"name": "Hamza", "age": 27};
+
+print(user.name);
+print(user.age);
+```
+
+  
+  
+**C Language**
+
+
+```c
+#include <stdio.h>
+
+struct User {
+    const char *name;
+    int age;
+};
+
+int main(void) {
+    struct User user;
+    user.name = "Hamza";
+    user.age = 27;
+
+    printf("%s\n", user.name);
+    printf("%d\n", user.age);
+    return 0;
+}
+```
+
+  
+
+
+## Arrays and Loops
+
+
+  
+**Tulpar**
+
+
+**Arrays and Loops**
+
+```tulpar
+arrayInt numbers = [1, 2, 3, 4, 5];
+
+for (int i = 0; i < length(numbers); i++) {
+    print("Item:", numbers[i]);
+}
+```
+
+  
+  
+**C Language**
+
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int numbers[] = {1, 2, 3, 4, 5};
+    int length_arr = sizeof(numbers) / sizeof(numbers[0]);
+
+    for (int i = 0; i < length_arr; i++) {
+        printf("Item: %d\n", numbers[i]);
+    }
+
+    return 0;
+}
+```
+
+  
+
+
+## String Processing
+
+
+  
+**Tulpar**
+
+
+**String Processing**
+
+```tulpar
+str input = "  TULPAR LANG  ";
+
+str cleaned = lower(trim(input));
+arrayStr parts = split(cleaned, " ");
+
+print("Cleaned:", cleaned);
+print("First word:", parts[0]);
+```
+
+  
+  
+**C Language**
+
+
+```c
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+void trim(char *s) {
+    int start = 0;
+    while (isspace((unsigned char)s[start])) start++;
+
+    int end = strlen(s) - 1;
+    while (end >= start && isspace((unsigned char)s[end])) end--;
+
+    int j = 0;
+    for (int i = start; i <= end; i++) {
+        s[j++] = s[i];
+    }
+    s[j] = '\0';
+}
+
+void lower_str(char *s) {
+    for (int i = 0; s[i] != '\0'; i++) {
+        s[i] = (char)tolower((unsigned char)s[i]);
+    }
+}
+
+int main(void) {
+    char input[] = "  TULPAR LANG  ";
+
+    trim(input);
+    lower_str(input);
+
+    char *first_word = strtok(input, " ");
+
+    printf("Cleaned: %s\n", input);
+    printf("First word: %s\n", first_word);
+    return 0;
+}
+```
+
+  
+
+
+## Input and Error Handling
+
+
+  
+**Tulpar**
+
+
+```tulpar
+int age = inputInt("Enter your age: ");
+
+if (age < 18) {
+    print("Access denied.");
+} else {
+    print("Welcome!");
+}
+```
+
+  
+  
+**C Language**
+
+
+```c
+#include <stdio.h>
+
+int main(void) {
+    int age;
+    printf("Enter your age: ");
+
+    if (scanf("%d", &age) != 1) {
+        printf("Invalid input.\n");
+        return 1;
+    }
+
+    if (age < 18) {
+        printf("Access denied.\n");
+    } else {
+        printf("Welcome!\n");
+    }
+
+    return 0;
+}
+```
+
+---
+
+# Tulpar vs Go
+Source: https://tulparlang.dev/guide/tulpar-vs-go/
+
+Compare the Tulpar language with Go side by side — syntax, arrays, strings, and building an HTTP API without reaching for third-party modules.
+
+Go and Tulpar are both statically-typed, compile to native binaries, and land
+in the same rough performance class. The difference is what ships in the
+box: Go's standard library covers HTTP and JSON but leaves SQLite, an ORM,
+and OpenAPI generation to third-party modules — Tulpar bundles all of it in
+the runtime.
+
+## JSON vs Struct Usage
+
+  
+**Tulpar**
+
+**JSON vs Struct Usage**
+
+```tulpar
+arrayJson user = {"name": "Hamza", "age": 27};
+
+print(user.name);
+print(user.age);
+```
+
+  
+  
+**Go**
+
+```go
+package main
+
+type User struct {
+	Name string
+	Age  int
+}
+
+func main() {
+	user := User{Name: "Hamza", Age: 27}
+
+	fmt.Println(user.Name)
+	fmt.Println(user.Age)
+}
+```
+
+  
+
+## Arrays and Loops
+
+  
+**Tulpar**
+
+**Arrays and Loops**
+
+```tulpar
+arrayInt numbers = [1, 2, 3, 4, 5];
+
+for (int i = 0; i < length(numbers); i++) {
+    print("Item:", numbers[i]);
+}
+```
+
+  
+  
+**Go**
+
+```go
+package main
+
+func main() {
+	numbers := []int{1, 2, 3, 4, 5}
+
+	for _, n := range numbers {
+		fmt.Println("Item:", n)
+	}
+}
+```
+
+  
+
+## String Processing
+
+  
+**Tulpar**
+
+**String Processing**
+
+```tulpar
+str input = "  TULPAR LANG  ";
+
+str cleaned = lower(trim(input));
+arrayStr parts = split(cleaned, " ");
+
+print("Cleaned:", cleaned);
+print("First word:", parts[0]);
+```
+
+  
+  
+**Go**
+
+```go
+package main
+
+	"fmt"
+	"strings"
+)
+
+func main() {
+	input := "  TULPAR LANG  "
+
+	cleaned := strings.ToLower(strings.TrimSpace(input))
+	parts := strings.Split(cleaned, " ")
+
+	fmt.Println("Cleaned:", cleaned)
+	fmt.Println("First word:", parts[0])
+}
+```
+
+  
+
+## HTTP API in One File
+
+This is where the two languages diverge the most. Go's `net/http` handles
+routing, but SQLite access, an ORM, request validation, and OpenAPI/Swagger
+docs each mean picking, importing, and wiring up a separate module. Tulpar's
+`wings` and `orm` are already part of the runtime.
+
+  
+**Tulpar**
+
+```tulpar
+
+orm_open("app.db");
+define_model("users", {
+    "id":   "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "name": "TEXT NOT NULL",
+    "age":  "INTEGER"
+});
+
+func list_users(req)  { return ok(orm_all("users")); }
+func create_user(req) { return created(orm_create("users", req.json)); }
+
+get("/users",  "list_users");
+post("/users", "create_user");
+body_schema({"name": "str", "age?": "int"});   // invalid body → 422, automatically
+
+serve(8080);   // + Swagger UI, /openapi.json, /metrics, /healthz
+```
+
+  
+  
+**Go**
+
+```go
+package main
+
+	"encoding/json"
+	"net/http"
+)
+
+type User struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+	Age  int    `json:"age"`
+}
+
+var users []User
+var nextID = 1
+
+func usersHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		json.NewEncoder(w).Encode(users)
+	case http.MethodPost:
+		var u User
+		json.NewDecoder(r.Body).Decode(&u)
+		u.ID = nextID
+		nextID++
+		users = append(users, u)
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(u)
+	}
+}
+
+func main() {
+	http.HandleFunc("/users", usersHandler)
+	http.ListenAndServe(":8080", nil)
+	// SQLite, an ORM, OpenAPI/Swagger docs, and /metrics aren't in the
+	// standard library — each needs a separate module (database/sql plus
+	// a driver, gorm, swaggo, prometheus/client_golang, ...).
+}
+```
+
+  
+
+See [Wings Tutorial](/ecosystem/wings-tutorial/) for the guided, three-app
+version of the Tulpar side, and [Benchmarks](/ecosystem/benchmarks/) for how
+the two compare on raw HTTP throughput.
+
+---
+
+# Tulpar vs Rust
+Source: https://tulparlang.dev/guide/tulpar-vs-rust/
+
+Compare the Tulpar language with Rust side by side — syntax, arrays, strings, and building an HTTP API without reaching for third-party crates.
+
+Rust and Tulpar both compile ahead-of-time to native binaries with no VM or
+GC pause, and both land in the same performance class. The trade-off is
+memory model versus batteries: Rust's ownership/borrow checker buys memory
+safety without a garbage collector, but its standard library ships no HTTP
+server, no SQLite bindings, and no ORM — those come from crates like
+`actix-web`, `sqlx`, and `diesel`. Tulpar has no borrow checker, but `wings`
+and `orm` are already part of the runtime.
+
+## JSON vs Struct Usage
+
+  
+**Tulpar**
+
+**JSON vs Struct Usage**
+
+```tulpar
+arrayJson user = {"name": "Hamza", "age": 27};
+
+print(user.name);
+print(user.age);
+```
+
+  
+  
+**Rust**
+
+```rust
+struct User {
+    name: String,
+    age: u32,
+}
+
+fn main() {
+    let user = User { name: "Hamza".to_string(), age: 27 };
+
+    println!("{}", user.name);
+    println!("{}", user.age);
+}
+```
+
+  
+
+## Arrays and Loops
+
+  
+**Tulpar**
+
+**Arrays and Loops**
+
+```tulpar
+arrayInt numbers = [1, 2, 3, 4, 5];
+
+for (int i = 0; i < length(numbers); i++) {
+    print("Item:", numbers[i]);
+}
+```
+
+  
+  
+**Rust**
+
+```rust
+fn main() {
+    let numbers = [1, 2, 3, 4, 5];
+
+    for n in numbers.iter() {
+        println!("Item: {}", n);
+    }
+}
+```
+
+  
+
+## String Processing
+
+  
+**Tulpar**
+
+**String Processing**
+
+```tulpar
+str input = "  TULPAR LANG  ";
+
+str cleaned = lower(trim(input));
+arrayStr parts = split(cleaned, " ");
+
+print("Cleaned:", cleaned);
+print("First word:", parts[0]);
+```
+
+  
+  
+**Rust**
+
+```rust
+fn main() {
+    let input = "  TULPAR LANG  ";
+
+    let cleaned = input.trim().to_lowercase();
+    let parts: Vec<&str> = cleaned.split(' ').collect();
+
+    println!("Cleaned: {}", cleaned);
+    println!("First word: {}", parts[0]);
+}
+```
+
+  
+
+## HTTP API in One File
+
+Rust has no standard-library HTTP server, so even a minimal API reaches for
+a crate like `actix-web` plus `serde` for JSON — and SQLite, an ORM, and
+OpenAPI docs are each further crates (`sqlx`/`diesel`, `utoipa`, ...) on top
+of that. Tulpar's `wings` and `orm` ship in the compiler's own runtime.
+
+  
+**Tulpar**
+
+```tulpar
+
+orm_open("app.db");
+define_model("users", {
+    "id":   "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "name": "TEXT NOT NULL",
+    "age":  "INTEGER"
+});
+
+func list_users(req)  { return ok(orm_all("users")); }
+func create_user(req) { return created(orm_create("users", req.json)); }
+
+get("/users",  "list_users");
+post("/users", "create_user");
+body_schema({"name": "str", "age?": "int"});   // invalid body → 422, automatically
+
+serve(8080);   // + Swagger UI, /openapi.json, /metrics, /healthz
+```
+
+  
+  
+**Rust**
+
+```rust
+use actix_web::{get, web, App, HttpServer, HttpResponse};
+use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
+
+#[derive(Serialize, Deserialize, Clone)]
+struct User {
+    id: u32,
+    name: String,
+    age: u32,
+}
+
+#[get("/users")]
+async fn list_users(users: web::Data<Mutex<Vec<User>>>) -> HttpResponse {
+    HttpResponse::Ok().json(&*users.lock().unwrap())
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    let users = web::Data::new(Mutex::new(Vec::<User>::new()));
+
+    HttpServer::new(move || App::new().app_data(users.clone()).service(list_users))
+        .bind(("0.0.0.0", 8080))?
+        .run()
+        .await
+    // SQLite/ORM (sqlx or diesel), OpenAPI (utoipa), and /metrics
+    // (actix-web-prom) are all separate crates layered on top of this.
+}
+```
+
+  
+
+See [Wings Tutorial](/ecosystem/wings-tutorial/) for the guided, three-app
+version of the Tulpar side, and [Benchmarks](/ecosystem/benchmarks/) for how
+the two compare on raw HTTP throughput.
+
+---
+
+# Getting Started
+Source: https://tulparlang.dev/intro/getting-started/
+
+Write and run your first Tulpar program in under a minute.
+
+This page assumes you've already installed Tulpar — if not, head to
+[Installation](/intro/installation/) for the one-line installer.
+
+## Try it in the browser
+
+You can play with Tulpar directly in this page. Edit the snippet below
+and hit **Run** — no installation required:
+
+**Your First Program**
+
+```tulpar
+// Hello World with UTF-8 support
+str greeting = "Hello, World! 🌍";
+print(greeting);
+
+// Function definition
+func square(int n) {
+    return n * n;
+}
+
+// Usage
+int result = square(5);
+print("5'in karesi:", result);
+```
+
+## Run a file locally
+
+Save the program to a file named `hello.tpr`, then run it from any
+terminal — `tulpar` is on your `PATH` after installation:
+
+```bash
+tulpar hello.tpr
+```
+
+The default `tulpar <file>` invocation AOT-compiles via LLVM and runs
+the resulting native binary. For instant startup at the cost of a small
+runtime overhead, use the bytecode VM instead:
+
+```bash
+tulpar --vm hello.tpr
+```
+
+To produce a standalone native executable you can ship without the
+Tulpar toolchain:
+
+```bash
+tulpar build hello.tpr        # → ./hello (or hello.exe on Windows)
+```
+
+## Interactive REPL
+
+Tulpar also has a Read-Eval-Print Loop. Run the binary with no arguments
+to start it:
+
+```bash
+tulpar --repl
+```
+
+Type expressions or statements and see results immediately. Use
+`Ctrl+D` (Linux/macOS) or `Ctrl+Z` (Windows) to exit.
+
+## Where to go next
+
+- [Syntax & Variables](/guide/syntax/) — types, literals, operators.
+- [Control Flow](/guide/control-flow/) — `if`, `while`, `for`.
+- [Functions](/guide/functions/) — definition, recursion, return.
+- [Examples](/examples/basic/) — runnable sample programs.
+
+---
+
+# Installation
+Source: https://tulparlang.dev/intro/installation/
+
+Install Tulpar in seconds with the one-line installer, or grab a prebuilt binary by hand. No compiler required.
+
+The fastest way to get Tulpar is the one-line installer — no compiler,
+no build tools, no admin rights. The script downloads the latest prebuilt
+release binary, drops it into a per-user location, and wires up your `PATH`.
+
+## One-line install (recommended)
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://tulparlang.dev/install.sh | bash
+```
+
+`tulpar` is installed to `~/.local/bin/tulpar`. If that directory is not
+already on your `PATH`, the installer prints the line to add to your
+shell rc (`~/.bashrc`, `~/.zshrc`, or `~/.profile`).
+
+### Windows (PowerShell)
+
+```powershell
+iwr -useb https://tulparlang.dev/install.ps1 | iex
+```
+
+`tulpar.exe` is installed to `%LOCALAPPDATA%\Programs\Tulpar\tulpar.exe`
+and the directory is added to the user-level `PATH`. **No administrator
+rights required.** Open a new PowerShell or Command Prompt window after
+installation so the updated `PATH` takes effect.
+
+Re-run the same command at any time to upgrade in place.
+
+## Verify the install
+
+In a fresh terminal:
+
+```bash
+tulpar --version
+```
+
+You should see something like `TulparLang v2.1.0.x (LLVM)`.
+
+## Windows GUI installer
+
+Prefer a click-through experience with a Start Menu shortcut and an
+Add/Remove Programs entry? Download
+[`tulpar-setup-windows-x64.exe`](https://github.com/hamer1818/TulparLang/releases/latest)
+from the latest release. Per-user install, no admin rights needed.
+
+## Manual download
+
+To pick a specific version, or download the binary by hand, grab an
+asset from the [releases page](https://github.com/hamer1818/TulparLang/releases/latest):
+
+| Platform                          | Asset                          |
+| --------------------------------- | ------------------------------ |
+| Linux x86\_64                     | `tulpar-linux-x64`             |
+| macOS (Intel + Apple Silicon)     | `tulpar-macos-universal`       |
+| Windows x86\_64 (portable binary) | `tulpar-windows-x64.exe`       |
+| Windows x86\_64 (GUI installer)   | `tulpar-setup-windows-x64.exe` |
+
+On Linux and macOS, mark the binary as executable and place it on
+your `PATH`:
+
+```bash
+chmod +x tulpar-linux-x64
+mv tulpar-linux-x64 ~/.local/bin/tulpar
+```
+
+## Updating
+
+```bash
+tulpar update
+```
+
+Self-updates the installed binary from the latest release. Re-running
+the install one-liner has the same effect.
+
+## Uninstalling
+
+- **Linux / macOS:** `rm ~/.local/bin/tulpar` and (optionally) remove
+  the `PATH` export line from your shell rc.
+- **Windows (one-liner install):** delete the
+  `%LOCALAPPDATA%\Programs\Tulpar\` folder and remove the entry from
+  the User `PATH` via System Properties → Environment Variables.
+- **Windows (GUI install):** uninstall from **Settings → Apps**.
+
+## Build from source
+
+You only need this if you are hacking on the compiler, building for a
+platform we don't ship a binary for, or want a debug build. Most users
+should use the one-liner installer above.
+
+**Prerequisites:** GCC or Clang (C++17), **LLVM 18 or newer** (18 through
+22 are tested), and **CMake 3.14+**. The build needs LLVM's *development*
+tree — headers plus the static libs (`LLVMCore`, `LLVMSupport`, …) — not
+just the `clang` compiler.
+
+#### Install the toolchain
+
+**Ubuntu / Debian:**
+
+```bash
+sudo apt install build-essential cmake llvm-18-dev
+# sanity check: should print 18.x
+llvm-config-18 --version
+```
+
+**Fedora:**
+
+```bash
+sudo dnf install gcc-c++ cmake llvm-devel
+```
+
+**Arch Linux:**
+
+```bash
+sudo pacman -S base-devel cmake llvm
+```
+
+**macOS (Homebrew):**
+
+```bash
+brew install llvm@18 cmake
+```
+
+Homebrew's LLVM is keg-only, so CMake won't find it automatically. Point
+it at the cellar before building:
+
+```bash
+export LLVM_DIR="$(brew --prefix llvm@18)/lib/cmake/llvm"
+export PATH="$(brew --prefix llvm@18)/bin:$PATH"
+```
+
+**Windows:** the official LLVM installer and Chocolatey ship only the
+`clang` compiler — not the static dev libs Tulpar links against. The
+reliable route is **MSYS2** (mingw64):
+
+```bash
+pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake \
+          mingw-w64-x86_64-llvm mingw-w64-x86_64-zlib \
+          mingw-w64-x86_64-zstd mingw-w64-x86_64-libxml2
+```
+
+#### Clone and build
+
+```bash
+git clone https://github.com/hamer1818/TulparLang.git
+cd TulparLang
+```
+
+**Linux / macOS:**
+
+```bash
+./build.sh
+```
+
+**Windows:**
+
+```powershell
+.\build.ps1
+```
+
+`build.bat` / `build.ps1` auto-detect the toolchain: MSVC + a Windows
+LLVM dev tree (`C:\Program Files\LLVM`) if present, otherwise an MSYS2
+mingw64 install (`C:\msys64`).
+
+The result is a `tulpar` (`tulpar.exe` on Windows) executable copied to
+the repository root, plus `libtulpar_runtime.a` (`.lib` on Windows) which
+AOT-compiled user binaries link against.
+
+`build.sh` and `build.ps1` wipe the build directory on every run.
+For incremental rebuilds during development, drive CMake directly:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+```
+
+---
+
+# CLI Reference
+Source: https://tulparlang.dev/reference/cli/
+
+Every tulpar command and flag — run, build, fmt, pkg, lsp, version, update, help.
+
+The `tulpar` binary bundles the compiler, runtime, package manager,
+formatter, and language server in a single executable. This page is
+the exhaustive reference; the [Getting
+Started](/intro/getting-started/) guide is a friendlier introduction.
+
+## Running a program
+
+```bash
+tulpar <source.tpr>          # AOT compile + run (native speed)
+```
+
+`tulpar` is **AOT-only** (since v3.0.0): it runs the LLVM pipeline
+(LLVM → native binary → exec) and there is no other execution path. An
+AOT failure (parse, codegen, or a missing clang / runtime archive) is a
+hard error — so "it ran" always means the native binary ran.
+
+:::note[Removed in v3.0.0]
+The bytecode **VM** and the **REPL** were removed; Tulpar follows the
+C/Rust/Go model of a single AOT path. `--vm` / `--run` are accepted but
+**ignored with a warning**; `--repl` / `-i` print a removal notice and
+exit. The earlier `--legacy` tree-walk interpreter is also gone.
+:::
+
+## Building a standalone binary
+
+```bash
+tulpar build <source.tpr> [output_name]
+```
+
+Same as the default run path, but **keeps the produced binary** at
+`output_name` (or `<source>` without `.tpr` if omitted). Subsequent
+`tulpar build` calls skip recompilation if the output is newer than
+the source and the driver. Set `TULPAR_AOT_NOCACHE=1` to force a
+rebuild.
+
+```bash
+tulpar build hello.tpr           # produces ./hello (./hello.exe on Windows)
+tulpar build hello.tpr myapp     # produces ./myapp
+TULPAR_AOT_NOCACHE=1 tulpar build hello.tpr   # always recompile
+```
+
+## Formatter
+
+```bash
+tulpar fmt <source.tpr>
+```
+
+Re-emits the source with normalised indentation and operator spacing.
+Idempotent (running it twice produces the same output as once). No
+config file — the rules are baked in.
+
+## Package manager
+
+```bash
+tulpar pkg init                  # create a new tulpar.toml in the cwd
+tulpar pkg add <name>            # add a dependency
+tulpar pkg install               # install everything in tulpar.toml
+```
+
+See the [Package Manager](/ecosystem/package-manager/) page for the
+manifest format and dependency specs.
+
+## Language server (LSP)
+
+```bash
+tulpar --lsp
+```
+
+Speaks LSP over stdio — wire it into your editor (VS Code extension,
+Vim/Neovim LSP client, etc.) and it owns stdin/stdout for the JSON-RPC
+transport. Don't run it manually except for testing.
+
+Capabilities: completion, hover, diagnostics, go-to-definition,
+"did-you-mean" suggestions for typos. See [Tooling — LSP / Formatter
+/ VS Code](/ecosystem/tooling/).
+
+## Version & update
+
+```bash
+tulpar version          # or: tulpar --version, tulpar -v
+tulpar update           # download & install the latest release
+tulpar update --check   # only report whether an update is available
+```
+
+`tulpar update` shells out to the platform's installer script
+(`https://tulparlang.dev/install.{ps1,sh}`) and replaces the running
+binary with the latest published release. On Windows it uses the
+rename-then-replace dance because Windows can't overwrite a running
+`.exe` directly.
+
+`--check` is non-destructive — it queries GitHub for the latest tag,
+prints the comparison, and exits.
+
+## Help
+
+```bash
+tulpar --help          # or: tulpar -h, tulpar help, tulpar ?
+```
+
+Prints the same command reference shown when you run `tulpar` with no
+arguments. Output language follows the system locale (Turkish on TR
+locale, English elsewhere).
+
+## Compiler flags
+
+These modify a single `tulpar` / `tulpar build` invocation. Everything
+else on the command line is the program and its arguments.
+
+| Flag | Effect |
+|------|--------|
+| `--aot` | Explicit AOT compile (already the default — there is no other backend) |
+| `--build` | Emit a standalone binary instead of compile-and-run (same as the `build` subcommand) |
+| `--debug` / `-g` | Forward `-g` to the `clang++` link so debug sections survive into the binary |
+| `--no-typecheck` | Skip the `[typecheck]` pre-pass for this run |
+| `--strict` | Promote type-checker warnings to hard errors |
+| `--vm` / `--run` | **Ignored with a warning** — Tulpar is AOT-only, there is no VM |
+| `--repl` / `-i` | **Removed** — prints a notice and exits (no interpreter) |
+
+## Environment variables
+
+Grouped by subsystem. Booleans treat any non-empty value as "on" unless
+noted.
+
+#### Diagnostics & locale
+
+| Variable | Effect |
+|----------|--------|
+| `LANG` / `LC_ALL` / `LC_MESSAGES` | CLI + diagnostic language: a value containing `tr` selects Turkish, anything else English (Windows falls back to the OS UI locale) |
+
+#### Type checking
+
+| Variable | Effect |
+|----------|--------|
+| `TULPAR_NO_TYPECHECK=1` | Disable the `[typecheck]` pre-pass on every `run` / `build` |
+| `TULPAR_STRICT=1` | Treat type-checker warnings as errors (`=0` forces it off) |
+
+#### AOT / compiler
+
+| Variable | Effect |
+|----------|--------|
+| `TULPAR_AOT_NOCACHE=1` | Force `tulpar build` to recompile even if the output is up-to-date |
+| `TULPAR_AOT_TIME=1` | Print a per-phase wallclock breakdown of the AOT pipeline |
+| `TULPAR_AOT_EMIT_LL=1` | Also emit the LLVM `.ll` IR alongside the object file |
+| `TULPAR_AOT_LINK_FLAGS=…` | Extra flags forwarded to the final `clang++` link (e.g. `-fsanitize=address` to leak-check against an ASan-built runtime) |
+| `TULPAR_RUNTIME_DIR=path` | Extra directory to search for `libtulpar_runtime.a` |
+
+#### Async / HTTP runtime
+
+| Variable | Effect |
+|----------|--------|
+| `TULPAR_HTTP_POOL=N` | Worker-pool size for the [async HTTP client](/ecosystem/http-client/) (default 4) |
+| `TULPAR_HTTP_MAX_BODY=bytes` | Max inbound HTTP request body for Wings servers (default 16 MiB) |
+| `TULPAR_HTTP_QUIET=1` | Silence HTTP client request logging |
+| `TULPAR_WINGS_HOST=127.0.0.1` | Bind host for Wings listeners — loopback avoids LAN firewall prompts |
+
+#### TLS
+
+| Variable | Effect |
+|----------|--------|
+| `TULPAR_CA_BUNDLE=path` | Custom CA bundle (PEM) for HTTPS certificate verification |
+| `TULPAR_TLS_INSECURE=1` | Skip certificate verification — dev / self-signed only |
+
+#### Package manager & tooling
+
+| Variable | Effect |
+|----------|--------|
+| `TULPAR_REGISTRY=url` | Override the package registry base URL |
+| `TULPAR_PUBLISH_TOKEN=token` | Auth token for `tulpar pkg publish` |
+| `TULPAR_LSP_DEBUG=1` | Verbose logging from the `--lsp` language server |
+| `TULPAR_INSTALL_DIR=path` | Where `install.sh` puts the binary (default `~/.local/bin`) |
+
+## Exit codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | Source-level failure (parse / codegen / runtime error) |
+| 2 | CLI usage error (unknown flag, bad combination) |
+
+---
+
+# Language Reference
+Source: https://tulparlang.dev/reference/language/
+
+A condensed single-page reference for Tulpar's syntax, types, operators, control flow, and module system. Skim or Ctrl-F.
+
+This page is the language at a glance — every form Tulpar's parser
+accepts, in one place. The [Language Guide](/guide/syntax/) walks
+through each topic with examples; this is the spec-ish summary for
+when you already know what you're looking for.
+
+## File structure
+
+A `.tpr` file is a sequence of top-level statements: imports, function
+declarations, struct (`type`) declarations, and any other expression or
+control-flow statement that runs immediately when the program starts.
+There is no `main()` requirement — top-level statements execute in
+source order.
+
+```tulpar
+
+
+type Point {             // struct declaration
+    int x;
+    int y;
+}
+
+func origin(): Point {   // function declaration
+    Point p = { x: 0, y: 0 };
+    return p;
+}
+
+print(origin());         // top-level expression — runs at startup
+```
+
+## Types
+
+| Type           | Literal example                          | Notes                                              |
+| -------------- | ---------------------------------------- | -------------------------------------------------- |
+| `int`          | `42`, `-1`, `0xff`                       | 64-bit signed.                                     |
+| `float`        | `3.14`, `2.0`, `-0.5`                    | 64-bit IEEE 754.                                   |
+| `bool`         | `true`, `false`                          |                                                    |
+| `str`          | `"hi"`, `t"x={n}"`                       | UTF-8. `t"..{expr}.."` interpolates; `+` coerces.  |
+| `json`         | `{"k": 1}`, `[1, 2, 3]`                  | Tagged-union for objects/arrays/scalars at runtime.|
+| `array<T>`     | `[1, 2, 3]`                              | `T` ∈ `int / float / str / bool / json`.           |
+| `void`         | —                                        | Function return only — no values of type `void`.   |
+| `<TypeName>`   | `Point p = { x: 1, y: 2 };`              | User-declared via `type`.                          |
+
+`var` (and its alias `let`, untyped) and `null` are also keywords — `var`
+declares a binding the type-inferer fills in, `null` is the absence value
+for `json` slots and unset variables.
+
+**String interpolation.** `t"total: {n} adet"` is a *t-string*: each
+`{expr}` is evaluated and stitched in. It always yields a `str` (even
+`t"{n}"`); write a literal brace as `\{` / `\}`. Plain `+` also works and
+coerces — `"n=" + 5` is `"n=5"`, no `toString()` needed.
+
+## Variables
+
+```tulpar
+int x = 10;              // typed, with initializer
+str name = "Hamza";
+bool flag;               // typed, default-initialised (0 / "" / false / null)
+var n = 7;               // type inferred from initializer
+let count = 0;           // synonym for `var`
+```
+
+`let` and `var` are interchangeable — `let` is conventional for
+"won't change" but the language doesn't enforce immutability.
+
+## Operators
+
+| Category   | Operators                                              |
+| ---------- | ------------------------------------------------------ |
+| Arithmetic | `+`, `-`, `*`, `/`, `%`, unary `-`                     |
+| Comparison | `==`, `!=`, `<`, `<=`, `>`, `>=`                       |
+| Logical    | `&&`, `\|\|`, unary `!`                                |
+| Assignment | `=`, `+=`, `-=`, `*=`, `/=`                            |
+| Increment  | `x++`, `x--` (statement form only — not an expression) |
+| Subscript  | `arr[i]`, `obj["key"]`, `obj.key` (sugar for `["key"]`)|
+| Call       | `f(args)`, `mod.func(args)` (mod-qualified import)     |
+
+Precedence (highest first):
+
+1. Postfix: call `(...)`, subscript `[...]`, member `.`, increment `++`/`--`
+2. Unary: `-`, `!`
+3. `*`, `/`, `%`
+4. `+`, `-`
+5. `<`, `<=`, `>`, `>=`
+6. `==`, `!=`
+7. `&&`
+8. `||`
+9. Assignment: `=`, `+=`, ...
+
+## Control flow
+
+```tulpar
+if (cond) { ... }
+if (cond) { ... } else if (other) { ... } else { ... }
+
+while (cond) { ... }
+
+for (int i = 0; i < n; i = i + 1) { ... }
+// `i = i + 1` is also valid as `i++` or `i += 1`
+
+// for-each — iterate an array, a string's chars, or range(n).
+// Parens are required; the loop variable is inferred (no type, no `var`).
+for (x in [10, 20, 30]) { print(x); }
+for (i in range(n))     { print(i); }
+
+break;       // exit innermost loop
+continue;    // jump to next iteration
+return;      // exit function (void)
+return expr; // exit function with value
+
+// match — Rust-style; an *expression* (yields a value).
+str grade = match score {
+    90        => "A",       // literal
+    1 | 2 | 3 => "low",     // alternatives
+    10 .. 20  => "mid",     // inclusive range
+    _         => "other"    // wildcard
+};
+// Also valid in statement position with block arms:
+match cmd { "go" => { run(); }, _ => { stop(); } }
+
+// Destructuring — a bare identifier BINDS, a literal CONSTRAINS, `_`
+// ignores, `..rest` captures the array tail. Patterns nest arbitrarily.
+match arr {
+    []             => "empty",
+    [0, second]    => "leading zero",      // 0 constrains, second binds
+    [head, ..tail] => "head + tail",
+};
+match user {                                // json object / struct fields
+    {role: "admin", name} => "admin " + name,
+    {name}                => "user " + name,
+};
+match shape {                               // typed-struct variant patterns
+    Circle{r: 0} => "point",
+    Rect{w, h}   => w * h,
+};
+match req { {user: {id}, path} => handle(id, path), _ => skip() };  // nested
+```
+
+`match` evaluates its subject once and takes the first matching arm.
+Patterns are scalar literals (int / string / bool), `|`-alternatives,
+`lo .. hi` ranges, and **destructuring** of arrays (`[a, b]`,
+`[head, ..tail]`), JSON objects / struct fields (`{role: "admin", name}`),
+and typed-struct variants (`Circle{r}`) — which nest. `_` is the catch-all.
+
+## Functions
+
+```tulpar
+// Positional parameters; type before name.
+func add(int a, int b): int {
+    return a + b;
+}
+
+// Return type omitted = void (or json if you return one).
+func greet(str name) {
+    print("Hello, " + name);
+}
+
+// Recursion is supported (forward references resolved automatically).
+func fib(int n): int {
+    if (n <= 1) { return n; }
+    return fib(n - 1) + fib(n - 2);
+}
+```
+
+Function-by-name dispatch (`call("name")`) looks up the symbol at
+runtime; useful for routers / tables-of-handlers.
+
+### Lambdas & closures
+
+```tulpar
+// Lambda: `=>` arrow, expression or block body.
+var add = (int a, int b) => a + b;        // add(2, 3) == 5
+var sq  = (int x) => { return x * x; };   // sq(5) == 25
+
+// Closures capture enclosing parameters/locals (heap env), so factories
+// and mutable counters work. Captures are independent per instance.
+func make_adder(int n) { return (int x) => n + x; }
+var add10 = make_adder(10);               // add10(5) == 15
+
+func make_counter() {
+    int c = 0;
+    return () => { c = c + 1; return c; };
+}
+var tick = make_counter();                // tick() -> 1, 2, 3, ...
+```
+
+Closures are fully supported on the AOT path (default `tulpar run` / `build`).
+
+## Structs (`type`)
+
+```tulpar
+type Point {
+    int x;
+    int y;
+}
+
+// Literal initialisation.
+Point p = { x: 3, y: 4 };
+print(p.x);              // 3
+
+// Pass by value; modify a copy.
+func translate(Point p, int dx, int dy): Point {
+    Point q = { x: p.x + dx, y: p.y + dy };
+    return q;
+}
+```
+
+Struct fields are accessed with `.` (sugar for `["field"]`). `==` on
+structs is currently field-by-field (json behaviour).
+
+## JSON / arrays
+
+```tulpar
+json o = { "name": "Hamza", "age": 24, "tags": ["admin", "user"] };
+print(o["name"]);                // "Hamza"
+print(o.tags[0]);                // "admin"
+o["age"] = 25;                   // mutate
+o["new_field"] = true;           // add
+push(o.tags, "verified");        // helper builtins
+
+// Arrays:
+array<int> nums = [1, 2, 3];
+push(nums, 4);
+int n = length(nums);            // 4
+```
+
+`json` is the runtime tagged-union — the same value can be an object,
+array, string, number, or null.
+
+## Modules & imports
+
+```tulpar
+
+
+
+```
+
+Resolution order: literal path → `path.tpr` →
+`tulpar_modules/<name>/<name>.tpr` → `tulpar_modules/<name>.tpr` →
+embedded stdlib. See [Package Manager](/ecosystem/package-manager/)
+for the lockfile + version specs.
+
+## Error handling
+
+```tulpar
+try {
+    risky();
+} catch (e) {
+    print("oh no: " + toString(e));
+} finally {
+    cleanup();
+}
+
+throw "error message";
+throw {"code": 500, "msg": "boom"};
+```
+
+`catch (e)` binds the thrown value to `e` (a json) regardless of its
+shape. `finally` always runs, even on uncaught throws.
+
+## Async / await
+
+```tulpar
+async func fetch(int id) {        // returns a promise immediately
+    await sleep_async(20);        // non-blocking; other tasks run meanwhile
+    return id * 2;
+}
+
+var p = fetch(21);                // queued, not run yet
+int r = await p;                  // drive it → 42
+
+// gather: await many concurrently, results in argument order
+var all = await gather(fetch(1), fetch(2));
+```
+
+`async func`s are stackful coroutines on a single-threaded event loop;
+calling one queues a task and returns a promise, `await` drives it. An
+uncaught `throw` rejects the promise and `await` re-raises it, so ordinary
+`try` / `catch` catches async errors. Up to 16 parameters. See the
+[Async / Await guide](/guide/async/) for the full model, including the
+non-blocking HTTP client.
+
+## Comments
+
+```tulpar
+// Single line — runs to EOL.
+/* Block comment — does not nest. */
+```
+
+## Reserved keywords
+
+```
+async       await       break       catch       continue    do
+else        false       finally     for         func        if
+
+throw       true        try         type        var         void
+while
+```
+
+Type-name keywords (`int`, `float`, `str`, `bool`, `json`, `array`)
+are also reserved when used as types but can appear inside identifiers
+via underscore (`int_value`, `array_size`).
+
+## CLI cheat-sheet
+
+| Command                       | Effect                                                  |
+| ----------------------------- | ------------------------------------------------------- |
+| `tulpar foo.tpr`              | AOT-compile + run, fall back to VM on AOT error.        |
+| `tulpar --vm foo.tpr`         | Bytecode VM — faster startup, slower steady-state.      |
+| `tulpar build foo.tpr [out]`  | Standalone native binary.                               |
+| `tulpar --repl`               | Interactive prompt (VM-backed).                         |
+| `tulpar fmt foo.tpr [-w]`     | Source formatter.                                       |
+| `tulpar pkg <subcmd>`         | Package manager — see [Package Manager](/ecosystem/package-manager/). |
+| `tulpar --lsp`                | LSP server on stdio (used by editor extensions).        |
+| `tulpar typecheck foo.tpr`    | Standalone type-checker (also runs as a build pre-pass).|
+| `tulpar update [--check]`     | Self-update from the official release.                  |
+
+The full CLI reference, including environment variables, lives at
+[CLI Reference](/reference/cli/).
+
+## Where this differs from the guide
+
+The [Language Guide](/guide/syntax/) covers the same surface with
+runnable examples and motivation; this page is the lookup table you
+keep open in another tab. If something here looks wrong, the guide
+pages and the source (`src/parser/parser.cpp` + `src/lexer/lexer.cpp`)
+are the authoritative answer.
+
+---
+
+# Built-in Functions
+Source: https://tulparlang.dev/stdlib/builtins/
+
+Reference for Tulpar's built-in functions.
+
+## Input/Output
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `print(...)` | Print values to console | `print("Hello", x, y);` |
+| `input(prompt)` | Read string from user | `str name = input("Name: ");` |
+| `inputInt(prompt)` | Read integer | `int age = inputInt("Age: ");` |
+| `inputFloat(prompt)` | Read float | `float val = inputFloat("Value: ");` |
+
+## Type Conversion
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `toInt(value)` | Convert to integer | `int x = toInt("123");` |
+| `toFloat(value)` | Convert to float | `float y = toFloat("3.14");` |
+| `toString(value)` | Convert to string | `str s = toString(42);` |
+| `toBool(value)` | Convert to boolean | `bool b = toBool(1);` |
+
+## Array Operations
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `length(arr)` | Get array/object length | `int len = length(arr);` |
+| `push(arr, value)` | Add element | `push(arr, 10);` |
+| `pop(arr)` | Remove and return last | `int x = pop(arr);` |
+| `range(n)` | Create integer range | `for (i in range(10)) {...}` |
+| `keys(obj)` | Get object keys (insertion order) | `array k = keys({a:1,b:2});` |
+
+## Datetime
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `now_iso8601()` | Current UTC time as ISO 8601 | `str now = now_iso8601();` |
+| `format_iso8601(secs)` | Unix seconds → `YYYY-MM-DDTHH:MM:SSZ` | `str s = format_iso8601(0);` |
+| `parse_iso8601(s)` | ISO 8601 → unix seconds (-1 on fail) | `int t = parse_iso8601(now);` |
+| `weekday(secs)` | Day of week (0=Sun … 6=Sat) | `int d = weekday(timestamp());` |
+| `date_add_seconds(t, d)` | Add `d` seconds to `t` | `int t2 = date_add_seconds(t, 3600);` |
+| `timestamp()` | Current Unix epoch (seconds) | `int now = timestamp();` |
+| `time_ms()` | Current Unix epoch (milliseconds) | `int ms = time_ms();` |
+| `clock_ms()` | Monotonic high-precision timer | `float t = clock_ms();` |
+| `sleep(ms)` | Sleep for `ms` milliseconds | `sleep(100);` |
+
+## Regex
+
+POSIX/ECMAScript syntax via `std::regex`.
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `regex_match(pat, s)` | 1 if `s` fully matches `pat` | `int ok = regex_match("[0-9]+", "42");` |
+| `regex_search(pat, s)` | 1 if substring of `s` matches | `int hit = regex_search("\\d+", "x42y");` |
+| `regex_capture(pat, s)` | `[whole, g1, g2, ...]` or `[]` | `array g = regex_capture("(\\w+)=(\\w+)", "a=b");` |
+| `regex_replace(pat, s, r)` | Replace all matches; `$1` etc | `str s = regex_replace("\\d", "x", "_");` |
+
+## Files
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `read_file(path)` | Read whole file | `str s = read_file("data.txt");` |
+| `write_file(path, data)` | Truncate + write | `write_file("out.txt", body);` |
+| `append_file(path, data)` | Append to existing | `append_file("log.txt", line);` |
+| `file_exists(path)` | Check existence | `bool ok = file_exists("x");` |
+| `file_glob(pattern)` | Shell-style `*` `?` glob | `array f = file_glob("./*.tpr");` |
+
+## Crypto & security
+
+Built on an in-tree SHA-256 — no OpenSSL dependency, available everywhere
+the runtime runs.
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `sha256(s)` | Lowercase 64-char hex digest | `str h = sha256(body);` |
+| `hmac_sha256(key, msg)` | Keyed MAC (RFC 2104), 64-char hex | `str sig = hmac_sha256(secret, data);` |
+| `password_hash(pw)` | PBKDF2-HMAC-SHA256, self-describing | `str h = password_hash(pw);` |
+| `password_verify(pw, stored)` | Constant-time check vs `password_hash` | `bool ok = password_verify(pw, h);` |
+| `secure_token(n)` | CSPRNG base62 string, `n` chars | `str t = secure_token(48);` |
+| `base64_encode(s)` / `base64_decode(s)` | Standard base64 (byte-safe) | `str b = base64_encode(raw);` |
+
+Guidance:
+
+- **Passwords** → `password_hash` / `password_verify`. Never store bare
+  `sha256(pw)` (unsalted, fast to brute-force).
+- **Session / API tokens, salts** → `secure_token`, *not* `randint`
+  (which is not cryptographically secure).
+- **Signing / authentication** (signed cookies, webhook signatures,
+  JWT-style tokens) → `hmac_sha256` with a long random secret. Verify by
+  recomputing the MAC and comparing.
+
+`hmac_sha256` is what the [`wings_jwt`](/ecosystem/package-manager/)
+package uses to issue and verify HS256 session tokens:
+
+```tulpar
+
+
+str token = jwt.sign_ttl({"sub": "42", "role": "admin"}, SECRET, 3600);
+json v = jwt.verify(token, SECRET);   // {"ok":1,"claims":{…}} | {"ok":0,"error":…}
+```
+
+## CSV
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `csv_parse(s)` | RFC 4180 → array of rows | `array rows = csv_parse(text);` |
+| `csv_emit(rows)` | Array of rows → CSV string | `str s = csv_emit(rows);` |
+
+## Process / environment
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `env(name)` | Read env var (empty if unset) | `str dbg = env("DEBUG");` |
+| `exit(code)` | Terminate with status | `exit(1);` |
+
+## Arena (memory hygiene)
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `arena_save()` | Snapshot current arena tip | `int wm = arena_save();` |
+| `arena_restore(wm)` | Roll back allocs to that tip | `arena_restore(wm);` |
+
+Wings auto-uses these per request so long-running servers don't grow
+memory. Handlers MUST NOT stash arena pointers on globals.
+
+## Threading
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `thread_create(fn, arg)` | Spawn thread; returns thread id | `int t = thread_create(worker, x);` |
+| `thread_join(id)` | Wait for thread to finish | `thread_join(t);` |
+| `thread_detach(id)` | Detach (auto-cleanup on exit) | `thread_detach(t);` |
+| `mutex_create()` | Create a mutex | `int m = mutex_create();` |
+| `mutex_lock(m)` | Acquire lock | `mutex_lock(m);` |
+| `mutex_unlock(m)` | Release lock | `mutex_unlock(m);` |
+| `mutex_destroy(m)` | Free a mutex | `mutex_destroy(m);` |
+
+## HTTP
+
+`http_*` builtins are documented separately in
+[HTTP Server (Wings)](/ecosystem/http-server/) and
+[HTTP Client](/ecosystem/http-client/).
+
+---
+
+# Database (SQLite)
+Source: https://tulparlang.dev/stdlib/database/
+
+Learn how to use SQLite databases in Tulpar.
+
+## Opening a Database
+
+```tulpar
+int db = db_open("my_database.db");
+```
+
+## Executing Queries
+
+You can execute SQL queries using `db_query`. This function returns an array of results for SELECT queries.
+
+```tulpar
+// Create table
+db_query(db, "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT);");
+
+// Insert data
+db_query(db, "INSERT INTO users (name) VALUES ('Tulpar');");
+
+// Select data
+array results = db_query(db, "SELECT * FROM users;");
+print(results);
+```
+
+## Closing the Database
+
+```tulpar
+db_close(db);
+```
+
+---
+
+# Date & Time
+Source: https://tulparlang.dev/stdlib/datetime/
+
+Built-in time functions — timestamps, ISO 8601 strings, monotonic clocks, and sleep.
+
+Tulpar's date/time API is intentionally small. There is no separate
+`datetime` module — these functions are built directly into the
+runtime.
+
+## Time of day
+
+| Function | Returns | Use it for |
+|----------|---------|------------|
+| `timestamp()` | `int` — seconds since 1970-01-01 UTC | Storing in a database, age comparisons |
+| `time_ms()` | `int` — milliseconds since 1970-01-01 UTC | Higher-resolution wall-clock time |
+| `now_iso8601()` | `str` — `"2026-05-02T14:33:09Z"` | Logging, JSON payloads, HTTP headers |
+
+**Wall clock**
+
+```tulpar
+print("Unix seconds:    ", timestamp());
+print("Unix milliseconds:", time_ms());
+print("ISO 8601:         ", now_iso8601());
+```
+
+## Measuring elapsed time
+
+For performance measurements, use `clock_ms()`. It is monotonic — it
+never goes backwards, even if the system clock is adjusted (NTP,
+daylight saving, manual change). Subtract two readings to get a
+duration in milliseconds.
+
+**Time a block**
+
+```tulpar
+int start = clock_ms();
+
+// pretend work
+int total = 0;
+for (int i = 0; i < 100000; i++) {
+    total = total + i;
+}
+
+int elapsed = clock_ms() - start;
+print("sum =", total, "took", elapsed, "ms");
+```
+
+## Sleeping
+
+`sleep(ms)` blocks the current thread for at least the requested
+number of milliseconds. There is no sub-millisecond sleep.
+
+**Sleep**
+
+```tulpar
+print("before");
+sleep(500);     // half a second
+print("after, half a second later");
+```
+
+`sleep` is **not** a synchronization primitive — see the
+[Concurrency](/guide/concurrency/) page for proper inter-thread
+coordination.
+
+## Choosing the right clock
+
+| Need | Use |
+|------|-----|
+| "When did this happen?" (logged, persisted, sent over the wire) | `now_iso8601()` or `timestamp()` |
+| "How long did this take?" | Two `clock_ms()` calls, subtract |
+| "Pause for a bit" | `sleep(ms)` |
+| "Schedule something for later" | `sleep` in a worker thread, or `setTimeout` from `lib/async.tpr` |
+
+---
+
+# File I/O
+Source: https://tulparlang.dev/stdlib/file-io/
+
+Learn how to read and write files in Tulpar.
+
+## Reading Files
+
+You can read the entire content of a file into a string.
+
+```tulpar
+str content = read_file("test.txt");
+print(content);
+```
+
+## Writing Files
+
+You can write content to a file. This will overwrite the existing content.
+
+```tulpar
+write_file("test.txt", "Hello Tulpar!");
+```
+
+## Appending to Files
+
+You can append content to the end of a file.
+
+```tulpar
+append_file("test.txt", "\nNew line");
+```
+
+## Checking Existence
+
+You can check if a file exists.
+
+```tulpar
+bool exists = file_exists("test.txt");
+if (exists) {
+    print("File found!");
+}
+```
+
+---
+
+# Math Functions
+Source: https://tulparlang.dev/stdlib/math/
+
+Reference for Tulpar's math library.
+
+Tulpar provides a comprehensive math library with 27 built-in functions.
+
+## Basic Operations
+
+```tulpar
+abs(x)           // Absolute value
+sqrt(x)          // Square root
+cbrt(x)          // Cube root
+pow(x, y)        // Power (x^y)
+hypot(x, y)      // Hypotenuse
+```
+
+## Rounding
+
+```tulpar
+floor(x)         // Round down
+ceil(x)          // Round up
+round(x)         // Round to nearest
+trunc(x)         // Truncate decimal
+```
+
+## Trigonometry
+
+```tulpar
+sin(x), cos(x), tan(x)           // Basic trig
+asin(x), acos(x), atan(x)        // Inverse trig
+atan2(y, x)                      // Two-argument arctan
+sinh(x), cosh(x), tanh(x)        // Hyperbolic
+```
+
+## Logarithms and Exponentials
+
+```tulpar
+exp(x)           // e^x
+log(x)           // Natural log (ln)
+log10(x)         // Base-10 log
+log2(x)          // Base-2 log
+```
+
+## Statistics and Random
+
+```tulpar
+min(a, b, ...)   // Minimum value
+max(a, b, ...)   // Maximum value
+random()         // Random float [0,1)
+randint(a, b)    // Random int [a,b]
+```
+
+---
+
+# Network (Sockets)
+Source: https://tulparlang.dev/stdlib/network/
+
+Learn how to create network applications with Tulpar.
+
+## Server
+
+You can create a TCP server using `socket_server`, `socket_accept`, `socket_receive`, and `socket_send`.
+
+```tulpar
+// Create server on port 8080
+int sockfd = socket_server("127.0.0.1", 8080);
+
+// Accept connection
+int client = socket_accept(sockfd);
+
+// Receive data
+str msg = socket_receive(client, 1024);
+print("Received:", msg);
+
+// Send response
+socket_send(client, "Hello Client!");
+
+// Close sockets
+socket_close(client);
+socket_close(sockfd);
+```
+
+### Peer address
+
+`socket_peer_ip(fd)` returns the remote (client) IP of an accepted
+connection — handy for logging or rate limiting. It returns `""` on error
+(bad fd, unconnected socket). The Wings/router stack already exposes it on the
+request as `_request["remote_addr"]`.
+
+```tulpar
+int client = socket_accept(sockfd);
+str ip = socket_peer_ip(client);   // e.g. "127.0.0.1"
+print("connection from", ip);
+```
+
+## Client
+
+You can create a TCP client using `socket_create`, `socket_connect`, `socket_send`, and `socket_receive`.
+
+```tulpar
+// Create socket
+int sockfd = socket_create();
+
+// Connect to server
+socket_connect(sockfd, "127.0.0.1", 8080);
+
+// Send message
+socket_send(sockfd, "Hello Server!");
+
+// Receive response
+str response = socket_receive(sockfd, 1024);
+print("Response:", response);
+
+// Close socket
+socket_close(sockfd);
+```
+
+---
+
+# String Functions
+Source: https://tulparlang.dev/stdlib/string/
+
+Reference for Tulpar's string manipulation library.
+
+## Transformation
+
+```tulpar
+upper(s)              // Convert to uppercase
+lower(s)              // Convert to lowercase
+capitalize(s)         // Capitalize first letter
+reverse(s)            // Reverse string
+```
+
+## Search and Check
+
+```tulpar
+contains(s, sub)      // Check if contains substring
+startsWith(s, pre)    // Check prefix
+endsWith(s, suf)      // Check suffix
+indexOf(s, sub)       // Find first occurrence
+count(s, sub)         // Count occurrences
+```
+
+## Manipulation
+
+```tulpar
+trim(s)               // Remove whitespace
+replace(s, old, new)  // Replace substring
+substring(s, i, j)    // Extract substring
+repeat(s, n)          // Repeat string n times
+```
+
+## Array Operations
+
+```tulpar
+split(s, delim)       // Split into array
+join(sep, arr)        // Join array to string
+```
+
+## Validation
+
+```tulpar
+isEmpty(s)            // Check if empty
+isDigit(s)            // Check if all digits
+isAlpha(s)            // Check if all letters
+```
+
+---
+
+# Testing (lib/test)
+Source: https://tulparlang.dev/stdlib/testing/
+
+Jest-style assertion framework that ships with Tulpar — assert, assert_eq_int, assert_throws, and a suite runner.
+
+`lib/test` is a small assertion + runner module included with Tulpar.
+There is no separate test binary — your test suite is just a `.tpr`
+file you run with `tulpar`.
+
+## A minimal suite
+
+```tulpar
+
+
+func basic_addition() {
+    assert_eq_int(1 + 1, 2);
+    assert_eq_str(upper("hi"), "HI");
+}
+
+test("addition works", "basic_addition");
+test_summary();
+```
+
+Run it:
+
+```bash
+$ tulpar tests.tpr
+  PASS addition works
+
+Tests: 1 | Pass: 1 | Fail: 0
+```
+
+`test_summary()` exits non-zero if any test failed, so it plays nicely
+with CI.
+
+## Assertions
+
+| Function | Use it for |
+|----------|------------|
+| `assert(cond, msg)` | Generic boolean check; `cond` is truthy or the test fails with `msg` |
+| `assert_eq_int(actual, expected)` | Integer equality |
+| `assert_eq_str(actual, expected)` | String equality (byte-exact, with helpful diff in the message) |
+| `assert_eq_bool(actual, expected)` | Boolean (0/1) equality |
+| `assert_contains(haystack, needle)` | Substring check on a string or stringified value |
+| `assert_throws(handler_name, expected_msg_substring)` | Asserts the named function throws; optionally checks the message |
+| `assert_status(http_response, expected_status)` | Asserts a numeric HTTP status appears in a raw response string |
+
+Each test runs in isolation — the failure flag is reset before every
+`test(...)` call, so one bad test does not hide the rest.
+
+## Testing the unhappy path
+
+`assert_throws` invokes a function by name (via `call()`) and asserts
+it raises. Useful for input validation, parse errors, auth failures.
+
+```tulpar
+
+
+func bad_input() {
+    throw "missing required field 'email'";
+}
+
+func test_validation_error() {
+    assert_throws("bad_input", "email");
+}
+
+test("rejects empty email", "test_validation_error");
+test_summary();
+```
+
+## Why type-specialised assertions?
+
+You'll notice there's no generic `assert_eq` — only
+`assert_eq_int`, `assert_eq_str`, `assert_eq_bool`. This is
+deliberate: Tulpar's AOT codegen has a known limitation where
+`json`-typed parameters can lose string identity after a `toJson`
+round-trip when the call goes through the dynamic dispatcher
+(`call()`). The specialised forms compare values directly without
+the round-trip and behave identically on AOT and VM.
+
+## Tips
+
+- Name handler functions whatever you like — `test()` looks them up
+  by string. A common convention is `t_foo` / `t_bar` so they sort
+  together.
+- Group related assertions in one handler; one `test(...)` call per
+  scenario keeps the output readable.
+- Keep network / database / filesystem tests in a separate suite from
+  pure-logic tests — they're slower and more flaky, and you'll want
+  to skip them locally sometimes.
+
+---

@@ -1,0 +1,42 @@
+# tulparlang.dev — open to search and AI crawlers.
+# See https://tulparlang.dev/llms.txt for a curated, AI-agent-friendly index.
+
+User-agent: *
+Allow: /
+
+# AI search / assistant crawlers (explicitly allowed — this site wants to be
+# read and cited by them).
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: GoogleOther
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+Sitemap: https://tulparlang.dev/sitemap-index.xml

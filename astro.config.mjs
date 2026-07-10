@@ -1,21 +1,46 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
+	site: 'https://tulparlang.dev',
 	integrations: [
 		starlight({
-			title: 'Tulpar Language',
+			title: {
+				en: 'Tulpar Language',
+				tr: 'Tulpar Dili',
+			},
 			favicon: '/favicon.svg',
 
 			customCss: ['./src/styles/custom.css'],
 			logo: {
 				src: './src/assets/icon.png',
 			},
-			// PNG fallback for browsers that don't render SVG favicons.
+			lastUpdated: true,
+			editLink: {
+				baseUrl: 'https://github.com/hamer1818/tulpar-lang-web/edit/master/',
+			},
+			social: [
+				{ icon: 'github', label: 'GitHub', href: 'https://github.com/hamer1818/TulparLang' },
+			],
+			components: {
+				Head: './src/components/Head.astro',
+			},
+			// PNG fallback for browsers that don't render SVG favicons, plus
+			// sitewide OG/Twitter card defaults (Starlight merges page-level
+			// `head` frontmatter on top of this, so individual pages can still
+			// override title/description/image).
 			head: [
 				{ tag: 'link', attrs: { rel: 'icon', href: '/icon.png', type: 'image/png' } },
+				{ tag: 'meta', attrs: { property: 'og:type', content: 'website' } },
+				{ tag: 'meta', attrs: { property: 'og:site_name', content: 'Tulpar Language' } },
+				{ tag: 'meta', attrs: { property: 'og:image', content: 'https://tulparlang.dev/og-image.png' } },
+				{ tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },
+				{ tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
+				{ tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
+				{ tag: 'meta', attrs: { name: 'twitter:image', content: 'https://tulparlang.dev/og-image.png' } },
 			],
 			defaultLocale: 'root',
 			locales: {
@@ -51,6 +76,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Getting Started', translations: { tr: 'Başlarken' }, slug: 'intro/getting-started' },
 						{ label: 'Installation', translations: { tr: 'Kurulum' }, slug: 'intro/installation' },
+						{ label: 'FAQ', translations: { tr: 'Sıkça Sorulan Sorular' }, slug: 'faq' },
 					],
 				},
 				{
@@ -67,6 +93,8 @@ export default defineConfig({
 						{ label: 'Concurrency (Threads)', translations: { tr: 'Eşzamanlılık (Thread\'ler)' }, slug: 'guide/concurrency' },
 						{ label: 'Async / Await', translations: { tr: 'Async / Await' }, slug: 'guide/async' },
 						{ label: 'Tulpar vs C', translations: { tr: 'Tulpar ve C Karşılaştırma' }, slug: 'guide/tulpar-vs-c' },
+						{ label: 'Tulpar vs Go', translations: { tr: 'Tulpar ve Go Karşılaştırma' }, slug: 'guide/tulpar-vs-go' },
+						{ label: 'Tulpar vs Rust', translations: { tr: 'Tulpar ve Rust Karşılaştırma' }, slug: 'guide/tulpar-vs-rust' },
 					],
 				},
 				{
@@ -117,5 +145,6 @@ export default defineConfig({
 				},
 			],
 		}),
+		sitemap(),
 	],
 });
