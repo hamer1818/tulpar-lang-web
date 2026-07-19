@@ -4,10 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>mini — Tulpar Tame</title>
-<style>html,body{margin:0;height:100%;background:#14141e;display:flex;align-items:center;justify-content:center;overflow:hidden}canvas{max-width:100%;max-height:100%;outline:none}#err{position:fixed;left:0;right:0;bottom:0;max-height:45%;overflow:auto;background:#300;color:#faa;font:12px monospace;padding:8px;white-space:pre-wrap;display:none;z-index:9}</style>
+<style>html,body{margin:0;height:100%;background:#14141e;display:flex;align-items:center;justify-content:center;overflow:hidden}canvas{max-width:100%;max-height:100%;outline:none}#err{position:fixed;left:0;right:0;bottom:0;max-height:45%;overflow:auto;background:#300;color:#faa;font:12px monospace;padding:8px;white-space:pre-wrap;display:none;z-index:9}#touch{display:none;position:fixed;left:0;right:0;bottom:0;z-index:8;justify-content:space-between;align-items:flex-end;padding:14px;pointer-events:none;-webkit-user-select:none;user-select:none}#touch>div{pointer-events:auto}#touch button{width:58px;height:58px;margin:3px;border-radius:12px;border:1px solid #3a3a5a;background:rgba(40,40,64,.62);color:#ffd45e;font:700 22px system-ui;touch-action:none;-webkit-tap-highlight-color:transparent}#touch button.act{background:rgba(255,212,94,.55);color:#111}#touch .row{display:flex;justify-content:center}#touch .big{width:74px;height:74px;font-size:20px}#touch .act-group{display:flex;align-items:center}@media (pointer:coarse){#touch{display:flex}}</style>
 </head>
 <body>
 <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+<div id="touch"><div class="pad"><div class="row"><button id="tU">&#9650;</button></div><div class="row"><button id="tL">&#9664;</button><button id="tD">&#9660;</button><button id="tR">&#9654;</button></div></div><div class="act-group"><button id="tS">R</button><button id="tA" class="big">&#9679;</button></div></div>
 <pre id="err"></pre>
 <script>
 // Hata/stderr'i sayfada goster — konsol acmadan teshis icin.
@@ -18,5 +19,8 @@ window.addEventListener('unhandledrejection',function(ev){showErr('[promise] '+e
 var Module={canvas:document.getElementById('canvas'),printErr:function(t){console.error(t);showErr(t);},onAbort:function(w){showErr('[abort] '+w);}};
 </script>
 <script src="mini.js"></script>
+<script>
+(function(){var C=document.getElementById('canvas');function K(code,kc){return{code:code,key:code.indexOf('Arrow')===0?code:(code==='Space'?' ':'r'),keyCode:kc,which:kc,bubbles:true,cancelable:true};}function fire(t,k){var e=new KeyboardEvent(t,k);(C||document).dispatchEvent(e);document.dispatchEvent(e);window.dispatchEvent(e);}function bind(id,code,kc){var el=document.getElementById(id);if(!el)return;var k=K(code,kc);var d=function(e){e.preventDefault();fire('keydown',k);el.classList.add('act');};var u=function(e){e.preventDefault();fire('keyup',k);el.classList.remove('act');};el.addEventListener('pointerdown',d);el.addEventListener('pointerup',u);el.addEventListener('pointerleave',u);el.addEventListener('pointercancel',u);}bind('tL','ArrowLeft',37);bind('tR','ArrowRight',39);bind('tU','ArrowUp',38);bind('tD','ArrowDown',40);bind('tA','Space',32);bind('tS','KeyR',82);})();
+</script>
 </body>
 </html>
