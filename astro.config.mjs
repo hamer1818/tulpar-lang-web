@@ -141,6 +141,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Basic Examples', translations: { tr: 'Temel Örnekler' }, slug: 'examples/basic' },
 						{ label: 'Advanced Examples', translations: { tr: 'İleri Seviye Örnekler' }, slug: 'examples/advanced' },
+						{ label: 'Games in the Browser', translations: { tr: 'Tarayıcıda Oyunlar' }, slug: 'examples/games' },
 						{ label: '🎮 Play Games in Browser', translations: { tr: '🎮 Tarayıcıda Oyun Oyna' }, link: '/oyunlar/', attrs: { target: '_blank' } },
 					],
 				},

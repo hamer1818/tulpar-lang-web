@@ -1,0 +1,78 @@
+---
+title: Tarayıcıda Oyunlar
+description: TulparLang ile yazılıp WebAssembly'ye derlenmiş on küçük oyun — kaynağını hem Türkçe hem İngilizce okuyabilirsin.
+---
+
+import { CardGrid, LinkCard, Card } from '@astrojs/starlight/components';
+
+**TulparLang** ile yazılıp **WebAssembly**'ye derlenmiş on küçük oyun — tarayıcıda
+çalışır, kurulum yok. Her oyunun **üç bölümü** var; üçünü de bitirince kazanırsın.
+Ve her oyunun kaynağını **hem Türkçe hem İngilizce** okuyabilirsin: TulparLang'in
+her yerleşik fonksiyonunun iki dilde adı var, yani `oyuncu(...)` ile `player(...)`,
+`carpisinca(...)` ile `on_hit(...)` aynı çağrı.
+
+<CardGrid>
+  <LinkCard title="▶ Tüm oyunları oyna" href="/oyunlar/" target="_blank"
+    description="Koleksiyonun tamamı, oyun başına kaynak görüntüleyici (TR / EN)." />
+</CardGrid>
+
+## Nasıl yazıldılar
+
+Oyunlar **`arcade`** üzerine oturuyor — küçük bir preset motoru (kendisi de
+TulparLang ile, `tame` raylib bağlamalarının üstünde yazılı). Döngüyü, fiziği,
+çarpışmayı, çizimi sen yazmazsın; blokları yerleştirip callback kaydedersin,
+böylece bütün bir oyun ~100 satır olur:
+
+```tulpar
+import "arcade";
+
+func kur() {
+    temizle();
+    oyuncu(300, 220, 24, 24, BLUE);      // ok tuşları / WASD hazır
+    esya(80, 80, 18, 18, GOLD);
+}
+
+func topla() { oldur(oteki()); skor_ekle(10); }
+
+sahne(640, 480, "Topla");
+baslangicta(kur);
+carpisinca(TAG_PLAYER, TAG_ITEM, topla);  // tag tabanlı çarpışma
+oyna();                                    // döngü + çizim + çarpışma, hepsi motorda
+```
+
+Bölümler sadece birer kurulum fonksiyonu — `bolum(1, b1); bolum(2, b2); …` — ve
+bir bölümün bitiş koşulu sağlanınca `bolum_gec()` sıradakine geçer. Skor bölümler
+arası korunur; son bölümü bitirince kazanma ekranı gelir.
+
+## Oyunlar
+
+<CardGrid>
+  <LinkCard title="🦘 Zıpla" href="/oyunlar/zipla.html" target="_blank"
+    description="Platformer — platformları tırmanıp altın hedefe ulaş. Bölümler: kolay → zikzak tırmanış → dar platformlar + hareketli engel." />
+  <LinkCard title="💰 Topla" href="/oyunlar/topla.html" target="_blank"
+    description="Yukarıdan bakış — tüm sarıları topla, kırmızıya değme. Bölümler: 3 eşya / 1 düşman → 5 / 2 → 6 / 3 hızlı." />
+  <LinkCard title="🎯 Nişancı" href="/oyunlar/nisan.html" target="_blank"
+    description="İnen kırmızıları vurup hedef skora ulaş. Bölümler: 30 → 60 → 100 (tempo artar)." />
+  <LinkCard title="🐍 Yılan" href="/oyunlar/yilan.html" target="_blank"
+    description="Yemi ye, kendine çarpma. Bölümler: yavaş → hızlı → en hızlı + engel duvarları." />
+  <LinkCard title="🧱 Tuğla Kırma" href="/oyunlar/tugla.html" target="_blank"
+    description="Raket ve top — tüm tuğlaları kır. Bölümler: düz duvar → piramit → boşluklu duvar + hızlı top." />
+  <LinkCard title="👾 Uzay İstilası" href="/oyunlar/uzay.html" target="_blank"
+    description="Filoyu temizle. Bölümler: 3×5 yavaş → 4×6 hızlı → 4×7 + filo geri ateş eder." />
+  <LinkCard title="🗝️ Labirent" href="/oyunlar/labirent.html" target="_blank"
+    description="Anahtarları topla, devriyelerden kaç. Bölümler: geniş → simetrik / 2 devriye → sık / 3 hızlı devriye." />
+  <LinkCard title="🚗 Karşıya Geç" href="/oyunlar/karsiya.html" target="_blank"
+    description="Akan trafikten geçip altın şeride ulaş. Bölümler: 3 şerit yavaş → 4 → 5 hızlı." />
+  <LinkCard title="🐦 Uçuş" href="/oyunlar/ucus.html" target="_blank"
+    description="Boruların arasından kanat çırparak geç. Bölümler: geniş boşluk / yavaş → dar / hızlı → en dar / en hızlı." />
+  <LinkCard title="☄️ Göktaşı" href="/oyunlar/goktasi.html" target="_blank"
+    description="Göktaşlarından kaçarak süreyi doldur. Bölümler: 12 sn / seyrek → 15 sn / sık → 18 sn / en yoğun." />
+</CardGrid>
+
+## Kaynağı iki dilde de oku
+
+**[Oyunlar sayfasını](/oyunlar/)** aç ve herhangi bir oyunda **“Kodu gör”**e bas —
+yan yana bir görüntüleyici, oyunun TulparLang kaynağını Türkçe ve İngilizce
+gösterir. Aynı program, aynı şekilde derlenmiş; yalnızca tanımlayıcılar ve
+metinler farklı. Mesele de bu: TulparLang hem Türkçe hem İngilizce konuşana
+doğal okunur.
