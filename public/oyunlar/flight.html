@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>flight — Tulpar Tame</title>
+<style>html,body{margin:0;height:100%;background:#14141e;display:flex;align-items:center;justify-content:center;overflow:hidden}canvas{max-width:100%;max-height:100%;outline:none}#err{position:fixed;left:0;right:0;bottom:0;max-height:45%;overflow:auto;background:#300;color:#faa;font:12px monospace;padding:8px;white-space:pre-wrap;display:none;z-index:9}</style>
+</head>
+<body>
+<canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+<pre id="err"></pre>
+<script>
+// Hata/stderr'i sayfada goster — konsol acmadan teshis icin.
+var errBox=document.getElementById('err');
+function showErr(m){errBox.style.display='block';errBox.textContent+=m+'\n';}
+window.onerror=function(m,s,l,c,e){showErr('[onerror] '+m+' @'+s+':'+l);};
+window.addEventListener('unhandledrejection',function(ev){showErr('[promise] '+ev.reason);});
+var Module={canvas:document.getElementById('canvas'),printErr:function(t){console.error(t);showErr(t);},onAbort:function(w){showErr('[abort] '+w);}};
+</script>
+<script src="flight.js"></script>
+</body>
+</html>
