@@ -54,6 +54,7 @@ Tulpar compiles ahead-of-time via LLVM (no bytecode VM, no REPL) and ships HTTP,
 ## Examples
 - [Advanced Examples](https://tulparlang.dev/examples/advanced/): Advanced Tulpar examples covering networking, file I/O, and databases.
 - [Basic Examples](https://tulparlang.dev/examples/basic/): Learn from example programs written in Tulpar.
+- [Games in the Browser](https://tulparlang.dev/examples/games/): Ten small games written in TulparLang, compiled to WebAssembly, with source you can read in both English and Turkish.
 
 ## Optional
 - [Full documentation](https://tulparlang.dev/llms-full.txt): every page above concatenated as plain text, for agents that want the whole language reference in one fetch.

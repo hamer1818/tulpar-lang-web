@@ -2688,6 +2688,84 @@ print("Random point: (", x, ",", y, ")");
 
 ---
 
+# Games in the Browser
+Source: https://tulparlang.dev/examples/games/
+
+Ten small games written in TulparLang, compiled to WebAssembly, with source you can read in both English and Turkish.
+
+Ten small games written in **TulparLang** and compiled to **WebAssembly** — they
+run in your browser, no install. Every game has **three levels**; clear all three
+and you win. And you can read each game's source in **both English and Turkish**:
+every TulparLang built-in has a name in both languages, so `player(...)` and
+`oyuncu(...)`, `on_hit(...)` and `carpisinca(...)` are the same call.
+
+<CardGrid>
+  <LinkCard title="▶ Play all games" href="/oyunlar/" target="_blank"
+    description="The full collection, with a per-game source viewer (EN / TR)." />
+</CardGrid>
+
+## How they're made
+
+The games sit on **`arcade`** — a tiny preset engine (itself written in
+TulparLang, on top of the `tame` raylib bindings). You don't write the loop,
+physics, collision or drawing; you place blocks and register callbacks, so a
+whole game is ~100 lines:
+
+```tulpar
+
+func setup() {
+    clear_entities();
+    player(300, 220, 24, 24, BLUE);      // arrows / WASD ready
+    item(80, 80, 18, 18, GOLD);
+}
+
+func collect() { kill(other()); score_add(10); }
+
+scene(640, 480, "Collect");
+on_start(setup);
+on_hit(TAG_PLAYER, TAG_ITEM, collect);   // tag-based collision
+play();                                   // loop + draw + collision, all managed
+```
+
+Levels are just a setup function each — `level(1, l1); level(2, l2); …` — and
+`next_level()` advances when a level's win condition is met. Score carries across
+levels; clearing the last one shows the win screen.
+
+## The games
+
+<CardGrid>
+  <LinkCard title="🦘 Jump" href="/oyunlar/jump.html" target="_blank"
+    description="Platformer — climb the platforms to the gold target. Levels: easy → zigzag climb → narrow platforms + a moving obstacle." />
+  <LinkCard title="💰 Collect" href="/oyunlar/collect.html" target="_blank"
+    description="Top-down — grab every yellow, avoid the red. Levels: 3 items / 1 enemy → 5 / 2 → 6 / 3 fast." />
+  <LinkCard title="🎯 Shooter" href="/oyunlar/shooter.html" target="_blank"
+    description="Shoot the falling reds to hit the target score. Levels: 30 → 60 → 100 as the tempo rises." />
+  <LinkCard title="🐍 Snake" href="/oyunlar/snake.html" target="_blank"
+    description="Eat food, don't hit yourself. Levels: slow → fast → fastest + obstacle walls." />
+  <LinkCard title="🧱 Breakout" href="/oyunlar/breakout.html" target="_blank"
+    description="Paddle and ball — break every brick. Levels: flat wall → pyramid → gapped wall + faster ball." />
+  <LinkCard title="👾 Space Invaders" href="/oyunlar/invaders.html" target="_blank"
+    description="Clear the fleet. Levels: 3×5 slow → 4×6 fast → 4×7 and the fleet shoots back." />
+  <LinkCard title="🗝️ Maze" href="/oyunlar/maze.html" target="_blank"
+    description="Collect the keys, dodge the patrols. Levels: open → symmetric / 2 patrols → dense / 3 fast patrols." />
+  <LinkCard title="🚗 Crossing" href="/oyunlar/crossing.html" target="_blank"
+    description="Reach the gold strip through flowing traffic. Levels: 3 lanes slow → 4 → 5 fast." />
+  <LinkCard title="🐦 Flight" href="/oyunlar/flight.html" target="_blank"
+    description="Flap through the pipe gaps. Levels: wide gap / slow → narrow / fast → narrowest / fastest." />
+  <LinkCard title="☄️ Meteor Dodge" href="/oyunlar/dodge.html" target="_blank"
+    description="Survive the timer while dodging meteors. Levels: 12s / sparse → 15s / dense → 18s / densest." />
+</CardGrid>
+
+## Read the source, in either language
+
+Open **[the games page](/oyunlar/)** and hit **“See code”** on any game — a
+side-by-side viewer shows the exact TulparLang source in Turkish and English.
+It's the same program compiled the same way; only the identifiers and strings
+differ. That's the point: TulparLang reads naturally to a Turkish or an English
+speaker.
+
+---
+
 # FAQ
 Source: https://tulparlang.dev/faq/
 
@@ -2757,6 +2835,615 @@ via AOT/LLVM compilation, while also including the batteries — HTTP server,
 JSON, SQLite, ORM, and OpenAPI generation — that C, Go, and Rust leave to
 third-party libraries. See [Tulpar vs C](/guide/tulpar-vs-c/) for a
 side-by-side code comparison.
+
+---
+
+# Arcade — Preset Game Engine
+Source: https://tulparlang.dev/games/arcade/
+
+The arcade preset engine — entities, movement presets, collisions, physics, levels, per-level stars and badges, control schemes, effects, the multi-game launcher, and leaderboards.
+
+`import "arcade"` is a preset engine built on top of [`tame`](/games/tame/). You
+declare **entities**, **collisions**, **levels** and **score**; it runs the loop,
+physics, collision dispatch, HUD, pause menu, game-over screen, touch controls,
+stars and badges. Games are typically 20–60 lines. Everything is bilingual
+(English + Turkish aliases).
+
+## The shape of a game
+
+```rust
+
+func setup() {
+    player(300, 220, 28, 28, BLUE);
+    item(120, 120, 20, 20, GOLD);
+}
+func on_pickup() { kill(other()); score_add(10); }
+
+scene(640, 480, "My Game");   // open the window
+on_start(setup);              // build the world (runs on start + on restart)
+on_hit(TAG_PLAYER, TAG_ITEM, on_pickup);
+play();                       // hand the loop to the engine
+```
+
+| Call | Turkish | Purpose |
+| --- | --- | --- |
+| `scene(w, h, title)` | `sahne` | Open the window; `title` is also the high-score key. |
+| `on_start(fn)` | `baslangicta` | Build the world. Runs on start and on every restart / level load. |
+| `on_frame(fn)` | `her_kare` | Optional per-frame logic you own (custom movement, timers). |
+| `on_draw(fn)` | `ciz_ustune` | Optional extra drawing over the entities. |
+| `play()` | `oyna` | Run the game. |
+
+## Entities
+
+Entities are created with preset spawners that return an **id** (a handle — never
+use it as an array index; always pass it back to the engine):
+
+| Spawner | Turkish | Tag + movement |
+| --- | --- | --- |
+| `player(x,y,w,h,color)` | `oyuncu` | `TAG_PLAYER`, top-down (arrow keys / touch) |
+| `platformer(x,y,w,h,color)` | `oyuncu_p` | `TAG_PLAYER`, gravity + jump |
+| `enemy(x,y,w,h,color)` | `dusman` | `TAG_ENEMY`, no auto-movement |
+| `item(x,y,w,h,color)` | `esya` | `TAG_ITEM` |
+| `wall(x,y,w,h,color)` | `duvar` | `TAG_WALL` (solid) |
+| `bullet(x,y,w,h,color,vx,vy)` | `mermi` | `TAG_BULLET`, moves by its own velocity |
+| `spawn(x,y,w,h,color,tag,mv)` | `uret` | Fully custom: pick the tag + movement preset |
+
+Movement presets: `MV_TOPDOWN`, `MV_PLATFORM`, `MV_VELOCITY`, `MV_NONE`.
+Tags: `TAG_PLAYER`, `TAG_ENEMY`, `TAG_ITEM`, `TAG_WALL`, `TAG_BULLET` (and you can
+use small integers `6+` for your own).
+
+**Manipulating entities** (all take an id):
+
+```
+set_vel(id, vx, vy)   set_pos(id, x, y)   move_speed(id, s)
+set_color(id, c)      set_sprite(id, tex) kill(id)
+get_x(id)  get_y(id)  get_vx(id)  get_vy(id)  tag_of(id)  alive(id)
+```
+
+Turkish aliases: `hiz_ver`, `konumla`, `hiz_ayarla`, `renk_ata`, `resim_ata`,
+`oldur`, `x_of`, `y_of`, `vx_of`, `vy_of`, `tag_al`, `yasiyor`.
+
+Counting: `entity_count()`, `live_count()` (`canli_sayisi`), `tag_count(tag)`
+(`tag_sayisi` — live entities with a tag, e.g. "are all items collected?").
+
+## Collisions
+
+Register a handler for a pair of tags; the engine calls it whenever two such
+entities overlap:
+
+```rust
+func on_pickup() {
+    kill(other());        // the item we hit
+    score_add(10);
+}
+on_hit(TAG_PLAYER, TAG_ITEM, on_pickup);   // TR: carpisinca
+```
+
+Inside a handler, `me()` (`ben`) is the first-tag entity and `other()` (`oteki`)
+is the second. `overlaps(a, b)` (`degiyor`) tests any two ids on demand.
+
+:::caution[Handler rules]
+Collision handlers are called through the engine's dynamic dispatch. Register each
+rule **once** at setup — registering the same pair twice fires it twice. Reserved
+words bite here: `move` and `don` (Turkish "return") are keywords, so don't name a
+variable `don` or `move`.
+:::
+
+## Physics (platformers)
+
+```rust
+gravity(1400);        // TR: yercekimi — downward acceleration
+jump_power(640);      // TR: ziplama — jump velocity
+platformer(60, 300, 28, 28, BLUE);
+wall(0, 440, 640, 40, DARKGRAY);   // solid ground
+```
+
+`TAG_WALL` entities are solid: the engine resolves collisions with a minimum-
+translation-vector push (land on top → grounded; hit a side → blocked). By default
+entities are clamped to the world; `clamp_to_world(false)` turns that off.
+
+## Score, HUD & game-over
+
+```
+score_add(n)   score()   set_score(n)         // skor_ekle / skor / skor_ata
+game_over()                                    // oyun_bitti — ends the game
+is_over()  is_won()                            // bitti_mi / kazandin_mi
+best_score()                                   // en_iyi_skor — persisted per scene title
+hud("Coins: ")   hide_hud()                    // customize / hide the score line
+controls("Arrows to move, Space to jump")      // bilgi — a hint strip
+```
+
+`game_over()` automatically adds screen shake, a flash, a lose tone, haptics and a
+record check — every game gets that juice for free. The professional game-over
+overlay (score, best, **Play Again** / **Menu** buttons) is drawn by the engine.
+
+## Levels
+
+Multi-level games are engine-native — you never rewrite the flow:
+
+```rust
+func setup() { player(300, 220, 28, 28, BLUE); }   // runs before every level
+func lvl1() { item(120, 120, 20, 20, GOLD); }
+func lvl2() { item(120, 120, 20, 20, GOLD); item(500, 340, 20, 20, GOLD); }
+
+func on_pickup() {
+    kill(other()); score_add(10);
+    if (tag_count(TAG_ITEM) == 0) { next_level(); }   // bolum_gec
+}
+
+on_start(setup);
+level(1, lvl1);           // TR: bolum
+level(2, lvl2);
+on_hit(TAG_PLAYER, TAG_ITEM, on_pickup);
+```
+
+`next_level()` advances (or wins on the last level); it's **deferred to end of
+frame**, so it's safe to call inside a collision handler. Score carries across
+levels. Query with `level_no()` / `level_count()` (`bolum_no` / `bolum_sayisi`).
+
+## Stars & badges
+
+Progression is automatic and persistent. In the **launcher** (see below), tapping a
+leveled game opens a **level-select screen**; **each level earns its own gold star**
+the moment you clear it, and any earlier level can be replayed. Cards show
+`completed / total`.
+
+Endless games (no `level(...)` calls) declare score thresholds instead:
+
+```rust
+star_goals(100, 400, 1000);   // TR: yildiz_hedef — 1★ / 2★ / 3★ by best score
+```
+
+Five persistent **badges** unlock as you play: First Win, Record Breaker, Three
+Stars, Collector (15 total stars) and Master (30) — shown behind the trophy button
+on the launcher menu, with a toast when newly earned. Nothing is ever locked.
+
+## Control schemes (mobile)
+
+The engine draws and reads on-screen touch controls automatically. Pick the scheme
+that fits the game with `control_scheme(...)` (TR `kontrol_semasi`):
+
+| Value | Controls shown |
+| --- | --- |
+| `"joystick"` | Floating analog stick (8-direction) |
+| `"dpad"` / `"yon4"` | 4-way D-pad |
+| `"yatay"` / `"horizontal"` | ◀ ▶ buttons only |
+| `"dikey"` / `"vertical"` | ▲ ▼ buttons only |
+| `"tilt"` / `"egim"` | Accelerometer steering |
+| `"none"` / `"yok"` | No controls (tap-only games) |
+| *(unset)* | Auto — inferred from which directions the game reads |
+
+Read movement through the engine so keyboard **and** touch both work:
+`left()`, `right()`, `up()`, `down()` (TR `sol/sag/yukari/asagi`); actions with
+`action_pressed()` / `fire_pressed()` (`aksiyon_basildi` / `ates_basildi`);
+whole-screen taps with `tapped()` (`dokunuldu`); and gestures with
+`swiped("left")` (`kaydirildi`). Desktop keyboard keeps working unchanged.
+
+## Effects (juice)
+
+```
+explode(x, y, color)      // patlama — a particle burst
+explode_n(x, y, color, n) // patlama_n — with a custom particle count
+shake()                   // sars — brief screen shake
+flash()                   // parla — white flash
+```
+
+`game_over()` already triggers shake + flash + a record check, so a plain game
+still feels alive.
+
+## Sound, haptics & language
+
+```
+sound_on(true)   music_on(true)   haptics_on(true)   show_fps(true)
+language("en")   // dil — "en" or "tr"; retranslates the engine HUD
+```
+
+These are also exposed in the built-in Settings screen and persist automatically.
+
+## The launcher — many games, one app
+
+Bundle several games into one window (and one APK) with the launcher:
+
+```rust
+
+// ... each game as a 0-arg setup function that registers scene/levels/collisions
+//     but does NOT call scene()/play() ...
+
+launcher_title("MY ARCADE");     // menu_basligi
+add_game("Collect", collect_setup);   // oyun_ekle
+add_game("Jump", jump_setup);
+scene(640, 480, "Arcade");
+launcher();                      // menu ↔ game ↔ settings ↔ badges state machine
+```
+
+`add_game(name, setup)` registers a game; `launcher()` draws a responsive card
+grid, per-game stars, the settings gear and the badges trophy, and switches
+between games. The shipped **Tulpar Arcade** app is 13 games behind one launcher.
+
+## Optional: a global leaderboard
+
+```
+leaderboard_url("http://10.0.2.2:3000")   // skor_tablosu_url — a Wings server
+player_name("Alex")                        // oyuncu_adi
+```
+
+When set, each game submits its score on game-over and shows the global top-5.
+Off by default (no URL → no network).
+
+## Testing without a window
+
+The engine has a headless step API — advance the simulation one tick without
+opening a window, ideal for regression tests:
+
+```rust
+step(0.016);   // TR: adim — run one frame of physics + collisions
+```
+
+This is how the arcade regression suites verify level flow, collisions, stars and
+badges in CI, with no display.
+
+Ready to ship? Head to [Building & Publishing](/games/build/).
+
+---
+
+# Building & Publishing Games
+Source: https://tulparlang.dev/games/build/
+
+Compile and ship a TulparLang game to desktop, the web (WebAssembly) or Android (APK / AAB) — including the one-command tulpar.toml config build.
+
+One game module compiles to **desktop**, the **web** and **Android** from the same
+source. `import "arcade"` and `import "tame"` behave identically on all three.
+
+## Desktop
+
+```bash
+tulpar game.tpr                 # compile + run
+tulpar build game.tpr mygame    # standalone native binary
+```
+
+## Web (WebAssembly)
+
+```bash
+tulpar build --target=web game.tpr out/game
+# → out/game.html + out/game.js + out/game.wasm
+```
+
+- Serve the files over HTTP (not `file://`).
+- The **output directory must already exist**.
+- The output name is a *base*: `.html` / `.js` / `.wasm` are appended (a trailing
+  `.html` you write yourself is stripped, so `-o game` and `-o game.html` are
+  equivalent).
+- Every web build gets a **touch gamepad** for free — it appears only on
+  touch devices and drives the game through synthetic key events, so arcade games
+  are mobile-playable in the browser with no extra work.
+
+## Android (APK / AAB)
+
+```bash
+tulpar build --target=android game.tpr out   # APK staging (arm64-v8a + x86_64)
+tulpar build --apk game.tpr out              # → signed APK in one step
+tulpar build --aab game.tpr out              # → Play Store bundle
+```
+
+From one compiled module the driver emits both device (`arm64-v8a`) and emulator
+(`x86_64`) objects and links them into a NativeActivity app. `import "arcade"` runs
+on-device unchanged, and its on-screen D-pad / joystick / action button make every
+arcade game touch-playable.
+
+The app's **identity** (package name, label, icon, orientation, version) comes from
+`[android]` in `tulpar.toml` — see below.
+
+## Assets
+
+Bundle images, fonts and audio into the web/Android build:
+
+```bash
+TULPAR_WEB_ASSETS=./assets tulpar build --apk game.tpr out
+```
+
+Files are embedded so `load_texture("player.png")`, `load_font(...)`,
+`load_sound(...)` resolve at runtime on every platform.
+
+## The `tulpar.toml` config build
+
+Instead of remembering a long command, describe the target once in `tulpar.toml`
+and run a bare `tulpar build`:
+
+```toml
+name = "my-arcade"
+version = "1.0.0"
+
+[android]
+package = "dev.example.arcade"
+name = "My Arcade"
+icon = "icon.png"
+orientation = "landscape"
+version_code = "1"
+version_name = "1.0"
+
+[build]
+target = "apk"                 # desktop | web | android | apk | aab
+entry  = "game.tpr"
+output = "my-arcade"
+```
+
+```bash
+tulpar build          # reads [build] → produces the signed my-arcade.apk
+```
+
+CLI flags still win (`tulpar build --target=web game.tpr` overrides the manifest),
+so the config is a default, not a lock.
+
+:::caution[One malformed line fails the whole manifest]
+`tulpar.toml` is parsed strictly — a single unrecognized line makes the parser fall
+back to defaults (and a mobile build silently produces a generic app). Top-level
+keys are only `name`, `version`, `description`, `author`, `license`; keep other
+settings inside their `[section]`. Don't put inline comments on value lines.
+:::
+
+## Publishing
+
+- **Web:** copy the `.html` / `.js` / `.wasm` (and any `.data`) to any static host
+  and serve over HTTP.
+- **Android:** the signed `.apk` installs directly (`adb install -r app.apk`); the
+  `.aab` is what you upload to the Google Play Console. Bump `version_code` in
+  `[android]` for every release.
+
+The shipped [Tulpar Arcade](/oyunlar/) app — 13 games in one launcher — is built
+exactly this way.
+
+---
+
+# Game Development — Quick Start
+Source: https://tulparlang.dev/games/quickstart/
+
+Build 2D games in TulparLang. Two layers — the tame graphics library and the arcade preset engine — with a bilingual (English + Turkish) API.
+
+TulparLang ships a batteries-included 2D game stack. It comes in **two layers**,
+and you pick the one that fits your game:
+
+- **`tame`** — the low-level graphics library: open a window, draw shapes and
+  textures, read the keyboard / mouse / touch / gamepad / tilt sensor, play
+  sounds, save data. A thin, fast wrapper over a vendored raylib. Full control,
+  you write the game loop.
+- **`arcade`** — a *preset engine* built on top of `tame`. You describe entities,
+  collisions, levels and score in a few lines; it runs the loop, physics,
+  collision dispatch, HUD, pause, game-over, touch controls, stars and badges for
+  you. Most of the shipped games use this.
+
+Every built-in has a name in **both English and Turkish** — `player(...)` and
+`oyuncu(...)`, `on_hit(...)` and `carpisinca(...)` are the same call. Use whichever
+you like; you can even mix them.
+
+## Your first game with `tame`
+
+A bouncing box in ~20 lines:
+
+```rust
+
+func main() {
+    window(640, 480, "Bouncing box");
+    set_fps(60);
+
+    float x = 100.0; float y = 100.0;
+    float vx = 220.0; float vy = 180.0;
+
+    while (running()) {
+        float dt = frame_time();
+        x = x + vx * dt;
+        y = y + vy * dt;
+        if (x < 0.0 || x > 600.0) { vx = 0.0 - vx; }
+        if (y < 0.0 || y > 440.0) { vy = 0.0 - vy; }
+
+        frame_begin();
+        clear(rgb(16, 18, 26));
+        rect(x, y, 40, 40, GOLD);
+        text("Hello, tame", 12, 12, 20, WHITE);
+        frame_end();
+    }
+    close_window();
+}
+
+main();
+```
+
+Every frame sits between `frame_begin()` and `frame_end()`. `running()` is false
+when the user closes the window. See the [Tame API reference](/games/tame/) for
+the full surface.
+
+## Your first game with `arcade`
+
+The same window, but now the engine owns the loop. Collect the gold squares:
+
+```rust
+
+func setup() {
+    player(300, 220, 28, 28, BLUE);      // arrow keys / touch move it
+    item(120, 120, 20, 20, GOLD);
+    item(500, 340, 20, 20, GOLD);
+}
+
+func on_pickup() {
+    kill(other());                        // remove the item we hit
+    score_add(10);
+}
+
+scene(640, 480, "Collector");
+on_start(setup);
+on_hit(TAG_PLAYER, TAG_ITEM, on_pickup);  // when player touches an item
+play();
+```
+
+No game loop, no input handling, no HUD code — `arcade` supplies all of it. The
+same program is touch-playable on Android and runs in the browser unchanged. See
+the [Arcade guide](/games/arcade/) for entities, levels, stars and more.
+
+## Running it
+
+```bash
+tulpar game.tpr                    # desktop: compile + run
+tulpar build --target=web game.tpr out/game     # → out/game.html + .js + .wasm
+tulpar build --apk game.tpr out/game            # → signed Android APK
+```
+
+The output directory must already exist. For the full build matrix — desktop,
+web, Android, and the one-command `tulpar.toml` config build — see
+[Building & Publishing](/games/build/).
+
+:::tip[Which layer?]
+Making a small arcade/puzzle/action game with entities and levels? Start with
+**arcade**. Doing something unusual (a custom renderer, a tool, a visualization)?
+Use **tame** directly.
+:::
+
+---
+
+# Tame — 2D Graphics Library
+Source: https://tulparlang.dev/games/tame/
+
+The full tame API — window and loop, drawing, colors, keyboard / mouse / touch / gamepad / tilt input, audio, textures, fonts, persistence and helpers.
+
+`import "tame"` gives you a thin, fast wrapper over a vendored raylib: a window, a
+frame loop, drawing, input, audio and persistence. It links only when your program
+imports `"tame"` or calls a `tm_*` built-in — ordinary programs stay dependency-free.
+
+Every function below has an **English** name and a **Turkish** alias (where one
+exists); both compile to the same call.
+
+## Window & loop
+
+| Function | Description |
+| --- | --- |
+| `window(w, h, title): bool` | Open a window (call once, before the loop). |
+| `running(): bool` | `false` once the user closes the window — your loop condition. |
+| `close_window()` | Close the window (after the loop). |
+| `set_fps(n)` | Target frame rate (e.g. `60`). |
+| `frame_begin()` / `frame_end()` | Wrap everything you draw in a frame. |
+| `frame_time(): float` | Seconds since last frame (delta time — multiply movement by this). |
+| `elapsed(): float` | Seconds since the program started (monotonic). |
+| `get_fps(): int` | Current measured frame rate. |
+| `screen_width(): int` / `screen_height(): int` | Window size in pixels. |
+
+For mobile/full-screen scaling, the **view bounds** report the real drawable area:
+`view_left()` / `view_right()` / `view_top()` / `view_bottom()` (TR:
+`ekran_sol/sag/ust/alt`). Anchor on-screen controls to these so they hug the true
+screen edges on Android.
+
+## Drawing & colors
+
+| Function | Description |
+| --- | --- |
+| `clear(color)` | Fill the whole frame with a color. |
+| `rect(x, y, w, h, color)` | Filled rectangle. |
+| `rect_lines(x, y, w, h, color)` | Rectangle outline. |
+| `circle(x, y, radius, color)` | Filled circle. |
+| `line(x1, y1, x2, y2, color)` | Line. |
+| `triangle(x1, y1, x2, y2, x3, y3, color)` | Filled triangle. |
+| `pixel(x, y, color)` | Single pixel. |
+| `text(s, x, y, size, color)` | Draw text (default font). |
+| `measure_text(s, size): int` | Pixel width of a string — for centering. |
+
+Colors are packed integers. Build them with **`rgb(r, g, b)`** or
+**`rgba(r, g, b, a)`** (each channel `0–255`), or use a named constant:
+
+```
+WHITE  BLACK  GRAY  DARKGRAY  RED  MAROON  GREEN  LIME  BLUE  SKYBLUE
+GOLD  YELLOW  ORANGE  PINK  PURPLE  VIOLET  BEIGE  BROWN  MAGENTA
+```
+
+## Input
+
+**Keyboard** — key names are strings like `"LEFT"`, `"RIGHT"`, `"UP"`, `"DOWN"`,
+`"SPACE"`, `"ENTER"`, `"ESCAPE"`, `"A"`…`"Z"`:
+
+| Function | Description |
+| --- | --- |
+| `key_down(k): bool` | Held right now. |
+| `key_pressed(k): bool` | Went down this frame (single fire). |
+| `key_released(k): bool` | Went up this frame. |
+
+**Mouse:** `mouse_x()`, `mouse_y()`, `mouse_down(b)`, `mouse_pressed(b)`,
+`mouse_wheel()`.
+
+**Touch** (mobile) — TR aliases `dokunma_*`:
+
+| Function | Description |
+| --- | --- |
+| `touch_count(): int` | Number of active fingers. |
+| `touch_x(i): int` / `touch_y(i): int` | Position of finger `i`. |
+| `touched(): bool` | Any finger down? |
+
+On Android, touch coordinates are already scaled into your game's world space, so
+`touch_x/y` line up with what you draw.
+
+**Gamepad:** `gamepad_available(id)`, `gamepad_name(id)`, `gamepad_down(id, btn)`,
+`gamepad_pressed(id, btn)`, `gamepad_axis(id, axis)`.
+
+**Tilt / accelerometer** (Android) — TR aliases `egim_*`:
+`accel_x()`, `accel_y()`, `accel_z()`, `accel_available()`. Desktop returns zeros,
+so guard with `accel_available()`.
+
+## Audio
+
+No asset files required — synth a tone on the fly:
+
+| Function | Description |
+| --- | --- |
+| `beep(freq, ms)` (TR `bip`) | Play a `freq` Hz sine for `ms` milliseconds. |
+| `tone(freq, ms, vol)` (TR `ton`) | Same, but with a `0..1` volume — for background music under sound effects. |
+
+Or load real audio files:
+
+| Function | Description |
+| --- | --- |
+| `load_sound(path): int` / `play_sound(s)` / `stop_sound(s)` / `sound_volume(s, v)` | Short sound effects. |
+| `load_music(path): int` / `play_music(m)` / `stop_music(m)` / `music_volume(m, v)` | Streaming music. |
+
+## Textures & fonts
+
+| Function | Description |
+| --- | --- |
+| `load_texture(path): int` | Load an image. |
+| `draw_texture(tex, x, y)` | Draw it. |
+| `draw_texture_ex(tex, x, y, scale, rotation)` | Scaled / rotated. |
+| `texture_width(tex): int` / `texture_height(tex): int` | Dimensions. |
+| `unload_texture(tex)` | Free it. |
+| `load_font(path, size): int` | Load a TTF at a size. |
+| `text_font(f, s, x, y, size, color)` | Draw text with a loaded font. |
+
+Bundle assets into the web/Android build with `TULPAR_WEB_ASSETS=<dir>` — see
+[Building & Publishing](/games/build/).
+
+## Persistence & device
+
+| Function | Description |
+| --- | --- |
+| `save_data(name, text): bool` (TR `kayit_yaz`) | Write a small string (high scores, settings). Persists across launches on every platform. |
+| `load_data(name): str` (TR `kayit_oku`) | Read it back (`""` if missing). |
+| `vibrate(ms)` (TR `titret`) | Haptic buzz on Android; a no-op elsewhere. |
+| `screenshot(path)` | Save a PNG of the current frame. |
+
+`name` is a plain file name (e.g. `"score"`), not a path. On Android it maps to the
+app's private storage automatically.
+
+## Helpers
+
+| Function | Description |
+| --- | --- |
+| `rgb(r, g, b): int` / `rgba(r, g, b, a): int` | Build a color. |
+| `rect_overlap(x1,y1,w1,h1, x2,y2,w2,h2): bool` | AABB overlap test. |
+| `point_in_rect(px, py, x, y, w, h): bool` | Point-in-rectangle test. |
+| `clamp(v, lo, hi)` | Constrain a value to a range. |
+| `run(update_fn, draw_fn)` | Convenience loop: calls `update` then `draw` each frame until the window closes (also drives the web animation frame). |
+
+:::note[No `%` operator]
+TulparLang has no `%`; use `mod(a, b)` for integers and `fmod(a, b)` for floats.
+`/` is float division if either operand is a float — wrap with `toInt(...)` when you
+need integer division.
+:::
+
+Ready for entities, collisions and levels without writing a loop? Move up to the
+[Arcade preset engine](/games/arcade/).
 
 ---
 

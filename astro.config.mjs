@@ -136,6 +136,16 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Game Development',
+					translations: { tr: 'Oyun Geliştirme' },
+					items: [
+						{ label: 'Quick Start', translations: { tr: 'Hızlı Başlangıç' }, slug: 'games/quickstart' },
+						{ label: 'Tame — Graphics Library', translations: { tr: 'Tame — Grafik Kütüphanesi' }, slug: 'games/tame' },
+						{ label: 'Arcade — Preset Engine', translations: { tr: 'Arcade — Preset Motoru' }, slug: 'games/arcade' },
+						{ label: 'Building & Publishing', translations: { tr: 'Derleme ve Yayınlama' }, slug: 'games/build' },
+					],
+				},
+				{
 					label: 'Examples',
 					translations: { tr: 'Örnekler' },
 					items: [

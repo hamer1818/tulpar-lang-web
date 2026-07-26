@@ -1,0 +1,246 @@
+---
+title: Arcade — Preset Game Engine
+description: The arcade preset engine — entities, movement presets, collisions, physics, levels, per-level stars and badges, control schemes, effects, the multi-game launcher, and leaderboards.
+---
+
+`import "arcade"` is a preset engine built on top of [`tame`](/games/tame/). You
+declare **entities**, **collisions**, **levels** and **score**; it runs the loop,
+physics, collision dispatch, HUD, pause menu, game-over screen, touch controls,
+stars and badges. Games are typically 20–60 lines. Everything is bilingual
+(English + Turkish aliases).
+
+## The shape of a game
+
+```rust
+import "arcade";
+
+func setup() {
+    player(300, 220, 28, 28, BLUE);
+    item(120, 120, 20, 20, GOLD);
+}
+func on_pickup() { kill(other()); score_add(10); }
+
+scene(640, 480, "My Game");   // open the window
+on_start(setup);              // build the world (runs on start + on restart)
+on_hit(TAG_PLAYER, TAG_ITEM, on_pickup);
+play();                       // hand the loop to the engine
+```
+
+| Call | Turkish | Purpose |
+| --- | --- | --- |
+| `scene(w, h, title)` | `sahne` | Open the window; `title` is also the high-score key. |
+| `on_start(fn)` | `baslangicta` | Build the world. Runs on start and on every restart / level load. |
+| `on_frame(fn)` | `her_kare` | Optional per-frame logic you own (custom movement, timers). |
+| `on_draw(fn)` | `ciz_ustune` | Optional extra drawing over the entities. |
+| `play()` | `oyna` | Run the game. |
+
+## Entities
+
+Entities are created with preset spawners that return an **id** (a handle — never
+use it as an array index; always pass it back to the engine):
+
+| Spawner | Turkish | Tag + movement |
+| --- | --- | --- |
+| `player(x,y,w,h,color)` | `oyuncu` | `TAG_PLAYER`, top-down (arrow keys / touch) |
+| `platformer(x,y,w,h,color)` | `oyuncu_p` | `TAG_PLAYER`, gravity + jump |
+| `enemy(x,y,w,h,color)` | `dusman` | `TAG_ENEMY`, no auto-movement |
+| `item(x,y,w,h,color)` | `esya` | `TAG_ITEM` |
+| `wall(x,y,w,h,color)` | `duvar` | `TAG_WALL` (solid) |
+| `bullet(x,y,w,h,color,vx,vy)` | `mermi` | `TAG_BULLET`, moves by its own velocity |
+| `spawn(x,y,w,h,color,tag,mv)` | `uret` | Fully custom: pick the tag + movement preset |
+
+Movement presets: `MV_TOPDOWN`, `MV_PLATFORM`, `MV_VELOCITY`, `MV_NONE`.
+Tags: `TAG_PLAYER`, `TAG_ENEMY`, `TAG_ITEM`, `TAG_WALL`, `TAG_BULLET` (and you can
+use small integers `6+` for your own).
+
+**Manipulating entities** (all take an id):
+
+```
+set_vel(id, vx, vy)   set_pos(id, x, y)   move_speed(id, s)
+set_color(id, c)      set_sprite(id, tex) kill(id)
+get_x(id)  get_y(id)  get_vx(id)  get_vy(id)  tag_of(id)  alive(id)
+```
+
+Turkish aliases: `hiz_ver`, `konumla`, `hiz_ayarla`, `renk_ata`, `resim_ata`,
+`oldur`, `x_of`, `y_of`, `vx_of`, `vy_of`, `tag_al`, `yasiyor`.
+
+Counting: `entity_count()`, `live_count()` (`canli_sayisi`), `tag_count(tag)`
+(`tag_sayisi` — live entities with a tag, e.g. "are all items collected?").
+
+## Collisions
+
+Register a handler for a pair of tags; the engine calls it whenever two such
+entities overlap:
+
+```rust
+func on_pickup() {
+    kill(other());        // the item we hit
+    score_add(10);
+}
+on_hit(TAG_PLAYER, TAG_ITEM, on_pickup);   // TR: carpisinca
+```
+
+Inside a handler, `me()` (`ben`) is the first-tag entity and `other()` (`oteki`)
+is the second. `overlaps(a, b)` (`degiyor`) tests any two ids on demand.
+
+:::caution[Handler rules]
+Collision handlers are called through the engine's dynamic dispatch. Register each
+rule **once** at setup — registering the same pair twice fires it twice. Reserved
+words bite here: `move` and `don` (Turkish "return") are keywords, so don't name a
+variable `don` or `move`.
+:::
+
+## Physics (platformers)
+
+```rust
+gravity(1400);        // TR: yercekimi — downward acceleration
+jump_power(640);      // TR: ziplama — jump velocity
+platformer(60, 300, 28, 28, BLUE);
+wall(0, 440, 640, 40, DARKGRAY);   // solid ground
+```
+
+`TAG_WALL` entities are solid: the engine resolves collisions with a minimum-
+translation-vector push (land on top → grounded; hit a side → blocked). By default
+entities are clamped to the world; `clamp_to_world(false)` turns that off.
+
+## Score, HUD & game-over
+
+```
+score_add(n)   score()   set_score(n)         // skor_ekle / skor / skor_ata
+game_over()                                    // oyun_bitti — ends the game
+is_over()  is_won()                            // bitti_mi / kazandin_mi
+best_score()                                   // en_iyi_skor — persisted per scene title
+hud("Coins: ")   hide_hud()                    // customize / hide the score line
+controls("Arrows to move, Space to jump")      // bilgi — a hint strip
+```
+
+`game_over()` automatically adds screen shake, a flash, a lose tone, haptics and a
+record check — every game gets that juice for free. The professional game-over
+overlay (score, best, **Play Again** / **Menu** buttons) is drawn by the engine.
+
+## Levels
+
+Multi-level games are engine-native — you never rewrite the flow:
+
+```rust
+func setup() { player(300, 220, 28, 28, BLUE); }   // runs before every level
+func lvl1() { item(120, 120, 20, 20, GOLD); }
+func lvl2() { item(120, 120, 20, 20, GOLD); item(500, 340, 20, 20, GOLD); }
+
+func on_pickup() {
+    kill(other()); score_add(10);
+    if (tag_count(TAG_ITEM) == 0) { next_level(); }   // bolum_gec
+}
+
+on_start(setup);
+level(1, lvl1);           // TR: bolum
+level(2, lvl2);
+on_hit(TAG_PLAYER, TAG_ITEM, on_pickup);
+```
+
+`next_level()` advances (or wins on the last level); it's **deferred to end of
+frame**, so it's safe to call inside a collision handler. Score carries across
+levels. Query with `level_no()` / `level_count()` (`bolum_no` / `bolum_sayisi`).
+
+## Stars & badges
+
+Progression is automatic and persistent. In the **launcher** (see below), tapping a
+leveled game opens a **level-select screen**; **each level earns its own gold star**
+the moment you clear it, and any earlier level can be replayed. Cards show
+`completed / total`.
+
+Endless games (no `level(...)` calls) declare score thresholds instead:
+
+```rust
+star_goals(100, 400, 1000);   // TR: yildiz_hedef — 1★ / 2★ / 3★ by best score
+```
+
+Five persistent **badges** unlock as you play: First Win, Record Breaker, Three
+Stars, Collector (15 total stars) and Master (30) — shown behind the trophy button
+on the launcher menu, with a toast when newly earned. Nothing is ever locked.
+
+## Control schemes (mobile)
+
+The engine draws and reads on-screen touch controls automatically. Pick the scheme
+that fits the game with `control_scheme(...)` (TR `kontrol_semasi`):
+
+| Value | Controls shown |
+| --- | --- |
+| `"joystick"` | Floating analog stick (8-direction) |
+| `"dpad"` / `"yon4"` | 4-way D-pad |
+| `"yatay"` / `"horizontal"` | ◀ ▶ buttons only |
+| `"dikey"` / `"vertical"` | ▲ ▼ buttons only |
+| `"tilt"` / `"egim"` | Accelerometer steering |
+| `"none"` / `"yok"` | No controls (tap-only games) |
+| *(unset)* | Auto — inferred from which directions the game reads |
+
+Read movement through the engine so keyboard **and** touch both work:
+`left()`, `right()`, `up()`, `down()` (TR `sol/sag/yukari/asagi`); actions with
+`action_pressed()` / `fire_pressed()` (`aksiyon_basildi` / `ates_basildi`);
+whole-screen taps with `tapped()` (`dokunuldu`); and gestures with
+`swiped("left")` (`kaydirildi`). Desktop keyboard keeps working unchanged.
+
+## Effects (juice)
+
+```
+explode(x, y, color)      // patlama — a particle burst
+explode_n(x, y, color, n) // patlama_n — with a custom particle count
+shake()                   // sars — brief screen shake
+flash()                   // parla — white flash
+```
+
+`game_over()` already triggers shake + flash + a record check, so a plain game
+still feels alive.
+
+## Sound, haptics & language
+
+```
+sound_on(true)   music_on(true)   haptics_on(true)   show_fps(true)
+language("en")   // dil — "en" or "tr"; retranslates the engine HUD
+```
+
+These are also exposed in the built-in Settings screen and persist automatically.
+
+## The launcher — many games, one app
+
+Bundle several games into one window (and one APK) with the launcher:
+
+```rust
+import "arcade";
+// ... each game as a 0-arg setup function that registers scene/levels/collisions
+//     but does NOT call scene()/play() ...
+
+launcher_title("MY ARCADE");     // menu_basligi
+add_game("Collect", collect_setup);   // oyun_ekle
+add_game("Jump", jump_setup);
+scene(640, 480, "Arcade");
+launcher();                      // menu ↔ game ↔ settings ↔ badges state machine
+```
+
+`add_game(name, setup)` registers a game; `launcher()` draws a responsive card
+grid, per-game stars, the settings gear and the badges trophy, and switches
+between games. The shipped **Tulpar Arcade** app is 13 games behind one launcher.
+
+## Optional: a global leaderboard
+
+```
+leaderboard_url("http://10.0.2.2:3000")   // skor_tablosu_url — a Wings server
+player_name("Alex")                        // oyuncu_adi
+```
+
+When set, each game submits its score on game-over and shows the global top-5.
+Off by default (no URL → no network).
+
+## Testing without a window
+
+The engine has a headless step API — advance the simulation one tick without
+opening a window, ideal for regression tests:
+
+```rust
+step(0.016);   // TR: adim — run one frame of physics + collisions
+```
+
+This is how the arcade regression suites verify level flow, collisions, stars and
+badges in CI, with no display.
+
+Ready to ship? Head to [Building & Publishing](/games/build/).

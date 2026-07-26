@@ -1,0 +1,104 @@
+---
+title: Oyun Geliştirme — Hızlı Başlangıç
+description: TulparLang ile 2D oyun yapın. İki katman — tame grafik kütüphanesi ve arcade preset motoru — çift dilli (Türkçe + İngilizce) API ile.
+---
+
+TulparLang, her şeyi içeren bir 2D oyun yığınıyla gelir. **İki katman** vardır ve
+oyununuza uyanı seçersiniz:
+
+- **`tame`** — düşük seviye grafik kütüphanesi: pencere aç, şekil ve doku çiz,
+  klavye / fare / dokunma / gamepad / eğim sensörünü oku, ses çal, veri kaydet.
+  Vendor'lanmış raylib üzerine ince ve hızlı bir sarmalayıcı. Tam kontrol; oyun
+  döngüsünü siz yazarsınız.
+- **`arcade`** — `tame` üzerine kurulu bir *preset motoru*. Entity'leri,
+  çarpışmaları, bölümleri ve skoru birkaç satırda tarif edersiniz; döngüyü,
+  fiziği, çarpışma dağıtımını, HUD'u, duraklatmayı, oyun-bitti ekranını,
+  dokunmatik kontrolleri, yıldızları ve rozetleri motor sizin için yürütür.
+  Yayınlanan oyunların çoğu bunu kullanır.
+
+Her yerleşik fonksiyonun **hem Türkçe hem İngilizce** adı vardır — `oyuncu(...)` ve
+`player(...)`, `carpisinca(...)` ve `on_hit(...)` aynı çağrıdır. Hangisini
+isterseniz kullanın; hatta karıştırabilirsiniz.
+
+## `tame` ile ilk oyununuz
+
+~20 satırda zıplayan bir kutu:
+
+```rust
+import "tame";
+
+func main() {
+    window(640, 480, "Ziplayan kutu");
+    set_fps(60);
+
+    float x = 100.0; float y = 100.0;
+    float vx = 220.0; float vy = 180.0;
+
+    while (running()) {
+        float dt = frame_time();
+        x = x + vx * dt;
+        y = y + vy * dt;
+        if (x < 0.0 || x > 600.0) { vx = 0.0 - vx; }
+        if (y < 0.0 || y > 440.0) { vy = 0.0 - vy; }
+
+        frame_begin();
+        clear(rgb(16, 18, 26));
+        rect(x, y, 40, 40, GOLD);
+        text("Merhaba, tame", 12, 12, 20, WHITE);
+        frame_end();
+    }
+    close_window();
+}
+
+main();
+```
+
+Her kare `frame_begin()` ile `frame_end()` arasında çizilir. Kullanıcı pencereyi
+kapatınca `running()` false olur. Tüm yüzey için
+[Tame API referansı](/tr/games/tame/)na bakın.
+
+## `arcade` ile ilk oyununuz
+
+Aynı pencere, ama artık döngü motorun. Altın kareleri topla:
+
+```rust
+import "arcade";
+
+func setup() {
+    player(300, 220, 28, 28, BLUE);      // ok tuşları / dokunma hareket ettirir
+    item(120, 120, 20, 20, GOLD);
+    item(500, 340, 20, 20, GOLD);
+}
+
+func on_pickup() {
+    kill(other());                        // dokunduğumuz eşyayı sil
+    score_add(10);
+}
+
+scene(640, 480, "Toplayici");
+on_start(setup);
+on_hit(TAG_PLAYER, TAG_ITEM, on_pickup);  // oyuncu bir eşyaya değince
+play();
+```
+
+Oyun döngüsü yok, girdi yönetimi yok, HUD kodu yok — hepsini `arcade` sağlar. Aynı
+program Android'de dokunmatik oynanır ve tarayıcıda değişmeden çalışır. Entity'ler,
+bölümler, yıldızlar ve daha fazlası için [Arcade rehberi](/tr/games/arcade/)ne bakın.
+
+## Çalıştırma
+
+```bash
+tulpar oyun.tpr                    # masaüstü: derle + çalıştır
+tulpar build --target=web oyun.tpr cikti/oyun    # → cikti/oyun.html + .js + .wasm
+tulpar build --apk oyun.tpr cikti/oyun           # → imzalı Android APK
+```
+
+Çıktı dizini önceden var olmalı. Masaüstü, web, Android ve tek-komutluk
+`tulpar.toml` config build dahil tüm derleme matrisi için
+[Derleme ve Yayınlama](/tr/games/build/)ya bakın.
+
+:::tip[Hangi katman?]
+Entity ve bölümlü küçük bir arcade/bulmaca/aksiyon oyunu mu yapıyorsunuz? **arcade**
+ile başlayın. Sıra dışı bir şey mi (özel bir çizici, bir araç, bir görselleştirme)?
+Doğrudan **tame** kullanın.
+:::
