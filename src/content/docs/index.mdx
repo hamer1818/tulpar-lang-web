@@ -5,17 +5,18 @@ template: splash
 ---
 
 import TulparPlayground from '../../components/TulparPlayground.astro';
+import CodeTabs from '../../components/CodeTabs.astro';
 
 <div class="tlp-landing">
 
 <section class="tlp-hero">
 	<div class="tlp-hero__content">
 		<span class="tlp-eyebrow">AOT · LLVM 18 · batteries included</span>
-		<h1 class="tlp-hero__title">Build production APIs<span>without the framework</span></h1>
+		<h1 class="tlp-hero__title">Build anything<span>without the boilerplate</span></h1>
 		<p class="tlp-hero__lead">
 			As easy as Python, as fast as C. A statically-typed, AOT-compiled
-			language with HTTP, JSON, SQLite, an ORM and OpenAPI built right into
-			the runtime — no <code>npm install</code>, no pip, no dependencies.
+			language with HTTP, JSON, SQLite, an ORM, OpenAPI, and C FFI built right
+			into the runtime — no <code>npm install</code>, no pip, no dependencies.
 		</p>
 		<div class="tlp-hero__actions">
 			<a class="tlp-btn tlp-btn--primary" href="/intro/getting-started/">Get Started →</a>
@@ -29,33 +30,69 @@ import TulparPlayground from '../../components/TulparPlayground.astro';
 		</div>
 	</div>
 
-	<div class="tlp-hero__preview">
-		<div class="tlp-window">
-			<div class="tlp-window__bar">
-				<span class="tlp-window__dot tlp-window__dot--r"></span>
-				<span class="tlp-window__dot tlp-window__dot--y"></span>
-				<span class="tlp-window__dot tlp-window__dot--g"></span>
-				<span class="tlp-window__name">api.tpr</span>
-				<span class="tlp-window__live">running</span>
-			</div>
+	<CodeTabs
+		liveText="running"
+		tabs={[
+			{
+				icon: "🌐",
+				label: "Web API",
+				file: "api.tpr",
+				code: `import "wings";
+import "orm";
 
-			```tulpar
-			import "wings";
-			import "orm";
+orm_open("app.db");
+define_model("users", {
+    "name": "TEXT", "age": "INTEGER"
+});
 
-			orm_open("app.db");
-			define_model("users", { "name": "TEXT", "age": "INTEGER" });
+func list_users(req) {
+    return ok(orm_all("users"));
+}
 
-			func list_users(req)  { return ok(orm_all("users")); }
-			func create_user(req) { return created(orm_create("users", req.json)); }
+get("/users", "list_users");
+serve(8080);  // + Swagger UI, /openapi.json`
+			},
+			{
+				icon: "🛠️",
+				label: "CLI Tool",
+				file: "counter.tpr",
+				code: `// Count lines in all .tpr files
+var total = 0;
+var files = list_dir(".");
 
-			get("/users",  "list_users");
-			post("/users", "create_user");
+for (str f in files) {
+    if (endsWith(f, ".tpr")) {
+        str content = read_file(f);
+        var lines = split(content, "\\n");
+        int n = length(lines);
+        print(f + ": " + toString(n));
+        total = total + n;
+    }
+}
 
-			serve(8080);   // + Swagger UI, /openapi.json, /metrics, /healthz
-			```
-		</div>
-	</div>
+print("Total: " + toString(total));`
+			},
+			{
+				icon: "📊",
+				label: "Data Processing",
+				file: "stats.tpr",
+				code: `// Compute stats from a dataset
+func mean(array data) {
+    float sum = 0.0;
+    for (var x in data) {
+        sum = sum + toFloat(x);
+    }
+    return sum / toFloat(length(data));
+}
+
+var scores = [85, 92, 78, 96, 88, 73, 91];
+float avg = mean(scores);
+print("Average: " + toString(avg));
+print("Max:     " + toString(max(scores)));
+print("Min:     " + toString(min(scores)));`
+			}
+		]}
+	/>
 </section>
 
 <section class="tlp-section">
@@ -94,11 +131,84 @@ import TulparPlayground from '../../components/TulparPlayground.astro';
 
 <section class="tlp-section">
 	<div class="tlp-section__head">
+		<span class="tlp-eyebrow">Why Tulpar?</span>
+		<h2>All-in-one vs. assembly required</h2>
+		<p>What takes four packages elsewhere ships in a single binary with Tulpar.</p>
+	</div>
+
+	<div class="tlp-compare">
+		<table>
+			<thead>
+				<tr>
+					<th></th>
+					<th class="tlp-compare__highlight">TulparLang</th>
+					<th>Go</th>
+					<th>Python (FastAPI)</th>
+					<th>Node.js</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>HTTP Server</td>
+					<td class="tlp-compare__highlight">✅ Built-in</td>
+					<td>✅ Built-in</td>
+					<td>❌ pip install</td>
+					<td>⚠️ Minimal</td>
+				</tr>
+				<tr>
+					<td>ORM / Database</td>
+					<td class="tlp-compare__highlight">✅ Built-in</td>
+					<td>❌ go get gorm</td>
+					<td>❌ pip install</td>
+					<td>❌ npm install</td>
+				</tr>
+				<tr>
+					<td>OpenAPI / Swagger</td>
+					<td class="tlp-compare__highlight">✅ Auto-generated</td>
+					<td>❌ External tool</td>
+					<td>⚠️ Plugin</td>
+					<td>❌ npm install</td>
+				</tr>
+				<tr>
+					<td>Deployment</td>
+					<td class="tlp-compare__highlight">Single binary</td>
+					<td>Single binary</td>
+					<td>Container needed</td>
+					<td>Container needed</td>
+				</tr>
+				<tr>
+					<td>Memory Model</td>
+					<td class="tlp-compare__highlight">ARC</td>
+					<td>GC (stop-the-world)</td>
+					<td>GC + refcount</td>
+					<td>GC (V8)</td>
+				</tr>
+				<tr>
+					<td>Throughput</td>
+					<td class="tlp-compare__highlight">~36k req/s</td>
+					<td>~30k req/s</td>
+					<td>~3.5k req/s</td>
+					<td>~8.7k req/s</td>
+				</tr>
+				<tr>
+					<td>C Interop (FFI)</td>
+					<td class="tlp-compare__highlight">✅ Native</td>
+					<td>✅ cgo</td>
+					<td>⚠️ ctypes / cffi</td>
+					<td>⚠️ node-ffi</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+</section>
+
+<section class="tlp-section">
+	<div class="tlp-section__head">
 		<span class="tlp-eyebrow">Features</span>
 		<h2>Everything you need is already in the box</h2>
 	</div>
 
-	<div class="tlp-bento">
+	<div class="tlp-bento tlp-bento--expanded">
 		<div class="tlp-bento__item tlp-bento__item--feature">
 			<div class="tlp-bento__icon">🚀</div>
 			<h3>An API on day one</h3>
@@ -107,12 +217,22 @@ import TulparPlayground from '../../components/TulparPlayground.astro';
 		<div class="tlp-bento__item">
 			<div class="tlp-bento__icon">⚡</div>
 			<h3>C-class performance</h3>
-			<p>AOT-compiled via LLVM 18 to a standalone native binary.</p>
+			<p>AOT-compiled via LLVM 18 to a standalone native binary. No VM overhead in production.</p>
 		</div>
 		<div class="tlp-bento__item">
 			<div class="tlp-bento__icon">🗄️</div>
 			<h3>SQLite + ORM</h3>
 			<p>Embedded SQLite and an Active-Record ORM — no driver to wire up.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">🧬</div>
+			<h3>ARC Memory</h3>
+			<p>Automatic Reference Counting (ARC) for safe, predictable memory — no stop-the-world GC pauses.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">🔗</div>
+			<h3>C FFI</h3>
+			<p>Call any C library directly. Native interop with zero wrapper overhead.</p>
 		</div>
 		<div class="tlp-bento__item">
 			<div class="tlp-bento__icon">🧰</div>
@@ -127,7 +247,34 @@ import TulparPlayground from '../../components/TulparPlayground.astro';
 		<div class="tlp-bento__item">
 			<div class="tlp-bento__icon">🌍</div>
 			<h3>UTF-8 · TR + EN</h3>
-			<p>Unicode identifiers and bilingual compiler diagnostics.</p>
+			<p>Full Turkish keyword support (<code>fonk</code>, <code>eğer</code>, <code>döndür</code>) and bilingual compiler diagnostics.</p>
+		</div>
+	</div>
+</section>
+
+<section class="tlp-section">
+	<div class="tlp-section__head">
+		<span class="tlp-eyebrow">Write code in your language</span>
+		<h2>English and Turkish — same compiler, same binary</h2>
+		<p>Every keyword has a Turkish equivalent. Mix freely, or write entirely in one language. Compiler diagnostics follow your locale.</p>
+	</div>
+
+	<div class="tlp-bilingual">
+		<div class="tlp-bilingual__pane">
+			<div class="tlp-bilingual__header">
+				<span class="tlp-bilingual__lang">EN</span>
+				<span class="tlp-bilingual__filename">greet.tpr</span>
+				<span class="tlp-bilingual__badge">English syntax</span>
+			</div>
+			<pre class="tlp-bilingual__code" set:html={`<code><span class="kw">import</span> <span class="str">"wings"</span>;\n\n<span class="kw">func</span> <span class="fn">greet</span>(req) {\n    <span class="kw">var</span> name = req.json[<span class="str">"name"</span>];\n    <span class="kw">if</span> (name == <span class="str">""</span>) { <span class="kw">return</span> <span class="fn">bad_request</span>(<span class="str">"Name required"</span>); }\n    <span class="kw">return</span> <span class="fn">ok</span>(<span class="str">"Hello, "</span> + name + <span class="str">"!"</span>);\n}\n\n<span class="fn">post</span>(<span class="str">"/greet"</span>, <span class="str">"greet"</span>);\n<span class="fn">serve</span>(<span class="num">8080</span>);</code>`} />
+		</div>
+		<div class="tlp-bilingual__pane">
+			<div class="tlp-bilingual__header">
+				<span class="tlp-bilingual__lang">TR</span>
+				<span class="tlp-bilingual__filename">selamla.tpr</span>
+				<span class="tlp-bilingual__badge">Türkçe sözdizimi</span>
+			</div>
+			<pre class="tlp-bilingual__code" set:html={`<code><span class="kw">içe_aktar</span> <span class="str">"wings"</span>;\n\n<span class="kw">fonk</span> <span class="fn">selamla</span>(req) {\n    <span class="kw">değişken</span> isim = req.json[<span class="str">"name"</span>];\n    <span class="kw">eğer</span> (isim == <span class="str">""</span>) { <span class="kw">döndür</span> <span class="fn">bad_request</span>(<span class="str">"İsim gerekli"</span>); }\n    <span class="kw">döndür</span> <span class="fn">ok</span>(<span class="str">"Merhaba, "</span> + isim + <span class="str">"!"</span>);\n}\n\n<span class="fn">post</span>(<span class="str">"/selamla"</span>, <span class="str">"selamla"</span>);\n<span class="fn">serve</span>(<span class="num">8080</span>);</code>`} />
 		</div>
 	</div>
 </section>
@@ -203,3 +350,26 @@ builds three complete apps step by step — REST, token auth, and a SQLite-backe
 </div>
 
 </div>
+
+<script>
+{`
+// Scroll-triggered benchmark bar animation
+if (typeof IntersectionObserver !== 'undefined') {
+	const bench = document.querySelector('.tlp-bench');
+	if (bench) {
+		const observer = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((entry) => {
+					if (entry.isIntersecting) {
+						bench.classList.add('is-visible');
+						observer.disconnect();
+					}
+				});
+			},
+			{ threshold: 0.3 }
+		);
+		observer.observe(bench);
+	}
+}
+`}
+</script>

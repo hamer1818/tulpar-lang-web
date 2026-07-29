@@ -778,3 +778,353 @@ header.header {
 	.tlp-bento__item--feature { grid-column: auto; }
 	.tlp-hero__stats { gap: 1.25rem; }
 }
+
+/* ===================================================================== */
+/* HERO CODE TABS — tabbed window chrome for multi-example preview       */
+/* ===================================================================== */
+.tlp-window--tabbed .tlp-window__bar {
+	flex-wrap: wrap;
+	gap: 0.4rem;
+}
+
+.tlp-window__tabs {
+	display: flex;
+	gap: 0.15rem;
+	margin-left: 0.5rem;
+	flex: 1;
+	min-width: 0;
+	overflow-x: auto;
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+
+.tlp-window__tabs::-webkit-scrollbar {
+	display: none;
+}
+.tlp-window__tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+	padding: 0.3rem 0.7rem;
+	border: none;
+	border-radius: 8px 8px 0 0;
+	background: transparent;
+	color: var(--sl-color-gray-3);
+	font-family: var(--sl-font-mono);
+	font-size: 0.72rem;
+	font-weight: 600;
+	letter-spacing: 0.03em;
+	cursor: pointer;
+	white-space: nowrap;
+	transition: color 0.2s ease, background 0.2s ease;
+	border-bottom: 2px solid transparent;
+}
+.tlp-window__tab:hover {
+	color: var(--sl-color-gray-1);
+	background: rgba(255, 255, 255, 0.04);
+}
+.tlp-window__tab.is-active {
+	color: var(--sl-color-accent);
+	background: rgba(0, 229, 255, 0.08);
+	border-bottom-color: var(--sl-color-accent);
+}
+:root[data-theme='light'] .tlp-window__tab.is-active {
+	background: rgba(0, 140, 158, 0.08);
+}
+.tlp-window__tab-icon {
+	font-size: 0.9rem;
+	line-height: 1;
+}
+
+.tlp-window__panel {
+	display: none;
+}
+.tlp-window__panel.is-active {
+	display: block;
+}
+
+.tlp-window__filename {
+	padding: 0.35rem 0.85rem;
+	font-family: var(--sl-font-mono);
+	font-size: 0.7rem;
+	color: var(--sl-color-gray-4);
+	border-bottom: 1px solid var(--tech-glass-border);
+	background: rgba(255, 255, 255, 0.015);
+}
+:root[data-theme='light'] .tlp-window__filename {
+	background: rgba(0, 0, 0, 0.02);
+}
+
+.tlp-window__code {
+	margin: 0;
+	padding: 0.85rem;
+	font-family: var(--sl-font-mono);
+	font-size: 0.85rem;
+	line-height: 1.6;
+	color: var(--sl-color-gray-1);
+	overflow-x: auto;
+	white-space: pre;
+	tab-size: 4;
+}
+:root[data-theme='light'] .tlp-window__code {
+	color: #24252d;
+}
+
+/* Syntax highlighting (light manual highlighting for pre/code) */
+.tlp-window__code .kw { color: #c678dd; }
+.tlp-window__code .str { color: #98c379; }
+.tlp-window__code .fn { color: #61afef; }
+.tlp-window__code .cm { color: #5c6370; font-style: italic; }
+.tlp-window__code .num { color: #d19a66; }
+:root[data-theme='light'] .tlp-window__code .kw { color: #a626a4; }
+:root[data-theme='light'] .tlp-window__code .str { color: #50a14f; }
+:root[data-theme='light'] .tlp-window__code .fn { color: #4078f2; }
+:root[data-theme='light'] .tlp-window__code .cm { color: #a0a1a7; }
+:root[data-theme='light'] .tlp-window__code .num { color: #986801; }
+
+/* ===================================================================== */
+/* "WHY TULPAR?" — comparison table section                              */
+/* ===================================================================== */
+.tlp-compare {
+	border-radius: 18px;
+	border: 1px solid var(--tech-glass-border);
+	background: var(--tech-card-bg);
+	backdrop-filter: blur(10px);
+	padding: 0;
+	overflow: hidden;
+	max-width: 56rem;
+	margin-inline: auto;
+}
+
+.tlp-compare table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.88rem;
+}
+
+.tlp-compare thead th {
+	padding: 1rem 0.8rem;
+	text-align: center;
+	font-weight: 700;
+	font-size: 0.82rem;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--sl-color-gray-2);
+	border-bottom: 1px solid var(--tech-glass-border);
+	background: rgba(255, 255, 255, 0.02);
+}
+:root[data-theme='light'] .tlp-compare thead th {
+	background: rgba(0, 0, 0, 0.02);
+}
+.tlp-compare thead th:first-child {
+	text-align: left;
+	padding-left: 1.2rem;
+	color: var(--sl-color-gray-3);
+}
+.tlp-compare thead th.tlp-compare__highlight {
+	color: var(--sl-color-accent);
+	background: rgba(0, 229, 255, 0.06);
+}
+:root[data-theme='light'] .tlp-compare thead th.tlp-compare__highlight {
+	background: rgba(0, 140, 158, 0.06);
+}
+
+.tlp-compare tbody td {
+	padding: 0.75rem 0.8rem;
+	text-align: center;
+	color: var(--sl-color-gray-2);
+	border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+	vertical-align: middle;
+}
+:root[data-theme='light'] .tlp-compare tbody td {
+	border-bottom-color: rgba(0, 0, 0, 0.04);
+}
+
+.tlp-compare tbody td:first-child {
+	text-align: left;
+	padding-left: 1.2rem;
+	font-weight: 600;
+	color: var(--sl-color-gray-1);
+	font-size: 0.84rem;
+}
+
+.tlp-compare tbody td.tlp-compare__highlight {
+	background: rgba(0, 229, 255, 0.04);
+	color: var(--sl-color-accent-high);
+	font-weight: 600;
+}
+:root[data-theme='light'] .tlp-compare tbody td.tlp-compare__highlight {
+	background: rgba(0, 140, 158, 0.04);
+}
+
+.tlp-compare tbody tr:last-child td {
+	border-bottom: none;
+}
+.tlp-compare tbody tr:hover td {
+	background: rgba(255, 255, 255, 0.02);
+}
+:root[data-theme='light'] .tlp-compare tbody tr:hover td {
+	background: rgba(0, 0, 0, 0.01);
+}
+.tlp-compare tbody tr:hover td.tlp-compare__highlight {
+	background: rgba(0, 229, 255, 0.08);
+}
+
+/* ===================================================================== */
+/* BILINGUAL SYNTAX SHOWCASE                                             */
+/* ===================================================================== */
+.tlp-bilingual {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1.2rem;
+	max-width: 56rem;
+	margin-inline: auto;
+}
+
+.tlp-bilingual__pane {
+	border-radius: 14px;
+	border: 1px solid var(--tech-glass-border);
+	background: var(--tech-card-bg);
+	backdrop-filter: blur(10px);
+	overflow: hidden;
+	transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.tlp-bilingual__pane:hover {
+	border-color: var(--sl-color-accent);
+	box-shadow: 0 0 20px var(--tech-glow);
+}
+
+.tlp-bilingual__header {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.55rem 0.85rem;
+	border-bottom: 1px solid var(--tech-glass-border);
+	background: rgba(255, 255, 255, 0.02);
+}
+:root[data-theme='light'] .tlp-bilingual__header {
+	background: rgba(0, 0, 0, 0.02);
+}
+
+.tlp-bilingual__lang {
+	font-family: var(--sl-font-mono);
+	font-size: 0.72rem;
+	font-weight: 700;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	padding: 0.15rem 0.55rem;
+	border-radius: 6px;
+	background: linear-gradient(45deg, var(--sl-color-accent), #2979ff);
+	color: #fff;
+}
+
+.tlp-bilingual__filename {
+	font-family: var(--sl-font-mono);
+	font-size: 0.72rem;
+	color: var(--sl-color-gray-3);
+}
+
+.tlp-bilingual__code {
+	margin: 0;
+	padding: 0.85rem;
+	font-family: var(--sl-font-mono);
+	font-size: 0.84rem;
+	line-height: 1.6;
+	color: var(--sl-color-gray-1);
+	overflow-x: auto;
+	white-space: pre;
+}
+:root[data-theme='light'] .tlp-bilingual__code {
+	color: #24252d;
+}
+
+.tlp-bilingual__badge {
+	margin-left: auto;
+	font-family: var(--sl-font-mono);
+	font-size: 0.66rem;
+	color: var(--sl-color-accent);
+	letter-spacing: 0.06em;
+}
+
+@media (max-width: 50rem) {
+	.tlp-bilingual {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* ===================================================================== */
+/* BENCHMARK BAR ANIMATION                                               */
+/* ===================================================================== */
+@keyframes tlp-bar-fill {
+	from { width: 0; }
+	to { width: var(--val, 50%); }
+}
+
+.tlp-bench__fill {
+	animation: tlp-bar-fill 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+	animation-play-state: paused;
+}
+
+.tlp-bench.is-visible .tlp-bench__fill {
+	animation-play-state: running;
+}
+
+/* ===================================================================== */
+/* EXPANDED BENTO GRID (8 cards: 1 hero + 7 regular)                     */
+/* ===================================================================== */
+.tlp-bento--expanded {
+	grid-template-columns: repeat(4, 1fr);
+}
+.tlp-bento--expanded .tlp-bento__item--feature {
+	grid-column: span 2;
+	grid-row: span 2;
+}
+
+@media (max-width: 50rem) {
+	.tlp-bento--expanded {
+		grid-template-columns: 1fr 1fr;
+	}
+	.tlp-bento--expanded .tlp-bento__item--feature {
+		grid-column: span 2;
+		grid-row: auto;
+	}
+}
+@media (max-width: 30rem) {
+	.tlp-bento--expanded {
+		grid-template-columns: 1fr;
+	}
+	.tlp-bento--expanded .tlp-bento__item--feature {
+		grid-column: auto;
+	}
+}
+
+/* ===================================================================== */
+/* COMPARE TABLE RESPONSIVE                                              */
+/* ===================================================================== */
+@media (max-width: 42rem) {
+	.tlp-compare table {
+		font-size: 0.78rem;
+	}
+	.tlp-compare thead th,
+	.tlp-compare tbody td {
+		padding: 0.55rem 0.45rem;
+	}
+	.tlp-compare thead th:first-child,
+	.tlp-compare tbody td:first-child {
+		padding-left: 0.6rem;
+	}
+}
+
+/* ===================================================================== */
+/* CODE TABS RESPONSIVE                                                  */
+/* ===================================================================== */
+@media (max-width: 50rem) {
+	.tlp-window__tabs {
+		margin-left: 0;
+		width: 100%;
+		order: 1;
+	}
+	.tlp-window--tabbed .tlp-window__bar {
+		gap: 0.35rem;
+	}
+}
