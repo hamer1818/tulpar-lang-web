@@ -1,0 +1,611 @@
+---
+title: 3D Scene Editor
+description: The built-in scene editor behind TAB — toolbar, hierarchy, inspector, Play/Stop, undo, and the full schema of the JSON scene format.
+---
+
+`scene3d` made the scene **data**: world, entities, behaviors and rules live in
+a JSON file. The editor is how you build that file by eye — a level editor
+that lives **inside** the engine, in the game's own window.
+
+Press **TAB** in any `scene3d` game: the game freezes and the panels appear.
+There is nothing to install and nothing extra to build.
+
+:::note[Why inside the engine?]
+The picking ray, the grid and the handles have to work against the scene's
+**real** geometry. Writing a stand-in for them on the browser side would be the
+same mistake as writing a viewer that mirrors the engine's rendering: it drifts
+over time and starts lying to you.
+:::
+
+## Opening the editor
+
+The short version — run any scene3d game and press **TAB**. The editor exists
+in every scene; nothing to enable.
+
+To be able to *save*, tell the editor which file to write:
+
+```tulpar
+import "scene3d";
+
+str SCENE = "examples/scenes/toplayici.scene.json";
+
+func setup() {
+    editor_file3d(SCENE);         // F5 will write this file
+    if (scene_file3d(SCENE) == 0) {
+        log_err3d("SCENE FAILED TO LOAD: " + SCENE);
+    }
+}
+
+scene_meta_file3d(SCENE);         // title/w/h — BEFORE the window opens
+scene3d(scene_w3d(), scene_h3d(), scene_title3d());
+on_setup3d(setup);
+play3d();
+```
+
+That is essentially all of `examples/scene3d_data_game.tpr`, and it contains
+zero lines of gameplay code: edit → **F5** → the same JSON is updated → no
+rebuild.
+
+:::caution[No save path, no save]
+If `editor_file3d` was never called, **F5** and the **KAYDET** (save) button
+report `kayit yolu yok (editor_dosya3d cagir)`. The editor still opens and
+works — nothing reaches disk.
+:::
+
+## Layout
+
+The Unity/Unreal arrangement: toolbar on top, hierarchy on the left, inspector
+on the right, viewport in the middle.
+
+### Toolbar (top, 36 px)
+
+| Button | Effect |
+|---|---|
+| **OYNAT** (play) | Leave the editor, run the game (`editor3d(false)`) |
+| **SEC / TASI / OLCEK / DONDUR** | Active mode — select / move / scale / rotate (keys `1` `2` `3` `4`) |
+| **IZGARA n** | Toggle the grid (`G`); reads `IZGARA kapali` when off |
+| **GERI / ILERI** | Undo / redo (`CTRL+Z` / `CTRL+Y`) |
+| **KAYDET** | Write the scene to the target file (`F5`) |
+
+On the right edge, a live counter: `n varlik   n davranis   n kural` —
+entities, behaviors, rules.
+
+:::note[The panels are labelled in Turkish]
+The engine's UI strings are Turkish, deliberately: the *file format* is
+single-language English so a parser never has to guess, and the *labels* are
+what the user reads. Only the labels are translated, not the keys.
+:::
+
+### Hierarchy (left, 214 px)
+
+The list of live entities. Clicking a row selects it; the selected row is
+highlighted. With the mouse over the panel, the wheel scrolls the list, and a
+`first-last / total` counter sits at the bottom.
+
+A named entity is listed by its name, an unnamed one as `tag slot`, with the
+shape in parentheses (`prop 4  (cube)`).
+
+The four buttons at the top drop a new entity **under the camera** — where you
+are looking:
+
+| Button | Creates |
+|---|---|
+| **kutu** (box) | `prop` / `cube`, 1×1×1 |
+| **kure** (sphere) | `item` / `sphere`, 1×1×1 |
+| **silin** (cylinder) | `prop` / `cyl`, 1×1×1 |
+| **duvar** (wall) | `wall` / `cube`, 6×3×1 |
+
+### Inspector (right, 268 px)
+
+**Every** field of the selected entity:
+
+- **etiket** (tag) and **sekil** (shape) — cycling buttons. Tag order is
+  `player → item → wall → enemy → prop → player`; shape order is
+  `cube → sphere → cyl → cube`.
+- **konum** (position `x y z`), **boy** (size `sx sy sz` — full size, not
+  half), **yaw** in degrees, and a **zemine otur** (drop to ground) button.
+- **renk** (colour `r g b`) with a live swatch beside it.
+- **kati** (solid) toggle and **can** (health; 0 = no health system).
+- **DAVRANISLAR** — the behavior list (each row has an `x` to remove it) and
+  six add buttons: `+hareket` (move), `+kovala` (chase), `+don` (spin),
+  `+salin` (bob), `+devriye` (patrol), `+ates` (shoot).
+- At the bottom, **COGALT** (duplicate) and **SIL** (delete).
+
+:::note[Number fields do two jobs]
+Unity's behaviour: **drag** sweeps the value, **click** switches to typing
+(`Enter` commits, `Esc` cancels, clicking elsewhere also commits). If both
+don't live in one field you lose either fine tuning or fast sweeping. The
+split is decided by how far the mouse travelled (3 px threshold).
+
+While you are typing into a number field the keyboard shortcuts are **off** —
+typing "3" must not fly the camera, and "d" must not duplicate the entity.
+:::
+
+While the mouse is over a panel the viewport skips its picking ray; otherwise
+every button press would also select whatever sits behind the panel.
+
+## Play and Stop — authored state vs played state
+
+This is the editor's most important behaviour, and the same model as
+Unity/Unreal: **the editor owns the scene**, "Play" runs a **copy**, "Stop"
+throws the copy away. What happens while playing is never saved.
+
+| Action | What happens |
+|---|---|
+| Game starts | As soon as `setup()` (and level setup) finishes, **before the first frame**, the scene's JSON is captured as the *authored state* |
+| **TAB** into the editor (= Stop) | The simulated state is **discarded**; the authored state is restored |
+| **TAB** / **OYNAT** out (= Play) | The edited scene on screen becomes the **new authored state**; the game runs on a copy of it |
+| **F5** | The current scene — i.e. the authored state — is written to the file |
+
+:::danger[This split exists because of a real data loss]
+Without it the editor produced a silent data loss: play for a while, press TAB,
+press F5 → the file gets the state where enemies have **chased**, props have
+**spun**, and items have been **collected**. The scene the author built is
+quietly gone.
+
+It actually happened: a shipped scene file was once overwritten with simulated
+state. Two tests in `tests/scene3d_engine.test.tpr` now hold the line —
+*"entering the editor discards the simulation"* and *"save writes the authored
+state"*.
+:::
+
+Things **preserved** across the restore — they are not part of the scene
+format, and dropping them would leave the game silently unresponsive after
+Stop:
+
+- hand-written collision/death hooks (`on_hit3d`, `on_death3d`)
+- the level table and the current level
+- the score
+- the undo/redo stacks — undo is *navigating the scene*, not opening a new one
+
+The editor **freezes** the game: physics, behaviors, rules, `update()`,
+particles and the day/night clock do not advance. The editor is not a game
+mode — what you are editing must not slide out from under you.
+
+## Keys
+
+| Key | Effect |
+|---|---|
+| `TAB` | Editor ↔ game |
+| Right mouse (held) + move | Look (yaw/pitch, clamped to ±88°) |
+| `W` `A` `S` `D` | Fly along the view (18 units/s) |
+| `Q` / `E` | Down / up |
+| `Left Shift` | Fly ×3 |
+| Mouse wheel | Dolly along the view axis |
+| Left mouse | Select — and drag, in **move** mode |
+| `1` `2` `3` `4` | Select / move / scale / rotate |
+| `G` | Grid on/off (0.5 ↔ off) |
+| `DEL` | Delete the selection |
+| `CTRL`+`D` | Duplicate (behaviors included) |
+| `SPACE` | Drop to ground/terrain |
+| `CTRL`+`Z` / `CTRL`+`Y` | Undo / redo |
+| `F5` | Write the scene to the file |
+| `↑` `↓` (move) | y ± grid step |
+| `↑` `↓` (scale) | `sy` ± grid step |
+| `←` `→` (scale) | `sx` and `sz` ± grid step |
+| `←` `→` (rotate) | yaw ∓ 15° |
+
+`F1` (diagnostic overlay) and `F2` (dump the log to `scene3d_log.txt`) work in
+the editor too — inspecting a frozen frame is exactly what you want.
+
+Dragging happens on the horizontal plane at the entity's **own** height. Using
+the ground plane instead would drop a floating platform to the floor the moment
+you grabbed it.
+
+:::tip[Undo is snapshot-based]
+Before every edit the scene's JSON is pushed on a stack (40 steps deep). A
+command-based undo would require writing an inverse for every command — and
+every new command would grow that debt. Serialisation is already total, so a
+snapshot is both shorter and more reliable.
+
+The mark is placed **at the start of a gesture**, not inside the commands:
+dragging calls `ed_move3d` every frame, so a mark there would pile up 60 undo
+steps a second.
+:::
+
+## The scene file format
+
+The file is plain JSON. Keys are **English and single-spelling**: the API has
+Turkish+English twins, but accepting two spellings in a *data* format creates
+ambiguity (which one wins?) and doubles the parser. What the user sees in
+Turkish are the editor's labels; the file itself is one language.
+
+**Every field is optional**; a missing one falls back to its default. That
+keeps the format forward compatible (an old file opens in a new engine) and
+lets the editor write only the fields that matter.
+
+### Top level
+
+| Field | Type | Meaning |
+|---|---|---|
+| `v` | int | Format version, currently `1`. Written, but **not validated** on load. |
+| `world` | object | World settings + camera |
+| `entities` | array | Entities |
+| `rules` | array | Rules |
+
+### `world`
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `title` | str | `"Tulpar 3B Sahne"` | Window title |
+| `w` / `h` | int | `960` / `560` | Window size |
+| `sky` | object | — | `{"top": [r,g,b], "bottom": [r,g,b]}` gradient |
+| `fog` | float | `0` | Fog density (0 = off) |
+| `ground` | float | — | y of the ground plane. **Absence is meaningful**: no ground plane at all (terrain only, or platforms in the void). |
+| `gravity` | float | `26` | Gravity |
+| `lights` | bool | `true` | Lighting |
+| `shadows` | bool | `true` | Shadows |
+| `daynight` | object | — | `{"len": 120, "time": 12, "frozen": false}` — seconds per full day, start hour (0..24), frozen clock |
+| `stars` | float | `-1` | `-1` = automatic (tied to night); `0..1` pins it |
+| `terrain` | object | — | See below |
+| `paint` | object | — | Terrain layer painting |
+| `water` | object | — | `{"y": 0, "color": [r,g,b], "alpha": 150, "physics": true}` |
+| `slope` | object | — | `{"limit": 0, "slide": 18}` — unclimbable slope and slide acceleration |
+| `camera` | object | — | See below |
+
+`terrain` takes one of two shapes:
+
+```json
+{"terrain": {"res": 129, "sx": 120, "sy": 14, "sz": 120, "noise": 4.5, "seed": 1}}
+{"terrain": {"file": "heightmap.png", "sx": 120, "sy": 14, "sz": 120}}
+```
+
+`paint` fields: `low`, `mid`, `high`, `rock` (colours) plus `mid_y` (5),
+`high_y` (9), `slope` (42).
+
+Colours are **always** `[r,g,b]` or `[r,g,b,a]` arrays — a colour picker maps
+onto that directly, while a packed integer (`0xRRGGBBAA`) is unreadable to a
+human.
+
+### `world.camera`
+
+The camera is resolved **separately and after** the entities: it names its
+target.
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `mode` | str | `"orbit"` | `"orbit"` \| `"follow"` \| `"fps"` |
+| `target` | str | — | The `name` of the target entity |
+| `dist` | float | `12` | Horizontal distance (orbit/follow) |
+| `height` | float | `8` | Height (orbit/follow) |
+| `eye` | float | `0` | Eye height (`fps` only) |
+| `fov` | float | `45` | Vertical field of view |
+| `collide` | bool | `true` | Camera obstacle avoidance |
+| `lock` | bool | — | Cursor lock (applied when written) |
+
+:::note[A round-trip test found a bug here]
+`camera_orbit(d, h)` internally stores the orbit **radius** (`sqrt(d²+h²)`),
+not the horizontal distance you passed. The first serialiser saved the raw
+value, so every save/load round pushed the camera a little further back:
+16 → 18.87 → 21.35. The inverse is exact (`r² − h² = d²`), and `dist` in the
+format is now the value `camera_orbit` **takes**.
+:::
+
+### `entities[]`
+
+| Field | Type | Default | Meaning |
+|---|---|---|---|
+| `name` | str | — | Optional name. `find3d(name)` and `camera.target` look it up. |
+| `tag` | str | `"prop"` | `"player"` \| `"item"` \| `"wall"` \| `"enemy"` \| `"bullet"` \| `"prop"` |
+| `shape` | str | `"cube"` | `"cube"` \| `"sphere"` \| `"cyl"` \| `"ramp"` |
+| `x` `y` `z` | float | `0` | Position — the **centre** |
+| `sx` `sy` `sz` | float | `1` | **Full** size, not half |
+| `color` | `[r,g,b]` | white | Colour; `[r,g,b,a]` also accepted |
+| `yaw` | float | `0` | Y rotation in degrees. Not cosmetic: a rotated box collides as a rotated box (SAT). |
+| `solid` | bool | per tag | Solidity. Written only when it **differs** from the tag's default. |
+| `hp` | int | — | Health system (absent = no health) |
+| `behaviors` | array | — | Behavior list |
+
+Handles depend on load order; names do not — which is why rules and the camera
+target refer to entities **by name**.
+
+### `entities[].behaviors[]`
+
+Behaviors make gameplay data too. Every one of them rides on functions the
+engine **already had** (`move3d`, `chase3d`, `patrol3d`, `bullet3d`) — no new
+physics was written, it is only driven from data. A game built from behaviors
+and a hand-written game therefore run the same code.
+
+| `type` | Fields (default) | What it does |
+|---|---|---|
+| `"move"` | `speed` (8), `jump` (0) | Player-input movement. `jump: 0` → no jumping (top-down games). |
+| `"chase"` | `target` (`"player"`), `speed` (5), `range` (0) | Chases the **nearest** live entity with that tag. `range: 0` = unlimited; out of range it **stops** rather than coasting. |
+| `"patrol"` | `x1` `z1` `x2` `z2` (0), `speed` (4) | Walks back and forth between two points |
+| `"spin"` | `speed` (90) | Spins on its own axis (deg/s); cosmetic |
+| `"bob"` | `height` (0.3), `speed` (1) | Bobs up and down in place (cycles/s); the pickup shimmer |
+| `"shoot"` | `interval` (1), `speed` (20), `life` (2), `target`, `range` (0) | Fires on an interval. Without `target` it fires along the aim direction; with one it **turns to** the nearest target first. |
+
+`target` is always a **tag name**, never a specific entity. Holding a
+behavior's target by name would mean a name lookup every frame once the target
+dies; a tag is already the natural way to say "the nearest player".
+
+:::note[Code beats data]
+Behaviors run **before** the user's `update()`. Someone who writes
+`move3d(p, 15.0)` by hand for the same entity overrides the speed the behavior
+gave it. The same precedence rule applies to imports: a local definition wins.
+:::
+
+The code-side equivalents: `move_behavior3d`, `chase_behavior3d`,
+`patrol_behavior3d`, `spin_behavior3d`, `bob_behavior3d`, `shoot_behavior3d`,
+`clear_behaviors3d(id)`, `behavior_count3d()`.
+
+### `rules[]`
+
+"When X happens, do Y" is data as well. Rules ride on the existing collision
+sweep — there is **no second collision scan** for them.
+
+There are two kinds; `on` picks which:
+
+```json
+{"on": "hit",     "a": "player", "b": "item", "do": "collect", "n": 50}
+{"on": "cleared", "tag": "item", "do": "win"}
+```
+
+| Field | Type | Default | Applies to |
+|---|---|---|---|
+| `on` | str | `"hit"` | `"hit"` \| `"cleared"` |
+| `a` | tag | `"player"` | `hit` — "me" in the collision |
+| `b` | tag | `"item"` | `hit` — "the other one" |
+| `tag` | tag | `"item"` | `cleared` — the tag that ran out |
+| `do` | str | `"collect"` | both |
+| `n` | float | `0` | `hit` — score / damage amount |
+
+Actions (`do`):
+
+| `do` | Effect |
+|---|---|
+| `"collect"` | Kill the other + particle burst + add `n` to the score |
+| `"kill"` | Kill the other (no score) |
+| `"damage"` | Damage **me** by `n` (player touched an enemy) |
+| `"hurt"` | Damage **the other** by `n` (bullet hit the player) |
+| `"win"` | End the game as won |
+| `"lose"` | End the game as lost |
+
+Several rules may share the same tag pair (score *and* damage); all of them
+run.
+
+:::caution[`cleared` never fires for a tag that was never seen]
+`{"on": "cleared", "tag": "item", "do": "win"}` only triggers if the scene
+**started** with that tag. Otherwise a scene with no pickups would be won on
+frame one.
+:::
+
+Code-side equivalents: `hit_rule3d(a, b, act, n)`, `cleared_rule3d(tag, act)`,
+`rule_count3d()`, `win3d()`. Action constants: `ACT_COLLECT`, `ACT_KILL`,
+`ACT_DAMAGE`, `ACT_HURT`, `ACT_WIN`, `ACT_LOSE`.
+
+### A complete example
+
+Abridged from `examples/scenes/toplayici.scene.json`:
+
+```json
+{
+  "v": 1,
+  "world": {
+    "title": "Tulpar 3B — Veriyle Kurulmus Oyun", "w": 960, "h": 560,
+    "sky": {"top": [38, 52, 92], "bottom": [176, 198, 224]},
+    "fog": 0.014,
+    "ground": 0,
+    "gravity": 26,
+    "camera": {"mode": "orbit", "target": "kahraman", "dist": 16, "height": 11, "fov": 45}
+  },
+  "entities": [
+    {"name": "kahraman", "tag": "player", "shape": "cube",
+     "x": 0, "y": 2, "z": 12, "sx": 1.2, "sy": 2, "sz": 1.2,
+     "color": [110, 190, 240], "hp": 100,
+     "behaviors": [{"type": "move", "speed": 12, "jump": 13}]},
+
+    {"tag": "item", "shape": "sphere", "x": -14, "y": 1.4, "z": -12,
+     "sx": 1.2, "sy": 1.2, "sz": 1.2, "color": [255, 205, 60],
+     "behaviors": [{"type": "bob", "height": 0.35, "speed": 1.1}]},
+
+    {"tag": "enemy", "shape": "cube", "x": -20, "y": 1.5, "z": -20,
+     "sx": 1.4, "sy": 1.6, "sz": 1.4, "color": [222, 82, 74], "hp": 30,
+     "behaviors": [{"type": "chase", "target": "player", "speed": 4.5, "range": 40}]},
+
+    {"name": "kule", "tag": "prop", "shape": "cyl", "x": 0, "y": 1.5, "z": 0,
+     "sx": 2, "sy": 3, "sz": 2, "color": [150, 150, 160],
+     "behaviors": [{"type": "shoot", "interval": 1.6, "speed": 18, "life": 2.5,
+                    "target": "player", "range": 26}]},
+
+    {"tag": "wall", "shape": "cube", "x": 0, "y": 2, "z": -30,
+     "sx": 62, "sy": 4, "sz": 2, "color": [126, 126, 134]}
+  ],
+  "rules": [
+    {"on": "hit", "a": "player", "b": "item",  "do": "collect", "n": 50},
+    {"on": "hit", "a": "player", "b": "enemy", "do": "damage",  "n": 12},
+    {"on": "hit", "a": "bullet", "b": "player","do": "hurt",    "n": 8},
+    {"on": "cleared", "tag": "item",   "do": "win"},
+    {"on": "cleared", "tag": "player", "do": "lose"}
+  ]
+}
+```
+
+## Making a game without code
+
+That JSON contains **zero lines of gameplay code** and is a playable game.
+The steps:
+
+1. **Write the host — once.** The ~15 lines from "Opening the editor" above.
+   There is no `update()`; it only loads the scene and tells the editor which
+   file to write.
+2. **Run it and press TAB.** Starting from an empty world, the
+   **kutu / kure / silin / duvar** buttons in the hierarchy give you your first
+   entities.
+3. **Set up the player.** Add a box, cycle its tag to `player` in the
+   inspector, type 100 into health, add the `+hareket` behavior. To make it a
+   camera target you must give it a `name` in the scene file — the inspector
+   has no name field.
+4. **Build the world.** Draw the bounds with the `duvar` button, drag in
+   **move** mode, size it with the arrows in **scale**, turn it in 15° steps in
+   **rotate**. Anything left floating: `SPACE` drops it to the ground. For many
+   copies of the same piece, `CTRL+D`.
+5. **Add gameplay.** Pickups: `item` + `+salin`. Enemies: `enemy` + `+kovala`
+   or `+devriye`. A turret: `prop` + `+ates`.
+6. **Write the rules.** There is no rules panel yet — add them to the file by
+   hand (the `rules` table above), or call `hit_rule3d(...)` once from code.
+   The editor **preserves and re-writes** them.
+7. **F5.** The file is updated. Press **OYNAT**, play, TAB back, fix.
+
+:::tip[It works for hand-written games too]
+TAB opens in every scene3d game, even one with no scene file. Because the
+authored state is captured as soon as `setup()` returns, Play/Stop and undo
+work in a hand-written game as well. But saving writes only the **geometry,
+behaviors and rules**: `update()`, hooks and the level table are not part of
+the scene format.
+:::
+
+## Why JSON, and not code
+
+Up to this point a scene existed only as code: `spawn3(...)` calls typed by
+hand inside `setup()`. That made "learn Tulpar first" the only way in, and
+made placing things by eye impossible — guess a number, compile, look, fix.
+
+Making the scene data opens four doors:
+
+1. **An editor can read and write the scene** — even before it can generate
+   code. If it had to generate code, a compiler would have to ship next to the
+   editor.
+2. **A "Play" button works in the browser.** The browser editor has no
+   compiler beside it, so it cannot run Tulpar the user typed. That is
+   precisely why gameplay had to become data too — the reason the behaviors
+   and rules layers exist. (This is no longer hypothetical; see
+   [In the browser](#in-the-browser) below.)
+3. **Levels become files** — a new level without rebuilding the game.
+4. **The same scene builds identically on web and desktop.**
+
+The format is also written to stay hand-editable: one **line per entity**, only
+the fields that are **active** (water that is off, terrain that was never set
+up, a default sky never reach the file), and its own number writer —
+`toString(120.0)` yields `"1.2e+02"`, which JSON accepts but no human reads.
+Rounding to 3 decimals also makes the round trip **idempotent**: rounding an
+already-rounded value does not change it.
+
+## Scene API
+
+| Function | Turkish | Returns | Purpose |
+|---|---|---|---|
+| `scene_load3d(src)` | `sahne_yukle3d` | int | Load from JSON text; number of entities loaded (0 on invalid JSON) |
+| `scene_file3d(path)` | `sahne_dosya3d` | int | Load from a file |
+| `scene_json3d()` | `sahne_json3d` | str | The current scene as JSON |
+| `scene_save3d(path)` | `sahne_kaydet3d` | bool | Write to disk |
+| `find3d(name)` | `bul3d` | int | Handle of the named entity, or `-1` |
+| `scene_meta3d(src)` | `sahne_bilgi3d` | — | Read only `title`/`w`/`h` (does not touch the scene) |
+| `scene_meta_file3d(path)` | `sahne_bilgi_dosya3d` | — | Same, from a file |
+| `scene_title3d()` | `sahne_basligi3d` | str | The title that was read |
+| `scene_w3d()` / `scene_h3d()` | `sahne_eni3d` / `sahne_boyu3d` | int | The window size that was read |
+
+:::note[Why a separate "meta" reader?]
+The window has to open **before** the scene loads (`scene3d(...)` →
+`play3d()`), yet the title and size are part of the scene. `scene_meta_file3d`
+is therefore deliberately light: it reads three fields and nothing else.
+:::
+
+Loading is **total**: opening scene B never inherits A's sky. World settings
+are reset to their defaults on every load — the editor reloads once a second,
+and any setting left behind would be an order-dependent bug.
+
+## Editor API
+
+Every editor command is callable from outside. Input handling is only a thin
+shell; the real work is in these commands — and the browser editor calls
+exactly the same ones.
+
+| Function | Purpose |
+|---|---|
+| `editor3d(on)` | Open/close the editor (Stop / Play) |
+| `editor_on3d()` | Is the editor open |
+| `editor_file3d(path)` | Save target |
+| `editor_save3d()` | Save now |
+| `ed_select3d(id)` / `ed_selected3d()` / `ed_deselect3d()` | Selection |
+| `ed_pick_at3d(px, py)` | Pick from a screen point; handle or `-1` |
+| `ed_mode3d(m)` / `ed_mode_now3d()` | Mode — `ED_SELECT` `ED_MOVE` `ED_SCALE` `ED_ROTATE` |
+| `ed_grid3d(step)` / `ed_grid_now3d()` | Grid step (`0` = off) |
+| `ed_move3d(id, x, y, z)` | Absolute move (snaps to grid) |
+| `ed_nudge3d(id, dx, dy, dz)` | Relative nudge |
+| `ed_resize3d(id, sx, sy, sz)` | Resize (floor = one grid step) |
+| `ed_rotate3d(id, yaw)` | Rotate |
+| `ed_add3d(tag, shape, x, y, z)` | New entity, selected on creation |
+| `ed_duplicate3d(id)` | Duplicate — behaviors included |
+| `ed_delete3d(id)` | Delete (also clears its behaviors) |
+| `ed_drop3d(id)` | Drop to ground/terrain |
+| `ed_mark3d()` | Push an undo point |
+| `ed_undo3d()` / `ed_redo3d()` | Undo / redo (returns bool) |
+| `ed_undo_count3d()` / `ed_redo_count3d()` | Stack depths |
+
+Picking calls the same ray-box test the camera obstacle sweep uses — writing a
+separate one would mean keeping the same geometry in two places. Picking
+**rotated** boxes correctly came for free because of that.
+
+## Gotchas
+
+- **`"shape": "model"` is written but not read.** The serialiser writes
+  `SHAPE_MODEL` entities as `"model"`; the loader does not recognise that name
+  and loads them as `cube`. Set up model entities from code.
+- **The shape cycle only visits three shapes** (`cube` → `sphere` → `cyl`).
+  For `ramp` and `model`, edit the file.
+- **The inspector has no name field.** Entities added in the editor are
+  unnamed, so `find3d` and `camera.target` cannot see them. Add `"name"` in the
+  file — saving preserves it.
+- **Only the first two numbers of a behavior are editable** in the inspector.
+  For `patrol`'s four points and `shoot`'s `life`/`range`, go to the file.
+- **There is no rules panel.** Rules come from the `rules` array or from code;
+  the editor preserves and re-writes them.
+- **Bullets and lifetimed entities are not saved** — they are runtime output,
+  not scene.
+- **`v` is not validated.** The field is written, but the loader performs no
+  version check.
+- **Sizes are full size**, not half, and the position is the centre — the same
+  contract as the rest of `scene3d`.
+
+## Tests
+
+The scene format, behaviors, rules and the editor are covered by **66 tests**
+in `tests/scene3d_engine.test.tpr` (the engine suite is 212 tests in total).
+All of them run without opening a window.
+
+The ray tests take their expectation from the **definition of fov**, not from
+the code's formula: a ray through the vertical edge of the screen makes exactly
+`fov/2` with the forward direction. A test that repeated the same formula would
+have blessed the same mistake.
+
+```bash
+./build.sh suites            # every tests/*.test.tpr suite
+./tulpar tests/scene3d_engine.test.tpr
+```
+
+
+## In the browser
+
+The editor compiles to WebAssembly and runs in a browser — the same source, no
+separate app:
+
+```bash
+mkdir -p assets && cp <some>.ttf assets/ui.ttf     # a readable UI font
+TULPAR_WEB_ASSETS=assets tulpar build --target=web \
+    examples/scene3d_editor.tpr -o editor
+# serve over HTTP; file:// will not work
+```
+
+Three things differ from desktop, and each one is a deliberate answer rather
+than a limitation left in place:
+
+**The font is packed in.** A browser has no system font directory, so without
+`TULPAR_WEB_ASSETS` the editor falls back to raylib's 10-pixel bitmap font and
+becomes tiring to read. `assets/ui.ttf`, `fonts/ui.ttf` and `ui.ttf` are tried
+first, ahead of the system paths — so packing a font in is all it takes. If
+none is found, the console says so and names the fix.
+
+**"Save" writes to browser storage, not to a file.** Emscripten's virtual file
+system is *page-scoped*: whatever you write to it disappears on reload, while
+the call still reports success. That is silent data loss, so `scene_save3d`
+uses `localStorage` on the web (keyed by the scene path, so two scenes on one
+page do not overwrite each other) and survives a refresh.
+
+**"DOWNLOAD" is how work leaves the page.** Browser storage stays inside the
+page. The menu bar grows a DOWNLOAD button on the web only — it hands you the
+scene as a `.json` file. On desktop there is no such split: "Save" already
+writes the file, and a second button would only confuse.
+
+A packed scene file is the *starting* state; your saved edits win over it —
+otherwise every refresh would undo your work.

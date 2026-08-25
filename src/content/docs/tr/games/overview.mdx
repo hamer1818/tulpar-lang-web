@@ -1,0 +1,113 @@
+---
+title: Oyun Geliştirme
+description: Üç katman — tame (raylib bağlamaları), arcade (2B preset), scene3d (3B motor) — ve web/Android hedefleri.
+---
+
+Tulpar tam bir oyun yığınıyla geliyor. Kurulacak bir şey yok: raylib
+derleyicinin içine gömülü, motor katmanları da gömülü `.tpr` modülleri.
+
+## Hangi katmanı import etmeliyim?
+
+| Katman | Import | Nedir | Ne zaman |
+|---|---|---|---|
+| **tame** | `import "tame"` | Ham raylib bağlamaları — pencere, döngü, çizim, girdi, 3B primitifler | Tam denetim istiyorsan ya da kendi motorunu yazıyorsan |
+| **arcade** | `import "arcade"` | tame üzerine 2B preset motoru | Klasik 2B oyunlar: platform, nişancı, bulmaca |
+| **scene3d** | `import "scene3d"` | tame üzerine 3B motor | Üçüncü/birinci şahıs 3B oyunlar |
+
+`arcade` ve `scene3d` **saf Tulpar** — içlerinde C yok. Senin de erişebildiğin
+aynı açık `tame` API'siyle yazılmışlar, yani yaptıkları hiçbir şey sana kapalı
+değil.
+
+Oyun yalnız import ettiğini linkler: sıradan bir Tulpar binary'si hiçbir GL ya
+da pencere bağımlılığı taşımaz.
+
+## Mümkün olan en küçük oyun
+
+```tulpar
+import "tame";
+
+window(800, 480, "Merhaba");
+float x = 100.0;
+while (running()) {
+    if (key_down("RIGHT")) { x = x + 200.0 * frame_time(); }
+    frame_begin();
+        clear(rgb(20, 24, 34));
+        rect(x, 200.0, 60.0, 60.0, GOLD);
+    frame_end();
+}
+close_window();
+```
+
+Her çizim çağrısı paketlenmiş bir renk alır: `rgb(r,g,b)`, `rgba(r,g,b,a)` ya
+da 25 adlı raylib renginden biri (`GOLD`, `SKYBLUE`, …).
+
+## Yönetilen döngüler
+
+Döngüyü kendin yazabilirsin ama iki preset katmanı da yönetilen bir döngü
+veriyor — sen kancaları kaydediyorsun, motor kare zamanlamasını, girdi
+tamponunu, fiziği, çarpışmayı ve çizimi sürüyor:
+
+```tulpar
+import "arcade";     // 2B
+oyuncu(400.0, 300.0);
+her_kare(update);
+oyna();
+```
+
+```tulpar
+import "scene3d";    // 3B
+sahne3d(960, 560, "Oyunum");
+kurulumda3(setup);
+her_kare3(update);
+oyna3d();
+```
+
+İki motor da **iki dilli API** sunuyor: her fonksiyonun Türkçe adı ve İngilizce
+takma adı var (`oyuncu`/`player`, `uret3`/`spawn3`, `oyna3d`/`play3d`). Birini
+seç ve tutarlı kal; ikisi aynı fonksiyon.
+
+## Derleme hedefleri
+
+Aynı kaynak üç platforma derleniyor.
+
+```bash
+tulpar oyun.tpr                          # masaüstü: derle ve çalıştır
+tulpar build oyun.tpr out                # masaüstü: bağımsız binary
+tulpar build --target=web oyun.tpr out/g # tarayıcı: .html + .js + .wasm
+tulpar build --target=android oyun.tpr o # Android: NativeActivity APK
+```
+
+**Web.** `wasm32-unknown-emscripten` nesnesi üretip `em++` ile linkler. Önce
+`wasm/emsdk/emsdk_env.sh` kaynaklanmalı, arşivler bir kez
+`wasm/build_tame_web.sh` ile derlenmeli. HTTP üzerinden servis et — `file://`
+çalışmaz. Üretilen HTML kabuğu, yalnız `pointer:coarse` cihazlarda beliren bir
+**dokunmatik gamepad** taşıyor: her web oyunu mobil kontrolü bedava alıyor.
+
+**Android.** Tek derlenmiş modülden iki ABI nesnesi üretiyor (cihazlar için
+`arm64-v8a`, emülatör için `x86_64`), NDK ile linkleyip NativeActivity manifesti
+yazıyor. Arşivleri bir kez `android/build_tame_android.sh` ile derle, sonra
+`android/package_apk.sh` ve `android/install_run.sh`.
+
+:::caution
+`async` hem web'de hem Android'de desteklenmiyor: bionic'te ve emscripten'de
+`makecontext`/`swapcontext` yok, o yüzden coroutine çalışma zamanı bu
+derlemelerden çıkarılıyor. Geri kalan her şey — `arcade` ve `scene3d` dahil —
+değişmeden çalışıyor.
+:::
+
+## Varlıklar (asset)
+
+`TULPAR_WEB_ASSETS=<dizin>` bir dizini wasm derlemesine gömer. Masaüstü ve
+Android'de göreli yollar normal çözülür. Doku, font, ses ve glTF modelleri
+handle döndüren fonksiyonlarla yüklenir (`load_texture`, `load_font`,
+`load_sound`, `load_model`); başarısızlıkta `-1` dönerler — başarıyı
+varsaymak yerine kontrol et.
+
+## Sonraki adım
+
+- **[3B Motor (scene3d)](/tr/games/scene3d/)** — entity, çarpışma, kamera,
+  arazi, tetikleyici bölge, gündüz-gece, nişan
+- Yayınlanan 10 tarayıcı oyunu
+  [tulparlang.dev/oyunlar](https://tulparlang.dev/oyunlar/) adresinde;
+  kaynakları depoda `examples/arcade_*.tpr`, her birinin `examples/en/`
+  altında İngilizce ikizi var.

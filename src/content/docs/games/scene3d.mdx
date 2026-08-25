@@ -1,0 +1,412 @@
+---
+title: 3D Engine (scene3d)
+description: Entities, physics, collision, camera, terrain, triggers, day/night cycle and aiming — a managed 3D game engine written in pure Tulpar.
+---
+
+`import "scene3d"` gives you a managed 3D engine: entity store, physics,
+shape-aware collision, third-person camera, terrain, trigger zones,
+persistence and a menu shell. It is **pure Tulpar** built on the `tame`
+bindings — you can read every line of it in `lib/scene3d.tpr`.
+
+Every function has a Turkish name and an English alias. This page uses the
+English ones; the Turkish name is listed beside each.
+
+## A complete game
+
+```tulpar
+import "scene3d";
+
+int player = 0;
+
+func setup() {
+    sky3d(rgb(24, 30, 52), rgb(96, 116, 150));
+    gravity3d(26.0);
+    // four walls
+    spawn3(0.0, 1.5, -16.0, 34.0, 3.0, 1.0, GRAY, SHAPE_CUBE, TAG_WALL);
+    spawn3(0.0, 1.5,  16.0, 34.0, 3.0, 1.0, GRAY, SHAPE_CUBE, TAG_WALL);
+
+    player = spawn3(0.0, 1.0, 0.0, 1.2, 2.0, 1.2, SKYBLUE, SHAPE_CUBE, TAG_PLAYER);
+    health3d(player, 100);
+    camera_orbit(player, 14.0, 9.0);
+}
+
+func update() {
+    move3d(player, 9.0);
+    if (jump_pressed()) { jump3d(player, 11.0); }
+}
+
+scene3d(960, 560, "My 3D Game");
+on_setup3d(setup);
+on_frame3d(update);
+play3d();
+```
+
+That is a running game: gravity, ground contact, wall collision, a
+mouse-controlled third-person camera, keyboard/gamepad/touch input, lighting
+and shadows — all default-on.
+
+## Entities
+
+`spawn3(x, y, z, sx, sy, sz, color, shape, tag)` → **handle** (`uret3`)
+
+Sizes are **full extents**, not half. Position is the center.
+
+Shapes: `SHAPE_CUBE`, `SHAPE_SPHERE`, `SHAPE_CYL`, `SHAPE_MODEL`, `SHAPE_RAMP`.
+Tags: `TAG_PLAYER`, `TAG_ITEM`, `TAG_WALL`, `TAG_ENEMY`, `TAG_PROP`, `TAG_BULLET`.
+
+The tag decides default behaviour: `TAG_WALL` bodies are **static solids**
+(they push, they are not pushed); items and bullets are non-solid by default.
+Override with `solid3d(id, on)` (`kati3d`).
+
+:::caution[Handles are not indices]
+`spawn3` returns a **generation-tagged handle**, not an array index. Reusing a
+slot invalidates old handles, which is what makes `alive3(id)` trustworthy
+after a kill. Always go through the accessors (`get3x`, `set3pos`, …) — never
+index internal arrays yourself.
+
+`length` of the store is also not the live count: killed slots stay in place
+for reuse. Use `alive_count3d()`.
+:::
+
+| Function | Turkish | Purpose |
+|---|---|---|
+| `spawn3(...)` | `uret3` | Create entity, returns handle |
+| `spawn3_model(x,y,z,scale,model,tag)` | — | Create from a loaded glTF/IQM model |
+| `kill3d(id)` | `oldur3` | Destroy |
+| `alive3(id)` | — | Still alive? (false for stale handles) |
+| `get3x/get3y/get3z(id)` | — | Position |
+| `set3pos(id,x,y,z)` | — | Teleport |
+| `set3vel(id,vx,vy,vz)` | — | Set velocity |
+| `set3yaw(id,deg)` / `get3yaw(id)` | — | Facing |
+| `alive_count3d()` | — | Live entity count |
+
+## Movement and physics
+
+```tulpar
+move3d(player, 9.0);                  // hareket3 — camera-relative movement
+if (jump_pressed()) { jump3d(player, 11.0); }   // zipla3
+```
+
+`move3d` reads keyboard **or** touch **or** gamepad (all three are live at
+once) and moves relative to the camera: turn the camera, press forward, and you
+walk the new way. Analog magnitude is preserved — a half-pushed stick is half
+speed — while diagonals are still normalized so they are not faster.
+
+`gravity3d(g)` (`yercekimi3`), `ground3d(y)` (`zemin3`), `no_ground3d()`.
+
+Walking into an obstacle **does not climb it** at any height; you must jump.
+This is deliberate and regression-tested.
+
+## Collision
+
+Collision is shape-aware: sphere–sphere, sphere–box, cylinder (as a vertical
+capsule), and **rotated box via SAT**. A broad phase (bounding-sphere reject)
+runs first — at 200 entities it cut a frame from 15.4 ms to 1.12 ms.
+
+```tulpar
+on_hit3d(TAG_BULLET, TAG_ENEMY, bullet_hits_enemy);   // carpisinca3
+func bullet_hits_enemy() {
+    kill3d(me3d());              // ben3()   — the tagA entity
+    damage3d(other3d(), 25);     // oteki3() — the tagB entity
+}
+```
+
+Hooks survive level changes; they are rules, not placement.
+
+:::note[Rotated bodies must be drawn rotated]
+A yaw'd `SHAPE_CUBE` collides as a rotated box (SAT). The engine draws it with
+`cube_rot`, so what you see matches what you hit. If you draw your own
+geometry with plain `cube()`, a rotated body will render axis-aligned and the
+visible wall will not be where the collision is.
+:::
+
+## Camera
+
+```tulpar
+camera_orbit(player, 14.0, 9.0);   // kamera_yorunge — third person (mouse look ON)
+camera_fps(player, 0.0);           // kamera_fpv     — first person
+camera_follow(player, 14.0, 9.0);  // fixed, no rotation
+```
+
+Orbit mode locks the cursor so the mouse turns the camera directly, like any
+third-person game. Menus release it automatically. Turn it off with
+`camera_mouse3d(false)` (`fare_bakis3d`) to go back to right-drag; adjust with
+`camera_sens3d(0.3)`.
+
+When something comes between the camera and the player, the engine handles it
+in **this order**:
+
+1. **X-ray** — the blocking object is drawn semi-transparent. The camera does
+   not move. (`camera_xray3d`, `xray_alpha3d`)
+2. **Lift** — rise over the obstacle, up to 45°, smoothed.
+3. **Pull in** — last resort, never closer than `camera_near3d` (default 5.0
+   world units).
+
+The order matters: pulling in first would leave nothing between camera and
+player, so transparency would silently do nothing exactly when it is needed.
+
+## Aiming and shooting
+
+```tulpar
+bullet3d(player, 26.0, 1.6);       // mermi3d(owner, speed, life)
+```
+
+Bullets fly straight — no gravity, no ground contact. Different games want
+different aiming, so pick a mode with `aim_mode3d` (`nisan_modu3d`):
+
+| Mode | Direction | Typical game |
+|---|---|---|
+| `AIM_FLAT` *(default)* | camera's **horizontal** direction | third-person action |
+| `AIM_LOOK` | camera's **full** direction, pitch included | shooter / FPS |
+| `AIM_BODY` | the body's facing | twin-stick, classic |
+| `AIM_LOCK` | nearest target in range | boss fight, auto-aim |
+
+`AIM_FLAT` is the default because in third person, tilting the camera is
+usually about seeing the scene — looking at the ground does not mean "shoot the
+ground". `AIM_LOCK` (`aim_lock3d(tag, range)`) keeps the target's **height**,
+so elevated enemies are hittable, and falls back to `AIM_FLAT` when nothing is
+in range.
+
+```tulpar
+aim_spread3d(12.0);                 // nisan_sacilma3d — cone, in degrees
+shotgun3d(player, 24.0, 1.2, 6);    // pompali3d — 6 pellets, one trigger
+```
+
+Vertical spread is only applied in modes where vertical means something — in a
+flat-aim game you do not want pellets scattering into the floor.
+
+## Health, damage, death
+
+```tulpar
+health3d(id, 100);        // can3d     — set up the health system
+damage3d(id, 25);         // hasar3d   — respects the invulnerability window
+heal3d(id, 40);           // iyilestir3d
+hp3d(id);                 // can_kac3d
+on_death3d(TAG_ENEMY, enemy_died);   // olunce3d
+invuln3d(0.6);            // dokunulmazlik3d — window length in seconds
+```
+
+`damage3d` manages the invulnerability window itself, so a touching enemy hits
+once per window instead of 60 times a second.
+
+Use `heal3d`, not `damage3d(id, -n)`: the latter opens an invulnerability
+window, so healing would also make you damage-proof. And not `health3d` either
+— that *re-initializes* the system, setting both hp and max.
+
+## Trigger zones
+
+"When the player enters here, do that" — doors, checkpoints, traps.
+
+```tulpar
+int pad = trigger3d(-10.0, 1.0, 10.0, 4.0, 3.0, 4.0, TAG_PLAYER);  // bolge3d
+on_enter3d(pad, give_bonus);        // girince3d — fires ONCE on entry
+trigger_once3d(pad, true);          // bolge_bir_kere3d — one-shot
+
+int pool = trigger_sphere3d(11.0, 1.0, 11.0, 3.5, TAG_PLAYER);     // bolge_kure3d
+on_stay3d(pool, poison);            // icindeyken3d — every frame while inside
+on_exit3d(pool, cleansed);          // cikinca3d   — fires ONCE on exit
+```
+
+Zones are **not entities**: they are not drawn, take no entity slot, and never
+participate in collision resolution. The engine computes enter/exit **edges**,
+which is the thing a collision hook cannot give you — that fires every frame
+you overlap.
+
+Inside a hook, `me3d()` is the entity that entered and `trigger_id3d()`
+(`bolge_no3d`) tells you which zone fired, so one callback can serve many.
+`inside3d(z)` counts who is currently inside. `trigger_show3d(true)` draws
+debug wireframes.
+
+Zones are cleared on level change — they are placed geometry, like walls.
+
+## Levels
+
+```tulpar
+level3d(1, build_level1);    // bolum3d
+level3d(2, build_level2);
+next_level3d();              // bolum_gec3d — request; applied at frame end
+```
+
+The transition is deferred to the end of the frame so a collision hook can
+call it without pulling entity slots out from under the loop that is running.
+`goto_level3d(n)` jumps freely without marking progress.
+
+## Characters and animation
+
+```tulpar
+int robot = load_model("assets/robot.glb");
+int p = spawn3_model(0.0, 0.0, 0.0, 1.0, robot, TAG_PLAYER);
+anim3d(p, 0, 1, 30.0);          // idle clip, run clip, fps
+anim_blend_rate3d(4.0);         // a 0.25 s transition (1/rate seconds)
+```
+
+The engine drives the frame counter, the speed threshold and the **blend
+weight**. All your game says is which clip is idle and which is run.
+
+Switching clips in a single frame is what makes an animation look cheap, so
+idle↔run is **blended**: two poses are mixed and the weight moves over time.
+The transition is *linear*, not exponential smoothing — with smoothing the
+weight never actually arrives, so the "idle" pose would carry a little run
+forever.
+
+Two clips are not a special case. The transition is an `(a, b, w)` triple and
+the target is recomputed every frame, so any number of clips works:
+
+```tulpar
+anim_set3d(p, 5);      // animasyon_sec3d — the game picks the clip (crouch, attack…)
+anim_auto3d(p);        // animasyon_otomatik3d — back to speed-driven locomotion
+int now = anim_now3d(p);   // animasyon_su_an3d — the clip currently showing
+```
+
+A manually chosen clip is protected from the automatic mode, which would
+otherwise overwrite it on the very next frame. Interrupting a transition
+half-way *reverses* it rather than restarting, and moving to a third clip
+starts from whichever pose currently dominates.
+
+## Particles
+
+```tulpar
+particles3d(x, y, z, 10, color, speed, life);   // parcacik3d
+burst3d(id, 26, ORANGE, 9.0, 0.7);              // patlat3d — at an entity
+particle_gravity3d(9.0);                        // parcacik_yercekimi3d
+```
+
+Particles are camera-facing billboards; a sphere or cube would thin out when
+seen edge-on and lose the spark/smoke feel.
+
+A texture atlas turns them into a flipbook — the frame advances over the
+particle's lifetime, so smoke **opens up** instead of merely shrinking:
+
+```tulpar
+int smoke = load_texture("assets/smoke.png");
+particle_texture3d(smoke, 4, 4);   // parcacik_doku3d — a 4x4 sheet
+particle_spin3d(120.0);            // parcacik_donme3d — degrees/second
+```
+
+The sheet plays once and **stays on the last frame**; wrapping would restart
+the explosion as it dies.
+
+Rotation is **off by default**. An untextured particle is a filled square, and
+a filled square that rotates changes silhouette (square ↔ diamond) — turning it
+on by default would have altered every published game's look without notice.
+
+## Positional sound
+
+```tulpar
+sound3d(handle, x, y, z);        // ses3d — distance falloff + stereo panning
+sound_range3d(30.0);             // the distance at which it fades out fully
+sound_pan_amount3d(1.0);         // ses_yon_gucu3d — 0 disables panning
+```
+
+Distance alone answers "how far", not "which way": you could not tell an
+explosion on your left from one on your right. `sound3d` applies both.
+
+The camera's right axis comes from the **same expression** `move3d` uses to
+rotate input. If the two ever diverged, "walk right" and "hear from the right"
+would point in different directions and the error would grow as the camera
+turns.
+
+:::note
+raylib's pan is inverted — in `raudio.c`, `left = pan`, so **pan 0 is the RIGHT
+channel**. scene3d does the conversion for you; `tm_sound_pan` deliberately
+keeps raylib's meaning, because code using raw `tame` reads raylib's docs.
+:::
+
+## Terrain
+
+```tulpar
+terrain3d(129, 120.0, 14.0, 120.0, 4.5, 20260804);   // arazi3d(res, sx, peak, sz, noise, seed)
+terrain_natural3d(14.0);                             // arazi_dogal3d — grass/dirt/snow + rock
+float y = terrain_height3d(x, z);                    // arazi_yukseklik3d
+int layer = terrain_layer3d(x, z);                   // arazi_katmani3d
+```
+
+Terrain is a real heightmap mesh; gravity, jumping and the camera all follow it
+automatically. Layer painting colors by **height and slope** (`LAYER_LOW`,
+`LAYER_MID`, `LAYER_HIGH`, `LAYER_ROCK`) and `terrain_layer3d` gives your game
+logic a crisp answer for footstep sounds or movement speed.
+
+Slope rules are opt-in: `slope_limit3d(38.0)` (`egim_siniri3d`) makes steep
+faces unclimbable, `slide_accel3d` controls the slide.
+
+Height data is stored even without a window, so terrain **physics** works in
+headless tests; only drawing needs a GPU.
+
+## Day/night cycle
+
+```tulpar
+daynight3d(120.0);      // gunduz_gece3d — a full day in 120 real seconds
+set_time3d(5.0);        // saati_ayarla3d — hour 0..24
+freeze_time3d(true);    // saati_dondur3d — hold a permanent golden hour
+is_night3d();           // gece_mi3d
+```
+
+Sky gradient, sun direction and color, ambient light and fog color all move
+together, with an orange twilight band at dawn and dusk. **Shadows rotate for
+free** — the shadow map derives from the sun's direction.
+
+## Persistence
+
+```tulpar
+save_progress3d();      // kayit_ac3d — OPT-IN, because it writes to disk
+best_score3d();         // rekor3d
+new_record3d();         // rekor_kirildi3d
+unlocked_level3d();     // acik_bolum3d
+```
+
+The key derives from the scene title, so two games never overwrite each other.
+`next_level3d()` marks a level completed; `goto_level3d()` does not — otherwise
+skipping would count as clearing.
+
+## Menu shell
+
+```tulpar
+menu3d("MY GAME", "clear the arena");   // baslangic3d — optional title screen
+```
+
+Pause (ESC/P/BACK), restart and quit come free, with a selection cursor that
+works with keyboard arrows and gamepad D-pad. Game-over and win screens are
+built in; `on_restart3d(fn)` hooks a custom restart.
+
+## Diagnostics
+
+Press **F1** in any scene3d game for a live overlay: FPS, entity count, player
+position/velocity/ground state, camera mode/distance/lift, transparent-object
+count, and the last log lines. **F2** dumps the log buffer to
+`scene3d_log.txt`.
+
+The overlay's most useful line is the **watchdog**. Every frame it checks
+invariants and reports violations with specifics:
+
+- a moving body still inside a static solid, with penetration depth
+- the player below the floor
+- the camera inside geometry
+
+That turns "I'm falling through walls" into "entity #4 is 0.47 units inside
+static #2 at (x,y,z)". `debug3d(true)` enables it from code; `log3d`,
+`log_warn3d`, `log_err3d` write your own entries.
+
+## Testing your game
+
+The engine is designed so its logic runs **without opening a window** — device
+reads are confined to one place per input source, and decision logic lives in
+pure functions. You can drive it directly from a test:
+
+```tulpar
+import "scene3d";
+import "test";
+
+func t_player_lands() {
+    scene3d_reset();
+    int p = spawn3(0.0, 5.0, 0.0, 1.0, 2.0, 1.0, SKYBLUE, SHAPE_CUBE, TAG_PLAYER);
+    int i = 0;
+    while (i < 120) { _s3_physics(0.016667); i = i + 1; }
+    assert(get3y(p) > 0.99 && get3y(p) < 1.01, "should rest on the ground");
+}
+
+test("player lands", "t_player_lands");
+test_summary();
+```
+
+`scene3d_reset()` clears the scene between tests. The engine's own suite
+(`tests/scene3d_engine.test.tpr`) runs 137 tests this way.

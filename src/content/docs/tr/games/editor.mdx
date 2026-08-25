@@ -1,0 +1,596 @@
+---
+title: 3B Sahne Editörü
+description: TAB ile açılan yerleşik sahne editörü — araç çubuğu, hiyerarşi, inspector, Oynat/Dur, geri alma ve JSON sahne biçiminin tam şeması.
+---
+
+`scene3d` sahneyi **veri** yaptı: dünya, varlıklar, davranışlar ve kurallar bir
+JSON dosyasında duruyor. Editör de o dosyayı gözle kurmanın yolu — motorun
+**içinde**, oyunun kendi penceresinde çalışan bir düzenleyici.
+
+Herhangi bir `scene3d` oyununda **TAB**'a bas: oyun donar, paneller açılır.
+Ayrı bir uygulama indirmen, ayrı bir derleme yapman gerekmez.
+
+:::note[Neden motorun içinde?]
+Seçim ışını, ızgara ve tutamaklar sahnenin **gerçek** geometrisiyle çalışmak
+zorunda. Tarayıcı tarafında bir taklidini yazmak, motorun görünümünü aynalayan
+bir izleyici yazmakla aynı hata olurdu: zamanla sapar ve yalan söyler.
+:::
+
+## Editörü açmak
+
+En kısa yol — herhangi bir scene3d oyununu çalıştır ve **TAB**'a bas. Editör
+her sahnede vardır; kurulum gerektirmez.
+
+Kaydedebilmek için editöre bir **hedef dosya** söylemen gerekir:
+
+```tulpar
+import "scene3d";
+
+str SAHNE = "examples/scenes/toplayici.scene.json";
+
+func kur() {
+    editor_dosya3d(SAHNE);        // F5 bu dosyaya yazacak
+    if (sahne_dosya3d(SAHNE) == 0) {
+        hata3d("SAHNE YUKLENEMEDI: " + SAHNE);
+    }
+}
+
+sahne_bilgi_dosya3d(SAHNE);       // başlık/en/boy — pencereden ÖNCE
+sahne3d(sahne_eni3d(), sahne_boyu3d(), sahne_basligi3d());
+kurulumda3(kur);
+oyna3d();
+```
+
+Bu, `examples/scene3d_data_game.tpr` dosyasının tamamına yakınıdır ve tek satır
+oynanış kodu içermez: düzenle → **F5** → aynı JSON güncellenir → yeniden
+derleme yok.
+
+:::caution[Kayıt yolu verilmezse]
+`editor_dosya3d` çağrılmadıysa **F5** ve **KAYDET** düğmesi
+`kayit yolu yok (editor_dosya3d cagir)` mesajıyla döner. Editör açılır ve
+çalışır, ama hiçbir şey diske yazılmaz.
+:::
+
+## Yerleşim
+
+Unity/Unreal düzeni: üstte araç çubuğu, solda hiyerarşi, sağda inspector,
+ortada görüntü penceresi.
+
+### Araç çubuğu (üst, 36 px)
+
+| Düğme | Etki |
+|---|---|
+| **OYNAT** | Editörden çık, oyunu başlat (`editor3d(false)`) |
+| **SEC / TASI / OLCEK / DONDUR** | Etkin kip (`1` `2` `3` `4` tuşları) |
+| **IZGARA n** | Izgarayı aç/kapa (`G`); kapalıyken `IZGARA kapali` yazar |
+| **GERI / ILERI** | Geri al / yinele (`CTRL+Z` / `CTRL+Y`) |
+| **KAYDET** | Sahneyi hedef dosyaya yaz (`F5`) |
+
+Sağ uçta canlı sayaç: `n varlik   n davranis   n kural`.
+
+### Hiyerarşi (sol, 214 px)
+
+Canlı varlıkların listesi. Bir satıra tıklamak onu seçer; seçili satır mavi
+vurgulanır. Fare panelin üstündeyken tekerlek listeyi kaydırır, altta
+`ilk-son / toplam` göstergesi durur.
+
+Adı olan varlık adıyla, adsız olan `etiket slot` biçiminde listelenir; parantez
+içinde şekli yazar (`kutu 4  (cube)`).
+
+Üstteki dört düğme yeni varlığı **kameranın altına** (yani baktığın yere)
+bırakır:
+
+| Düğme | Ürettiği |
+|---|---|
+| **kutu** | `prop` / `cube`, 1×1×1 |
+| **kure** | `item` / `sphere`, 1×1×1 |
+| **silin** | `prop` / `cyl`, 1×1×1 |
+| **duvar** | `wall` / `cube`, 6×3×1 |
+
+### Inspector (sağ, 268 px)
+
+Seçili varlığın **bütün** alanları:
+
+- **etiket** ve **şekil** — döngüsel düğme. Etiket sırası
+  `player → item → wall → enemy → prop → player`; şekil sırası
+  `cube → sphere → cyl → cube`.
+- **konum** (`x y z`), **boyut** (`sx sy sz` — tam ölçü, yarım değil),
+  **yaw** (derece) ve **zemine otur** düğmesi.
+- **renk** (`r g b`), yanında canlı örnek kutusu.
+- **kati** aç/kapa ve **can** (0 = can sistemi kapalı).
+- **DAVRANISLAR** — mevcut davranışların listesi (her satırda `x` ile silinir)
+  ve altı ekleme düğmesi: `+hareket` `+kovala` `+don` `+salin` `+devriye`
+  `+ates`.
+- Altta **COGALT** ve **SIL**.
+
+:::note[Sayı alanları çift işlevli]
+Unity'deki davranış: **sürükle** değeri tarar, **tıkla** yazmaya geçer
+(`Enter` onaylar, `Esc` iptal eder, başka yere tıklamak da onaylar). İkisi tek
+alanda olmazsa ya ince ayar ya hızlı tarama kaybolur. Ayrım "fare kaç piksel
+gitti"ye bakar (eşik 3 px).
+
+Bir sayı alanına yazarken klavye kısayolları **kapanır** — "3" yazmak kamerayı
+uçurmamalı, "d" varlığı çoğaltmamalı.
+:::
+
+Fare panellerin üstündeyken görüntü penceresi seçim ışınını atlar; yoksa her
+düğme basışı aynı anda arkadaki sahnede de bir seçim yapardı.
+
+## Oynat ve Dur — yazılmış hâl vs oynanmış hâl
+
+Bu, editörün en önemli davranışı. Model Unity/Unreal ile aynı: **editör sahnenin
+sahibidir**, "Oynat" bir **kopyayı** çalıştırır, "Dur" kopyayı atar. Oynarken
+olanlar hiçbir zaman kaydedilmez.
+
+| Eylem | Ne olur |
+|---|---|
+| Oyun ilk açılır | `kurulum()` (ve bölüm kurulumu) biter bitmez, **ilk kareden önce** sahnenin JSON'u "yazılmış hâl" olarak yakalanır |
+| **TAB** ile editöre gir (= Dur) | Simüle edilmiş durum **atılır**, yazılmış hâl geri yüklenir |
+| **TAB** / **OYNAT** ile çık (= Oynat) | Ekrandaki düzenlenmiş sahne artık **yeni yazılmış hâldir**; oyun onun kopyası üzerinde koşar |
+| **F5** | O anki sahne — yani yazılmış hâl — dosyaya yazılır |
+
+:::danger[Bu ayrım gerçek bir veri kaybından doğdu]
+Ayrım olmadan editör sinsi bir veri kaybı üretiyordu: oyunu bir süre oyna,
+TAB'a bas, F5 ile kaydet → dosyaya düşmanların **kovaladığı**, süslerin
+**döndüğü**, eşyaların **toplanmış** olduğu hâl yazılır. Yazarın kurduğu sahne
+sessizce gider.
+
+Bu gerçekten oldu: gönderilen sahne dosyası bir kez simüle edilmiş durumla
+üzerine yazıldı. Bugün `tests/scene3d_engine.test.tpr` içinde iki test bunu
+bekliyor — *"editore girmek simulasyonu atiyor"* ve *"kayit yazilmis hali
+yaziyor"*.
+:::
+
+Geri yüklemede **korunan** şeyler (çünkü sahne biçiminde yer almıyorlar ve
+silinselerdi Dur'dan sonra oyun sessizce tepkisiz kalırdı):
+
+- elle yazılmış çarpışma/ölüm kancaları (`carpisinca3`, `olunce3d`)
+- bölüm tablosu ve o anki bölüm
+- skor
+- geri al / yinele yığınları — geri alma **sahnede gezinmektir**, yeni sahne
+  açmak değil
+
+Editör oyunu **dondurur**: fizik, davranışlar, kurallar, `guncelle()`,
+parçacıklar ve gündüz-gece saati işlemez. Editör bir oyun kipi değil —
+düzenlediğin şey ayağının altından kaymamalı.
+
+## Tuşlar
+
+| Tuş | Etki |
+|---|---|
+| `TAB` | Editör ↔ oyun |
+| Sağ tuş (basılı) + fare | Bak (yaw/pitch, ±88° sınırlı) |
+| `W` `A` `S` `D` | Bakış yönünde uç (18 birim/sn) |
+| `Q` / `E` | Alçal / yüksel |
+| `Sol Shift` | Uçuş hızı ×3 |
+| Fare tekerleği | Bakış ekseninde ileri/geri kay |
+| Sol tuş | Seç — **TASI** kipinde ayrıca sürükle |
+| `1` `2` `3` `4` | SEC / TASI / OLCEK / DONDUR |
+| `G` | Izgara aç/kapa (0.5 ↔ kapalı) |
+| `DEL` | Seçiliyi sil |
+| `CTRL`+`D` | Çoğalt (davranışlarıyla birlikte) |
+| `BOŞLUK` | Zemine/araziye oturt |
+| `CTRL`+`Z` / `CTRL`+`Y` | Geri al / yinele |
+| `F5` | Sahneyi dosyaya yaz |
+| `↑` `↓` (TASI) | y ± ızgara adımı |
+| `↑` `↓` (OLCEK) | `sy` ± ızgara adımı |
+| `←` `→` (OLCEK) | `sx` ve `sz` ± ızgara adımı |
+| `←` `→` (DONDUR) | yaw ∓ 15° |
+
+`F1` (tanılama örtüsü) ve `F2` (kaydı `scene3d_log.txt`'ye dök) editörde de
+çalışır — donmuş bir kareyi incelemek tam da gereken şeydir.
+
+Sürükleme, varlığın **kendi yüksekliğindeki** yatay düzlemde olur: zemin
+düzlemini kullanmak, havadaki bir platformu tutunca onu yere düşürürdü.
+
+:::tip[Geri alma anlık görüntü tabanlı]
+Her düzenlemeden **önce** sahnenin JSON'u yığına atılır (en fazla 40 adım).
+Komut-tabanlı bir geri alma her komut için ayrı bir "tersi" yazmayı
+gerektirirdi; serileştirme zaten tam olduğu için anlık görüntü hem daha kısa
+hem daha güvenilir.
+
+İşaret **jestin başında** konur, komutların içinde değil: sürükleme
+`ed_move3d`'yi her karede çağırıyor, oraya konsaydı saniyede 60 geri alma adımı
+birikirdi.
+:::
+
+## Sahne dosyası biçimi
+
+Dosya düz JSON'dur. Anahtarlar **İngilizce ve tek yazımlı**: API'de TR+EN
+ikizler var ama bir *veri* biçiminde iki yazım kabul etmek belirsizlik üretir
+(hangisi kazanır?) ve ayrıştırıcıyı ikiye katlar. Kullanıcıya Türkçe görünen
+şey editörün etiketleri; dosyanın kendisi tek dilde.
+
+**Her alan isteğe bağlıdır**; eksikse varsayılan kullanılır. Bu, biçimi ileri
+uyumlu yapar (eski dosya yeni motorda açılır) ve editörün yalnız gerekli
+alanları yazmasına izin verir.
+
+### Üst düzey
+
+| Alan | Tür | Anlamı |
+|---|---|---|
+| `v` | int | Biçim sürümü; şu an `1`. Yazılır, yüklemede **denetlenmez**. |
+| `world` | nesne | Dünya ayarları + kamera |
+| `entities` | dizi | Varlıklar |
+| `rules` | dizi | Kurallar |
+
+### `world`
+
+| Alan | Tür | Varsayılan | Anlamı |
+|---|---|---|---|
+| `title` | str | `"Tulpar 3B Sahne"` | Pencere başlığı |
+| `w` / `h` | int | `960` / `560` | Pencere boyutu |
+| `sky` | nesne | — | `{"top": [r,g,b], "bottom": [r,g,b]}` gradyan |
+| `fog` | float | `0` | Sis yoğunluğu (0 = kapalı) |
+| `ground` | float | — | Zemin düzleminin y'si. **Alanın yokluğu anlamlı**: zemin düzlemi yok demektir (yalnız arazi, ya da boşlukta platformlar). |
+| `gravity` | float | `26` | Yerçekimi |
+| `lights` | bool | `true` | Işıklandırma |
+| `shadows` | bool | `true` | Gölgeler |
+| `daynight` | nesne | — | `{"len": 120, "time": 12, "frozen": false}` — tam günün saniyesi, başlangıç saati (0..24), saat donuk mu |
+| `stars` | float | `-1` | `-1` = otomatik (geceye bağlı); `0..1` elle sabitler |
+| `terrain` | nesne | — | Aşağıya bak |
+| `paint` | nesne | — | Arazi katman boyaması |
+| `water` | nesne | — | `{"y": 0, "color": [r,g,b], "alpha": 150, "physics": true}` |
+| `slope` | nesne | — | `{"limit": 0, "slide": 18}` — tırmanılamaz eğim ve kayma ivmesi |
+| `camera` | nesne | — | Aşağıya bak |
+
+`terrain` iki biçimden biri olur:
+
+```json
+{"terrain": {"res": 129, "sx": 120, "sy": 14, "sz": 120, "noise": 4.5, "seed": 1}}
+{"terrain": {"file": "harita.png", "sx": 120, "sy": 14, "sz": 120}}
+```
+
+`paint` alanları: `low`, `mid`, `high`, `rock` (renk) + `mid_y` (5), `high_y`
+(9), `slope` (42).
+
+Renkler **daima** `[r,g,b]` ya da `[r,g,b,a]` dizisidir — bir renk seçici
+doğrudan buna denk düşer; paketli tamsayı (`0xRRGGBBAA`) insan için okunmaz.
+
+### `world.camera`
+
+Kamera **ayrı ve varlıklardan sonra** çözülür: hedefini adla gösterir.
+
+| Alan | Tür | Varsayılan | Anlamı |
+|---|---|---|---|
+| `mode` | str | `"orbit"` | `"orbit"` \| `"follow"` \| `"fps"` |
+| `target` | str | — | Hedef varlığın `name`'i |
+| `dist` | float | `12` | Yatay mesafe (orbit/follow) |
+| `height` | float | `8` | Yükseklik (orbit/follow) |
+| `eye` | float | `0` | Göz yüksekliği (yalnız `fps`) |
+| `fov` | float | `45` | Dikey görüş açısı |
+| `collide` | bool | `true` | Kamera engel kaçınması |
+| `lock` | bool | — | İmleç kilidi (yazılıysa uygulanır) |
+
+:::note[Gidiş-dönüş bir hata buldu]
+`kamera_yorunge(d, h)` içeride yörünge **yarıçapını** (`sqrt(d²+h²)`) saklıyor,
+geçilen yatay mesafeyi değil. Ham değeri kaydeden ilk serileştirici her
+kaydet/yükle turunda kamerayı biraz daha geri itiyordu: 16 → 18.87 → 21.35.
+Ters dönüşüm tam (`r² − h² = d²`) ve biçimdeki `dist` artık
+`kamera_yorunge`'nin **aldığı** değerdir.
+:::
+
+### `entities[]`
+
+| Alan | Tür | Varsayılan | Anlamı |
+|---|---|---|---|
+| `name` | str | — | İsteğe bağlı ad. `bul3d(ad)` ve `camera.target` buna bakar. |
+| `tag` | str | `"prop"` | `"player"` \| `"item"` \| `"wall"` \| `"enemy"` \| `"bullet"` \| `"prop"` |
+| `shape` | str | `"cube"` | `"cube"` \| `"sphere"` \| `"cyl"` \| `"ramp"` |
+| `x` `y` `z` | float | `0` | Konum — **merkez** |
+| `sx` `sy` `sz` | float | `1` | **Tam** boyut (yarım değil) |
+| `color` | `[r,g,b]` | beyaz | Renk; `[r,g,b,a]` de olur |
+| `yaw` | float | `0` | Y dönüşü (derece). Görsel değil: dönük kutu SAT ile dönük çarpışır. |
+| `solid` | bool | etikete göre | Katılık. Yalnız etiketin varsayılanından **farklıysa** dosyaya yazılır. |
+| `hp` | int | — | Can sistemi (yoksa can yok) |
+| `behaviors` | dizi | — | Davranış listesi |
+
+Handle'lar yükleme sırasına bağlı olurdu, ad değil — bu yüzden kurallar ve
+kamera hedefi varlıklara **adla** atıfta bulunur.
+
+### `entities[].behaviors[]`
+
+Davranışlar oynanışı da veri yapar. Hepsi motorda **zaten var olan**
+işlevlerin üstüne biner (`hareket3`, `chase3d`, `patrol3d`, `mermi3d`) — yeni
+fizik yazılmadı, yalnız veriden sürülüyor. Böylece davranışla kurulmuş oyun ile
+elle yazılmış oyun aynı kodu koşturur.
+
+| `type` | Alanlar (varsayılan) | Ne yapar |
+|---|---|---|
+| `"move"` | `speed` (8), `jump` (0) | Oyuncu girdisiyle hareket. `jump: 0` → zıplama yok (tepeden bakışlı oyunlar). |
+| `"chase"` | `target` (`"player"`), `speed` (5), `range` (0) | Etiketi verilen **en yakın** canlıyı kovalar. `range: 0` = sınırsız; menzil dışında **durur**, kaymaz. |
+| `"patrol"` | `x1` `z1` `x2` `z2` (0), `speed` (4) | İki nokta arasında gidip gelir |
+| `"spin"` | `speed` (90) | Kendi ekseninde döner (derece/sn); süs |
+| `"bob"` | `height` (0.3), `speed` (1) | Yerinde alçalıp yükselir (çevrim/sn); toplanabilir parıltısı |
+| `"shoot"` | `interval` (1), `speed` (20), `life` (2), `target`, `range` (0) | Aralıkla ateş eder. `target` yoksa nişan yönüne, varsa en yakın hedefe **dönüp** atar. |
+
+`target` daima bir **etiket adıdır**, belirli bir varlık değil. Bir davranışın
+hedefini adla tutmak, hedef öldüğünde her karede ad araması gerektirirdi;
+etiket zaten "en yakın oyuncu" demenin doğal yolu.
+
+:::note[Kod veriyi ezer]
+Davranışlar kullanıcının `guncelle()` fonksiyonundan **önce** işler. Aynı
+varlığa elle `hareket3(p, 15.0)` yazan biri davranışın verdiği hızı ezer. Aynı
+öncelik kuralı `import`larda da geçerli: yerel tanım kazanır.
+:::
+
+Kod tarafındaki karşılıkları:
+`hareket_davranis3d`, `kovala_davranis3d`, `devriye_davranis3d`,
+`don_davranis3d`, `salin_davranis3d`, `ates_davranis3d`,
+`davranislari_sil3d(id)`, `davranis_sayisi3d()`.
+
+### `rules[]`
+
+"Ne olunca ne olur" da veri. Kurallar mevcut çarpışma taramasının üstüne biner;
+kurallar için **ikinci bir çarpışma taraması yoktur**.
+
+İki tür var. `on` alanı türü seçer:
+
+```json
+{"on": "hit",     "a": "player", "b": "item", "do": "collect", "n": 50}
+{"on": "cleared", "tag": "item", "do": "win"}
+```
+
+| Alan | Tür | Varsayılan | Geçerli olduğu tür |
+|---|---|---|---|
+| `on` | str | `"hit"` | `"hit"` \| `"cleared"` |
+| `a` | etiket | `"player"` | `hit` — çarpışmada "ben" |
+| `b` | etiket | `"item"` | `hit` — çarpışmada "öteki" |
+| `tag` | etiket | `"item"` | `cleared` — biten etiket |
+| `do` | str | `"collect"` | ikisi de |
+| `n` | float | `0` | `hit` — skor / hasar miktarı |
+
+Eylemler (`do`):
+
+| `do` | Etki |
+|---|---|
+| `"collect"` | Ötekini öldür + kıvılcım + skora `n` ekle |
+| `"kill"` | Ötekini öldür (skorsuz) |
+| `"damage"` | **Bana** `n` hasar ver (oyuncu düşmana değdi) |
+| `"hurt"` | **Ötekine** `n` hasar ver (mermi oyuncuya değdi) |
+| `"win"` | Oyunu kazanılmış bitir |
+| `"lose"` | Oyunu kaybedilmiş bitir |
+
+Aynı etiket çifti için birden çok kural olabilir (hem skor hem hasar); hepsi
+işler.
+
+:::caution[`cleared` görülmemiş etikette tetiklenmez]
+`{"on": "cleared", "tag": "item", "do": "win"}` yalnız sahne o etiketle
+**başladıysa** çalışır. Yoksa altını olmayan bir sahne ilk karede kazanılırdı.
+:::
+
+Kod tarafındaki karşılıkları: `carpisma_kurali3d(a, b, eylem, n)`,
+`bitince_kurali3d(etiket, eylem)`, `kural_sayisi3d()`, `kazandi3d()`.
+Eylem sabitleri: `ACT_COLLECT`, `ACT_KILL`, `ACT_DAMAGE`, `ACT_HURT`,
+`ACT_WIN`, `ACT_LOSE`.
+
+### Tam bir örnek
+
+`examples/scenes/toplayici.scene.json` dosyasından kısaltılmış hâli:
+
+```json
+{
+  "v": 1,
+  "world": {
+    "title": "Tulpar 3B — Veriyle Kurulmus Oyun", "w": 960, "h": 560,
+    "sky": {"top": [38, 52, 92], "bottom": [176, 198, 224]},
+    "fog": 0.014,
+    "ground": 0,
+    "gravity": 26,
+    "camera": {"mode": "orbit", "target": "kahraman", "dist": 16, "height": 11, "fov": 45}
+  },
+  "entities": [
+    {"name": "kahraman", "tag": "player", "shape": "cube",
+     "x": 0, "y": 2, "z": 12, "sx": 1.2, "sy": 2, "sz": 1.2,
+     "color": [110, 190, 240], "hp": 100,
+     "behaviors": [{"type": "move", "speed": 12, "jump": 13}]},
+
+    {"tag": "item", "shape": "sphere", "x": -14, "y": 1.4, "z": -12,
+     "sx": 1.2, "sy": 1.2, "sz": 1.2, "color": [255, 205, 60],
+     "behaviors": [{"type": "bob", "height": 0.35, "speed": 1.1}]},
+
+    {"tag": "enemy", "shape": "cube", "x": -20, "y": 1.5, "z": -20,
+     "sx": 1.4, "sy": 1.6, "sz": 1.4, "color": [222, 82, 74], "hp": 30,
+     "behaviors": [{"type": "chase", "target": "player", "speed": 4.5, "range": 40}]},
+
+    {"name": "kule", "tag": "prop", "shape": "cyl", "x": 0, "y": 1.5, "z": 0,
+     "sx": 2, "sy": 3, "sz": 2, "color": [150, 150, 160],
+     "behaviors": [{"type": "shoot", "interval": 1.6, "speed": 18, "life": 2.5,
+                    "target": "player", "range": 26}]},
+
+    {"tag": "wall", "shape": "cube", "x": 0, "y": 2, "z": -30,
+     "sx": 62, "sy": 4, "sz": 2, "color": [126, 126, 134]}
+  ],
+  "rules": [
+    {"on": "hit", "a": "player", "b": "item",  "do": "collect", "n": 50},
+    {"on": "hit", "a": "player", "b": "enemy", "do": "damage",  "n": 12},
+    {"on": "hit", "a": "bullet", "b": "player","do": "hurt",    "n": 8},
+    {"on": "cleared", "tag": "item",   "do": "win"},
+    {"on": "cleared", "tag": "player", "do": "lose"}
+  ]
+}
+```
+
+## Kodsuz oyun yapmak
+
+Bu JSON'da **tek satır oynanış kodu yok** ve oynanabilir bir oyundur. Adımlar:
+
+1. **Barındırıcıyı yaz — bir kez.** Yukarıdaki "Editörü açmak" bölümündeki
+   ~15 satır. `guncelle()` yok; yalnız sahneyi yükler ve editöre hedef dosyayı
+   söyler.
+2. **Çalıştır ve TAB'a bas.** Boş bir dünyada başlıyorsan hiyerarşideki
+   **kutu / kure / silin / duvar** düğmeleri ilk varlıklarını verir.
+3. **Oyuncuyu kur.** Bir kutu ekle, inspector'dan etiketini `player` yap,
+   canını 100 gir, `+hareket` davranışını tak. Kamera hedefi için sahne
+   dosyasında ona bir `name` vermen gerekir (editörde ad alanı yoktur).
+4. **Dünyayı kur.** `duvar` düğmesiyle sınırları çiz, **TASI** kipinde
+   sürükle, **OLCEK**'te oklarla boyutla, **DONDUR**'da 15°'lik adımlarla
+   çevir. Havada kalan bir şeyi **BOŞLUK** ile zemine oturt. Aynı düzendeki
+   çok sayıda parça için `CTRL+D`.
+5. **Oynanışı tak.** Toplanacaklar: `item` + `+salin`. Düşmanlar:
+   `enemy` + `+kovala` ya da `+devriye`. Kule: `prop` + `+ates`.
+6. **Kuralları yaz.** Kurallar için henüz panel yok — dosyaya elle ekle
+   (yukarıdaki `rules` tablosu), ya da koddan bir kez
+   `carpisma_kurali3d(...)` çağır. Editör onları **korur ve geri yazar**.
+7. **F5.** Dosya güncellendi. **OYNAT**'a bas, oyna, TAB ile geri dön, düzelt.
+
+:::tip[Elle yazılmış oyunlarda da çalışır]
+TAB her scene3d oyununda açılır — sahne dosyası olmasa bile. Yazılmış hâl
+`kurulum()` biter bitmez yakalandığı için Oynat/Dur ve geri alma elle yazılmış
+bir oyunda da çalışır. Ama kaydetmek yalnız **geometriyi, davranışları ve
+kuralları** yazar: `guncelle()`, kancalar ve bölüm tablosu sahne biçiminde yer
+almaz.
+:::
+
+## Neden JSON, neden kod değil
+
+Buraya kadar bir sahne yalnız kod olarak vardı: `kurulum()` içinde elle
+yazılmış `uret3(...)` çağrıları. Bu, motoru kullanmanın tek yolunu "önce Tulpar
+öğren" yapıyordu ve konumları gözle ayarlamak imkânsızdı — sayıyı tahmin et,
+derle, bak, düzelt.
+
+Sahnenin veri olması dört şeyi açıyor:
+
+1. **Bir editör sahneyi okuyup yazabilir** — kod üretmeden önce bile. Kod
+   üretmek zorunda olsaydı, editörün yanında bir derleyici de bulunması
+   gerekirdi.
+2. **"Oynat" düğmesi tarayıcıda çalışıyor.** Tarayıcı editörünün yanında
+   derleyici yok, dolayısıyla kullanıcının yazdığı Tulpar'ı çalıştıramaz.
+   Oynanışın da veri olması bu yüzden zorunluydu — davranışlar ve kurallar
+   katmanının var olma sebebi bu. (Artık varsayım değil; aşağıdaki
+   [Tarayıcıda](#tarayıcıda) bölümüne bakın.)
+3. **Bölümler dosya olur** — oyunu yeniden derlemeden yeni bölüm eklenir.
+4. **Aynı sahne hem web'de hem masaüstünde birebir aynı kurulur.**
+
+Biçim ayrıca insan tarafından düzenlenebilir kalacak şekilde yazılıyor: her
+varlık **tek satır**, yalnız **etkin** olan alanlar (kapalı su, kurulmamış
+arazi ya da varsayılan gökyüzü dosyaya girmez) ve kendi sayı yazıcısı —
+`toString(120.0)` `"1.2e+02"` verir; JSON bunu kabul eder ama insan okumaz. 3
+ondalıkta yuvarlamak gidiş-dönüşü ayrıca **durağan** yapar: bir kez
+yuvarlandıktan sonra tekrar yuvarlamak değeri değiştirmez.
+
+## Sahne API'si
+
+| Fonksiyon | İngilizce | Döner | Amaç |
+|---|---|---|---|
+| `sahne_yukle3d(kaynak)` | `scene_load3d` | int | JSON metninden yükle; yüklenen varlık sayısı (bozuk JSON'da 0) |
+| `sahne_dosya3d(yol)` | `scene_file3d` | int | Dosyadan yükle |
+| `sahne_json3d()` | `scene_json3d` | str | Şu anki sahneyi JSON olarak ver |
+| `sahne_kaydet3d(yol)` | `scene_save3d` | bool | Diske yaz |
+| `bul3d(ad)` | `find3d` | int | Adı verilen varlığın handle'ı; yoksa `-1` |
+| `sahne_bilgi3d(kaynak)` | `scene_meta3d` | — | Yalnız `title`/`w`/`h` oku (sahneye dokunmaz) |
+| `sahne_bilgi_dosya3d(yol)` | `scene_meta_file3d` | — | Aynısı, dosyadan |
+| `sahne_basligi3d()` | `scene_title3d` | str | Okunan başlık |
+| `sahne_eni3d()` / `sahne_boyu3d()` | `scene_w3d` / `scene_h3d` | int | Okunan pencere boyutu |
+
+:::note[Neden ayrı bir "bilgi" okuyucusu var?]
+Pencere sahne yüklenmeden **önce** açılmak zorunda (`sahne3d(...)` →
+`oyna3d()`), ama başlık ve boyut da sahnenin bir parçası. `sahne_bilgi_dosya3d`
+bu yüzden hafif: yalnız üç alanı alır.
+:::
+
+Yükleme **tamdır**: B sahnesini açmak A'nın gökyüzünü devralmaz. Dünya
+ayarları her yüklemede varsayılana çekilir — editör saniyede bir yeniden
+yüklüyor, bırakılan her ayar sıraya bağımlı bir hata olurdu.
+
+## Editör API'si
+
+Editörün bütün komutları dışarıdan çağrılabilir. Girdi işleme yalnız ince bir
+kabuk; asıl iş bu komutlarda — tarayıcı editörü de aynılarını çağırıyor.
+
+| Fonksiyon | Amaç |
+|---|---|
+| `editor3d(ac)` / `editor_ac3d(ac)` | Editörü aç/kapa (Dur / Oynat) |
+| `editor_on3d()` | Editör açık mı |
+| `editor_dosya3d(yol)` / `editor_file3d` | Kayıt hedefi |
+| `editor_kaydet3d()` / `editor_save3d` | Şimdi kaydet |
+| `ed_select3d(id)` / `ed_selected3d()` / `ed_deselect3d()` | Seçim |
+| `ed_pick_at3d(px, py)` | Ekran noktasından seç; handle ya da `-1` |
+| `ed_mode3d(m)` / `ed_mode_now3d()` | Kip — `ED_SELECT` `ED_MOVE` `ED_SCALE` `ED_ROTATE` |
+| `ed_grid3d(adim)` / `ed_grid_now3d()` | Izgara adımı (`0` = kapalı) |
+| `ed_move3d(id, x, y, z)` | Mutlak taşı (ızgaraya oturtur) |
+| `ed_nudge3d(id, dx, dy, dz)` | Göreli ittir |
+| `ed_resize3d(id, sx, sy, sz)` | Boyutla (alt sınır = ızgara adımı) |
+| `ed_rotate3d(id, yaw)` | Döndür |
+| `ed_add3d(etiket, sekil, x, y, z)` | Yeni varlık, seçili gelir |
+| `ed_duplicate3d(id)` | Çoğalt — davranışlarıyla birlikte |
+| `ed_delete3d(id)` | Sil (davranışlarını da temizler) |
+| `ed_drop3d(id)` | Zemine/araziye oturt |
+| `ed_mark3d()` | Geri alma noktası koy |
+| `ed_undo3d()` / `ed_redo3d()` | Geri al / yinele (bool döner) |
+| `ed_undo_count3d()` / `ed_redo_count3d()` | Yığın uzunlukları |
+
+Seçim, kamera-engel taramasının kullandığı ışın-kutu testini çağırır — ayrı bir
+test yazmak aynı geometriyi iki yerde tutmak olurdu. **Dönük** kutuların doğru
+seçilmesi bu yüzden bedava geldi.
+
+## Dikkat edilecekler
+
+- **`"shape": "model"` yazılır ama okunmaz.** Serileştirici `SHAPE_MODEL`
+  varlıkları `"model"` olarak yazar; yükleyici bu adı tanımaz ve `cube` olarak
+  yükler. Model varlıklarını koddan kur.
+- **Şekil döngüsü yalnız üç şekli gezer** (`cube` → `sphere` → `cyl`).
+  `ramp` ve `model` için dosyayı elle düzenle.
+- **Inspector'da ad alanı yok.** Editörde eklenen varlıklar adsızdır, yani
+  `bul3d` ve `camera.target` onları göremez. Ad vermek için dosyaya `"name"`
+  ekle — kaydetme bunu korur.
+- **Davranış satırında yalnız ilk iki sayı düzenlenebilir.** `patrol`'ün dört
+  noktası ve `shoot`'un `life`/`range` alanları için dosyaya git.
+- **Kurallar için panel yok.** Kurallar `rules` dizisinde ya da koddan
+  kurulur; editör onları korur ve geri yazar.
+- **Mermiler ve ömürlü varlıklar kaydedilmez** — onlar çalışma zamanı ürünü,
+  sahne değil.
+- **`v` denetlenmiyor.** Alan yazılıyor ama yükleyici sürüm denetimi yapmıyor.
+- **Boyutlar tam ölçü**, yarım değil; konum merkezdir. `scene3d`'nin geri
+  kalanıyla aynı sözleşme.
+
+## Testler
+
+Sahne biçimi, davranışlar, kurallar ve editör `tests/scene3d_engine.test.tpr`
+içinde **66 test** ile korunuyor (motorun toplam süiti 212 test). Hepsi pencere
+açmadan koşuyor.
+
+Işın testlerinin beklentisi kodun formülünden değil **fov'un tanımından**
+geliyor: ekranın dikey kenarından geçen ışın ileri yönle tam `fov/2` açı yapar.
+Aynı formülü tekrarlayan bir test aynı yanlışı onaylardı.
+
+```bash
+./build.sh suites            # bütün tests/*.test.tpr süitleri
+./tulpar tests/scene3d_engine.test.tpr
+```
+
+
+## Tarayıcıda
+
+Editör WebAssembly'ye derleniyor ve tarayıcıda çalışıyor — aynı kaynak, ayrı
+bir uygulama yok:
+
+```bash
+mkdir -p assets && cp <bir>.ttf assets/ui.ttf     # okunabilir arayüz fontu
+TULPAR_WEB_ASSETS=assets tulpar build --target=web \
+    examples/scene3d_editor.tpr -o editor
+# HTTP üzerinden servis et; file:// çalışmaz
+```
+
+Masaüstünden üç şey farklı ve üçü de bırakılmış bir eksiklik değil, verilmiş
+bir cevap:
+
+**Font pakete konuyor.** Tarayıcıda sistem font dizini yok, dolayısıyla
+`TULPAR_WEB_ASSETS` olmadan editör raylib'in 10 piksellik bitmap fontuna
+düşüyor ve okuması yorucu oluyor. Aday listesinin başında `assets/ui.ttf`,
+`fonts/ui.ttf` ve `ui.ttf` var — sistem yollarından önce bakılıyor, yani fontu
+pakete koymak yetiyor. Bulunamazsa konsol bunu ve çaresini söylüyor.
+
+**"Kaydet" dosyaya değil TARAYICI DEPOSUNA yazıyor.** Emscripten'in sanal
+dosya sistemi *sayfa ömürlüdür*: yazdığın şey yenileyince yok olur, üstelik
+çağrı yine "başarılı" der. Bu sessiz veri kaybıdır; o yüzden `scene_save3d`
+web'de `localStorage` kullanıyor (anahtar sahne yolundan türüyor, yani aynı
+sayfadaki iki sahne birbirini ezmiyor) ve yenilemeyi atlatıyor.
+
+**"İNDİR" işin sayfadan çıkış yolu.** Tarayıcı deposu sayfanın içinde kalıyor.
+Menü şeridinde yalnız web'de görünen bir İNDİR düğmesi var — sahneyi `.json`
+olarak veriyor. Masaüstünde böyle bir ayrım yok: "Kaydet" zaten dosyaya
+yazıyor, ikinci düğme yalnız kafa karıştırırdı.
+
+Pakete konmuş sahne dosyası BAŞLANGIÇ hâlidir; kayıtlı düzenlemelerin onu
+ezer — yoksa her yenileme yaptığın işi geri alırdı.

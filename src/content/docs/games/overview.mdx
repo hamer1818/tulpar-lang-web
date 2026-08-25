@@ -1,0 +1,114 @@
+---
+title: Game Development
+description: Three layers — tame (raylib bindings), arcade (2D presets), scene3d (3D engine) — plus the web and Android build targets.
+---
+
+Tulpar ships a complete game stack in the standard library. Nothing to install:
+raylib is vendored into the compiler, and the engine layers are embedded
+`.tpr` modules.
+
+## Which layer do I import?
+
+| Layer | Import | What it is | Use when |
+|---|---|---|---|
+| **tame** | `import "tame"` | Raw raylib bindings — window, loop, draw, input, 3D primitives | You want full control, or you're building your own engine |
+| **arcade** | `import "arcade"` | 2D preset engine on top of tame | Classic 2D games: platformer, shooter, puzzle |
+| **scene3d** | `import "scene3d"` | 3D engine on top of tame | Third-person / first-person 3D games |
+
+`arcade` and `scene3d` are **pure Tulpar** — no C in them. They are written
+against the same public `tame` API you have access to, so nothing they do is
+off-limits to you.
+
+A game only links what it imports: an ordinary Tulpar binary carries no GL or
+window dependency at all.
+
+## The smallest possible game
+
+```tulpar
+import "tame";
+
+window(800, 480, "Hello");
+float x = 100.0;
+while (running()) {
+    if (key_down("RIGHT")) { x = x + 200.0 * frame_time(); }
+    frame_begin();
+        clear(rgb(20, 24, 34));
+        rect(x, 200.0, 60.0, 60.0, GOLD);
+    frame_end();
+}
+close_window();
+```
+
+Every drawing call takes a packed color: `rgb(r,g,b)`, `rgba(r,g,b,a)`, or one
+of the 25 named raylib colors (`GOLD`, `SKYBLUE`, …).
+
+## Managed loops
+
+Writing the loop yourself is fine, but both preset layers give you a managed
+one — you register callbacks and the engine drives frame timing, input
+buffering, physics, collision and drawing:
+
+```tulpar
+import "arcade";     // 2D
+oyuncu(400.0, 300.0);
+her_kare(update);    // called every frame
+oyna();              // runs the loop
+```
+
+```tulpar
+import "scene3d";    // 3D
+sahne3d(960, 560, "My Game");
+kurulumda3(setup);
+her_kare3(update);
+oyna3d();
+```
+
+Both engines expose a **bilingual API**: every function has a Turkish name and
+an English alias (`oyuncu`/`player`, `uret3`/`spawn3`, `oyna3d`/`play3d`). Pick
+one and stay consistent; they are the same function.
+
+## Build targets
+
+The same source compiles to three platforms.
+
+```bash
+tulpar game.tpr                          # desktop: compile and run
+tulpar build game.tpr out                # desktop: standalone binary
+tulpar build --target=web game.tpr out/g # browser: .html + .js + .wasm
+tulpar build --target=android game.tpr o # Android: NativeActivity APK
+```
+
+**Web.** Emits a `wasm32-unknown-emscripten` object and links it with `em++`.
+Source `wasm/emsdk/emsdk_env.sh` first, and build the archives once with
+`wasm/build_tame_web.sh`. Serve over HTTP — `file://` will not work. The
+generated HTML shell carries a **touch gamepad** that appears only on
+`pointer:coarse` devices, so every web game gets mobile controls for free.
+
+**Android.** Emits two ABI objects (`arm64-v8a` for devices, `x86_64` for the
+emulator) from one compiled module, links them with the NDK, and writes a
+NativeActivity manifest. Build the archives once with
+`android/build_tame_android.sh`, then `android/package_apk.sh` and
+`android/install_run.sh`.
+
+:::caution
+`async` is unsupported on both web and Android: bionic and emscripten have no
+`makecontext`/`swapcontext`, so the coroutine runtime is excluded from those
+builds. Everything else — including `arcade` and `scene3d` — works unchanged.
+:::
+
+## Assets
+
+`TULPAR_WEB_ASSETS=<dir>` embeds a directory into the wasm build. On desktop
+and Android, relative paths resolve normally. Textures, fonts, sounds and glTF
+models all load through handle-returning functions (`load_texture`,
+`load_font`, `load_sound`, `load_model`) that return `-1` on failure — check it
+rather than assuming success.
+
+## Where to go next
+
+- **[3D Engine (scene3d)](/games/scene3d/)** — entities, collision, camera,
+  terrain, triggers, day/night, aiming
+- The 10 shipped browser games live at
+  [tulparlang.dev/oyunlar](https://tulparlang.dev/oyunlar/); their sources are
+  `examples/arcade_*.tpr` in the repo, each with an English twin under
+  `examples/en/`.

@@ -1,0 +1,408 @@
+---
+title: 3B Motor (scene3d)
+description: Entity, fizik, çarpışma, kamera, arazi, tetikleyici bölge, gündüz-gece döngüsü ve nişan — saf Tulpar ile yazılmış yönetilen 3B oyun motoru.
+---
+
+`import "scene3d"` sana yönetilen bir 3B motor verir: entity deposu, fizik,
+şekil farkında çarpışma, üçüncü şahıs kamera, arazi, tetikleyici bölgeler,
+kalıcılık ve menü kabuğu. **Saf Tulpar**: `tame` bağlamaları üzerine yazılmış,
+her satırını `lib/scene3d.tpr` içinde okuyabilirsin.
+
+Her fonksiyonun Türkçe adı ve İngilizce takma adı var. Bu sayfa Türkçe adları
+kullanıyor.
+
+## Tam bir oyun
+
+```tulpar
+import "scene3d";
+
+int oyuncu = 0;
+
+func kurulum() {
+    gokyuzu3d(rgb(24, 30, 52), rgb(96, 116, 150));
+    yercekimi3(26.0);
+    // duvarlar
+    uret3(0.0, 1.5, -16.0, 34.0, 3.0, 1.0, GRAY, SHAPE_CUBE, TAG_WALL);
+    uret3(0.0, 1.5,  16.0, 34.0, 3.0, 1.0, GRAY, SHAPE_CUBE, TAG_WALL);
+
+    oyuncu = uret3(0.0, 1.0, 0.0, 1.2, 2.0, 1.2, SKYBLUE, SHAPE_CUBE, TAG_PLAYER);
+    can3d(oyuncu, 100);
+    kamera_yorunge(oyuncu, 14.0, 9.0);
+}
+
+func guncelle() {
+    hareket3(oyuncu, 9.0);
+    if (ziplandi()) { zipla3(oyuncu, 11.0); }
+}
+
+sahne3d(960, 560, "3B Oyunum");
+kurulumda3(kurulum);
+her_kare3(guncelle);
+oyna3d();
+```
+
+Bu kadarı çalışan bir oyun: yerçekimi, zemin teması, duvar çarpışması, fareyle
+sürülen üçüncü şahıs kamera, klavye/gamepad/dokunmatik girdi, ışık ve gölge —
+hepsi varsayılan açık.
+
+## Entity'ler
+
+`uret3(x, y, z, sx, sy, sz, renk, sekil, etiket)` → **handle**
+
+Boyutlar **tam ölçü**, yarım değil. Konum merkezdir.
+
+Şekiller: `SHAPE_CUBE`, `SHAPE_SPHERE`, `SHAPE_CYL`, `SHAPE_MODEL`, `SHAPE_RAMP`.
+Etiketler: `TAG_PLAYER`, `TAG_ITEM`, `TAG_WALL`, `TAG_ENEMY`, `TAG_PROP`, `TAG_BULLET`.
+
+Etiket varsayılan davranışı belirler: `TAG_WALL` gövdeler **statik katı**dır
+(iterler, itilmezler); eşya ve mermiler varsayılan olarak katı değildir.
+`kati3d(id, ac)` ile değiştirilir.
+
+:::caution[Handle indeks değildir]
+`uret3` bir **generation-etiketli handle** döndürür, dizi indeksi değil. Slot
+yeniden kullanılınca eski handle geçersizleşir — `alive3(id)` bir öldürmeden
+sonra bu sayede güvenilirdir. Her zaman erişimcilerden geç (`get3x`,
+`set3pos`, …); iç dizileri kendin indeksleme.
+
+Depo uzunluğu da canlı sayı değildir: öldürülen slotlar yeniden kullanılmak
+üzere yerinde durur. `alive_count3d()` kullan.
+:::
+
+| Fonksiyon | İngilizce | Amaç |
+|---|---|---|
+| `uret3(...)` | `spawn3` | Entity oluştur, handle döner |
+| `oldur3(id)` | `kill3d` | Yok et |
+| `alive3(id)` | — | Hâlâ canlı mı? (bayat handle'da false) |
+| `get3x/get3y/get3z(id)` | — | Konum |
+| `set3pos(id,x,y,z)` | — | Işınla |
+| `set3vel(id,vx,vy,vz)` | — | Hız ata |
+| `set3yaw(id,derece)` | — | Yön |
+| `alive_count3d()` | — | Canlı entity sayısı |
+
+## Hareket ve fizik
+
+```tulpar
+hareket3(oyuncu, 9.0);
+if (ziplandi()) { zipla3(oyuncu, 11.0); }
+```
+
+`hareket3` klavye **veya** dokunmatik **veya** gamepad okur (üçü aynı anda
+açıktır) ve kameraya göre hareket ettirir: kamerayı çevirip ileri basınca yeni
+yöne gidersin. Analog büyüklük korunur — çubuğu yarım itmek yarım hızdır —
+ama çaprazlar yine normalize edilir, yani daha hızlı değildir.
+
+`yercekimi3(g)`, `zemin3(y)`, `no_ground3d()`.
+
+Bir engele yürümek **onu tırmandırmaz** (hiçbir yükseklikte); üstüne çıkmak
+için zıplamak gerekir. Bu bilinçli ve regresyon testi altında.
+
+## Çarpışma
+
+Çarpışma şekil farkındadır: küre-küre, küre-kutu, silindir (dikey kapsül) ve
+**SAT ile dönük kutu**. Önce geniş faz (kapsayan küre elemesi) koşar — 200
+entity'de bir kare 15.4 ms'den 1.12 ms'ye indi.
+
+```tulpar
+carpisinca3(TAG_BULLET, TAG_ENEMY, mermi_dusmana);
+func mermi_dusmana() {
+    oldur3(ben3());              // tagA olan entity
+    hasar3d(oteki3(), 25);       // tagB olan entity
+}
+```
+
+Kancalar bölüm değişimini aşar; onlar kuraldır, yerleştirme değil.
+
+:::note[Dönük gövde dönük çizilmeli]
+Yaw'lı bir `SHAPE_CUBE` dönük kutu olarak çarpışır (SAT). Motor onu `cube_rot`
+ile çizer, yani gördüğün şey çarptığın şeydir. Kendi geometrini düz `cube()`
+ile çizersen dönük gövde eksen hizalı görünür ve görülen duvar, çarpışan
+duvarın olduğu yerde olmaz.
+:::
+
+## Kamera
+
+```tulpar
+kamera_yorunge(oyuncu, 14.0, 9.0);   // üçüncü şahıs (fare bakışı AÇIK)
+kamera_fpv(oyuncu, 0.0);             // birinci şahıs
+camera_follow(oyuncu, 14.0, 9.0);    // sabit, dönmez
+```
+
+Yörünge modu imleci kilitler, yani fare kamerayı doğrudan çevirir — her üçüncü
+şahıs oyunundaki gibi. Menüler imleci kendiliğinden serbest bırakır. Kapatmak
+için `fare_bakis3d(false)`; hassasiyet `fare_hassasiyet3d(0.3)`.
+
+Kamerayla oyuncu arasına bir şey girdiğinde motor **şu sırayla** başa çıkar:
+
+1. **Röntgen** — araya giren cisim yarı saydam çizilir. Kamera hiç oynamaz.
+   (`kamera_seffaf3d`, `seffaflik3d`)
+2. **Yükselt** — engelin üstüne çık, en fazla 45°, yumuşatılmış.
+3. **Yakınlaştır** — son çare, `kamera_en_yakin3d`'den (varsayılan 5.0 dünya
+   birimi) yakına asla gelmez.
+
+Sıra önemlidir: önce yakınlaştırmak, kamerayla oyuncu arasında cisim
+bırakmazdı — yani saydamlık tam ihtiyaç duyulan anda sessizce hiçbir şey
+yapmazdı.
+
+## Nişan ve ateş
+
+```tulpar
+mermi3d(oyuncu, 26.0, 1.6);        // (sahip, hız, ömür)
+```
+
+Mermiler düz uçar — yerçekimi yok, zemin teması yok. Her oyun farklı nişan
+ister; `nisan_modu3d` ile seç:
+
+| Mod | Yön | Tipik oyun |
+|---|---|---|
+| `AIM_FLAT` *(varsayılan)* | kameranın **yatay** yönü | üçüncü şahıs aksiyon |
+| `AIM_LOOK` | kameranın **tam** yönü, eğim dahil | nişancı / FPS |
+| `AIM_BODY` | gövdenin baktığı yön | twin-stick, klasik |
+| `AIM_LOCK` | menzildeki en yakın hedef | boss dövüşü, oto-nişan |
+
+`AIM_FLAT` varsayılandır çünkü üçüncü şahısta kamerayı eğmek çoğunlukla
+manzarayı görmek içindir — yere bakmak "yere ateş et" demek değildir.
+`AIM_LOCK` (`nisan_kilit3d(etiket, menzil)`) hedefin **yüksekliğini** de tutar,
+yani yüksekteki düşman vurulabilir; menzilde hedef yoksa `AIM_FLAT`'e düşer.
+
+```tulpar
+nisan_sacilma3d(12.0);              // koni, derece
+pompali3d(oyuncu, 24.0, 1.2, 6);    // tek tetikte 6 saçma
+```
+
+Dikey saçılma yalnız dikeyin anlamlı olduğu modlarda uygulanır — yatay nişanlı
+bir oyunda saçmaların yere dağılması istenen şey değildir.
+
+## Can, hasar, ölüm
+
+```tulpar
+can3d(id, 100);           // can sistemini kur
+hasar3d(id, 25);          // dokunulmazlık penceresine uyar
+iyilestir3d(id, 40);
+can_kac3d(id);
+olunce3d(TAG_ENEMY, dusman_oldu);
+dokunulmazlik3d(0.6);     // pencere uzunluğu (sn)
+```
+
+`hasar3d` dokunulmazlık penceresini kendisi yönetir, yani temas eden düşman
+saniyede 60 kez değil, pencere başına bir kez vurur.
+
+Şifa için `iyilestir3d` kullan, `hasar3d(id, -n)` değil: ikincisi
+dokunulmazlık penceresi açar, yani şifa alan oyuncu bir de hasara bağışık
+kalır. `can3d` de olmaz — o sistemi **yeniden kurar**, hem hp'yi hem tavanı
+yazar.
+
+## Tetikleyici bölgeler
+
+"Buraya girince şu olsun" — kapı, kontrol noktası, tuzak.
+
+```tulpar
+int ped = bolge3d(-10.0, 1.0, 10.0, 4.0, 3.0, 4.0, TAG_PLAYER);
+girince3d(ped, bonus_ver);          // girişte BİR KEZ
+bolge_bir_kere3d(ped, true);        // tek atım
+
+int havuz = bolge_kure3d(11.0, 1.0, 11.0, 3.5, TAG_PLAYER);
+icindeyken3d(havuz, zehirle);       // içindeyken her kare
+cikinca3d(havuz, temizlendi);       // çıkışta BİR KEZ
+```
+
+Bölgeler **entity değildir**: çizilmezler, entity slotu yemezler, çarpışma
+çözümüne hiç girmezler. Motor giriş/çıkış **kenarı** hesaplar — bir çarpışma
+kancasının veremeyeceği şey budur, o her çakışma karesinde atar.
+
+Kanca içinde `ben3()` giren entity'dir, `bolge_no3d()` hangi bölgenin
+tetiklediğini söyler, yani tek callback çok bölgeye hizmet edebilir.
+`icinde3d(b)` şu an içeride kaç tane olduğunu sayar. `bolge_goster3d(true)`
+ayıklama tel kafesi çizer.
+
+Bölgeler bölüm değişiminde silinir — onlar yerleştirilmiş geometridir, duvar
+gibi.
+
+## Bölümler
+
+```tulpar
+bolum3d(1, bolum1_kur);
+bolum3d(2, bolum2_kur);
+bolum_gec3d();               // İSTEK — kare sonunda uygulanır
+```
+
+Geçiş kare sonuna ertelenir, böylece bir çarpışma kancası onu çağırdığında
+çalışan döngünün ayağının altından entity slotlarını çekmez. `goto_level3d(n)`
+ilerleme işaretlemeden serbest atlar.
+
+## Karakter ve animasyon
+
+```tulpar
+int robot = model_yukle("assets/robot.glb");
+int p = spawn3_model(0.0, 0.0, 0.0, 1.0, robot, TAG_PLAYER);
+anim3d(p, 0, 1, 30.0);          // boşta klibi, koşu klibi, fps
+anim_gecis_hizi3d(4.0);         // 0.25 sn'lik geçiş (1/hız saniye)
+```
+
+Kare sayacını, hız eşiğini ve **harmanlama ağırlığını** motor sürüyor. Oyunun
+söylediği tek şey hangi klibin boşta hangisinin koşu olduğu.
+
+Klibi tek karede değiştirmek animasyonu ucuz gösteren şeydir; o yüzden
+boşta↔koşu **harmanlanıyor**: iki poz karıştırılıyor ve ağırlık zamana
+yayılıyor. Geçiş *doğrusal*, üstel yumuşatma değil — üstelde ağırlık hedefe
+hiç varmaz, yani "boşta" pozu sonsuza kadar biraz koşu taşırdı.
+
+İki klip özel bir durum değil. Geçiş bir `(a, b, w)` üçlüsü ve hedef her kare
+yeniden hesaplanıyor, dolayısıyla kaç klip olursa olsun çalışıyor:
+
+```tulpar
+animasyon_sec3d(p, 5);      // klibi OYUN seçer (çömelme, saldırı…)
+animasyon_otomatik3d(p);    // hızdan türeyen locomotion'a dön
+int su_an = animasyon_su_an3d(p);   // şu an görünen klip
+```
+
+Elle seçilen klip otomatik kipten korunuyor; korunmasa bir sonraki karede
+ezilirdi. Geçişi yarıda kesmek onu *ters çevirir*, sıfırdan başlatmaz; üçüncü
+bir klibe geçiş ise o an baskın olan pozdan başlar.
+
+## Parçacıklar
+
+```tulpar
+parcacik3d(x, y, z, 10, renk, hiz, omur);
+patlat3d(id, 26, ORANGE, 9.0, 0.7);      // bir varlığın konumunda
+parcacik_yercekimi3d(9.0);
+```
+
+Parçacıklar kameraya dönük billboard'lar; küre ya da kutu yandan bakınca
+incelir ve kıvılcım/duman hissini kaybederdi.
+
+Doku atlası onları bir flipbook'a çeviriyor — kare, parçacığın ömrü boyunca
+ilerliyor, yani duman yalnız küçülmüyor **açılıyor**:
+
+```tulpar
+int duman = load_texture("assets/smoke.png");
+parcacik_doku3d(duman, 4, 4);   // 4x4 sayfa
+parcacik_donme3d(120.0);        // derece/saniye
+```
+
+Sayfa bir kez oynuyor ve **son karede kalıyor**; başa sarmak patlamayı ölürken
+yeniden başlatırdı.
+
+Dönme **varsayılan kapalı**. Dokusuz parçacık dolu bir karedir ve dolu kare
+dönünce silueti değişir (kare ↔ baklava) — varsayılanı açmak yayınlanmış her
+oyunun görünüşünü haber vermeden değiştirirdi.
+
+## Konumsal ses
+
+```tulpar
+ses3d(handle, x, y, z);          // mesafe zayıflatması + stereo kaydırma
+sound_range3d(30.0);             // sesin tamamen söndüğü mesafe
+ses_yon_gucu3d(1.0);             // 0 kaydırmayı kapatır
+```
+
+Mesafe tek başına "ne kadar uzakta" diyor, "hangi yönde" demiyor: solundaki
+patlama ile sağındakini ayırt edemezdin. `ses3d` ikisini birden uyguluyor.
+
+Kameranın sağ ekseni, `move3d`'nin girdiyi döndürürken kullandığı **aynı
+ifadeden** geliyor. İkisi ayrışsaydı "sağa yürü" ile "sağdan duy" farklı
+yönleri gösterirdi ve hata kamera döndükçe büyürdü.
+
+:::note
+raylib'in kaydırması TERS — `raudio.c`'de `left = pan`, yani **pan 0 SAĞ
+kanaldır**. Çeviriyi scene3d yapıyor; `tm_sound_pan` bilerek raylib'in anlamını
+koruyor, çünkü ham `tame` kullanan kod raylib belgesine bakar.
+:::
+
+## Arazi
+
+```tulpar
+arazi3d(129, 120.0, 14.0, 120.0, 4.5, 20260804);   // (res, sx, tepe, sz, gürültü, tohum)
+arazi_dogal3d(14.0);                               // çim/toprak/kar + kaya
+float y = arazi_yukseklik3d(x, z);
+int katman = arazi_katmani3d(x, z);
+```
+
+Arazi gerçek bir yükseklik haritası mesh'idir; yerçekimi, zıplama ve kamera
+otomatik olarak ona uyar. Katman boyama **yükseklik ve eğime** göre renklendirir
+(`LAYER_LOW`, `LAYER_MID`, `LAYER_HIGH`, `LAYER_ROCK`) ve `arazi_katmani3d`
+oyun mantığına keskin bir cevap verir — ayak sesi ya da hareket hızı için.
+
+Eğim kuralları isteğe bağlı: `egim_siniri3d(38.0)` dik yüzeyleri tırmanılamaz
+yapar, `kayma_ivmesi3d` kaymayı ayarlar.
+
+Yükseklik verisi pencere olmadan da saklanır, yani arazi **fiziği** headless
+testlerde çalışır; yalnız çizim GPU ister.
+
+## Gündüz-gece döngüsü
+
+```tulpar
+gunduz_gece3d(120.0);   // tam bir gün 120 gerçek saniye
+saati_ayarla3d(5.0);    // saat 0..24
+saati_dondur3d(true);   // kalıcı "altın saat"
+gece_mi3d();
+```
+
+Gökyüzü gradyanı, güneşin yönü ve rengi, ortam ışığı ve sis rengi birlikte
+hareket eder; şafak ve gün batımında turuncu bir alacakaranlık bandı devreye
+girer. **Gölgeler bedava döner** — gölge haritası güneşin yönünden türer.
+
+## Kalıcılık
+
+```tulpar
+kayit_ac3d();           // OPT-IN, çünkü diske yazar
+rekor3d();
+rekor_kirildi3d();
+acik_bolum3d();
+```
+
+Anahtar sahne başlığından türer, yani iki oyun birbirinin kaydını ezmez.
+`bolum_gec3d()` bölümü tamamlanmış işaretler; `goto_level3d()` işaretlemez —
+aksi hâlde atlamak, geçmek sayılırdı.
+
+## Menü kabuğu
+
+```tulpar
+baslangic3d("OYUNUM", "arenayı temizle");   // isteğe bağlı başlangıç ekranı
+```
+
+Duraklat (ESC/P/GERİ), yeniden başlat ve çıkış bedava gelir; klavye oklarıyla
+ve gamepad D-pad'iyle çalışan bir seçim imleci vardır. Oyun-bitti ve kazandın
+ekranları yerleşiktir; `on_restart3d(fn)` özel bir yeniden başlatma bağlar.
+
+## Tanılama
+
+Herhangi bir scene3d oyununda **F1**'e bas: canlı örtü açılır — FPS, entity
+sayısı, oyuncunun konumu/hızı/zemin durumu, kamera modu/mesafesi/yükselmesi,
+saydam çizilen cisim sayısı ve son kayıt satırları. **F2** kayıt tamponunu
+`scene3d_log.txt`'ye döker.
+
+Örtünün en işe yarar satırı **gözcü**dür. Her kare değişmezleri denetler ve
+bozulanı ayrıntısıyla bildirir:
+
+- çözümden sonra hâlâ statik bir cismin içinde kalan hareketli gövde ve batma
+  derinliği
+- zeminin altına düşen oyuncu
+- geometrinin içindeki kamera
+
+Bu, "duvarlardan düşüyorum"u "entity#4, statik#2 içinde 0.47 birim batmış,
+konum (x,y,z)"ye çevirir. Koddan açmak için `hata_ayikla3d(true)`; kendi
+kayıtların için `kayit3d`, `uyari3d`, `hata3d`.
+
+## Oyununu test etmek
+
+Motor, mantığının **pencere açmadan** koşabilmesi için tasarlandı — cihaz
+okumaları girdi kaynağı başına tek yere hapsedilmiş, karar mantığı saf
+fonksiyonlarda. Testten doğrudan sürebilirsin:
+
+```tulpar
+import "scene3d";
+import "test";
+
+func t_oyuncu_zemine_oturur() {
+    scene3d_reset();
+    int p = uret3(0.0, 5.0, 0.0, 1.0, 2.0, 1.0, SKYBLUE, SHAPE_CUBE, TAG_PLAYER);
+    int i = 0;
+    while (i < 120) { _s3_physics(0.016667); i = i + 1; }
+    assert(get3y(p) > 0.99 && get3y(p) < 1.01, "zemine oturmali");
+}
+
+test("oyuncu zemine oturuyor", "t_oyuncu_zemine_oturur");
+test_summary();
+```
+
+`scene3d_reset()` testler arasında sahneyi temizler. Motorun kendi süiti
+(`tests/scene3d_engine.test.tpr`) 137 testi bu şekilde koşuyor.

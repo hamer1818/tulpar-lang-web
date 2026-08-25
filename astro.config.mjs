@@ -96,6 +96,15 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Game Development',
+					translations: { tr: 'Oyun Geliştirme' },
+					items: [
+						{ label: 'Overview (tame / arcade / scene3d)', translations: { tr: 'Genel Bakış (tame / arcade / scene3d)' }, slug: 'games/overview' },
+						{ label: '3D Engine (scene3d)', translations: { tr: '3B Motor (scene3d)' }, slug: 'games/scene3d' },
+						{ label: '3D Scene Editor', translations: { tr: '3B Sahne Editörü' }, slug: 'games/editor' },
+					],
+				},
+				{
 					label: 'Reference',
 					translations: { tr: 'Referans' },
 					items: [
