@@ -50,7 +50,7 @@ author = "Hamza"
 license = "MIT"
 
 [registry]
-url = "https://pkg.tulparlang.dev"
+url = "https://api.pkg.tulparlang.dev"   # API tabanı; bu aynı zamanda varsayılan
 
 [dependencies]
 wings   = "1.2.3"                       # registry
@@ -64,10 +64,20 @@ lodash  = "url:http://cdn/lodash.tpr"   # tek-dosya URL
 | ----------------------------- | ----------------------------------------------------------- |
 | `path:./local/dir`            | Yerel bir dizinden `*.tpr`'leri kopyala.                    |
 | `url:http://example.com/x.tpr`| Düz HTTP'den tek bir `.tpr` dosyası çek.                    |
-| `1.2.3`                       | Registry'den çek: `<registry>/<name>/<spec>.tpr`            |
+| `1.2.3`                       | Registry'den tam sürüm.                                     |
+| `^1.2.3` / `~1.2.3`           | Semver aralığı — caret (major içinde) / tilde (minor içinde). |
+| `>=1.0,<2.0` / `*` / `latest` | Karşılaştırıcı/bileşik aralık veya en yüksek yayınlanmış sürüm. |
 
-Registry sürümü için manifest'te `[registry] url = "..."` gerekir.
-`https://` URL'leri Tulpar'ın OpenSSL ile build'ini gerektirir
+Tam sürümde Tulpar registry'ye doğrudan gider. Bir **aralık** için (`^`, `~`,
+bir `<`/`>`/`=` karşılaştırıcısı, virgülle bileşik veya `*`/`latest`) önce
+paketin yayınlanmış sürümlerini `<registry>/v1/packages/<name>`'den çeker,
+aralığı karşılayan en yükseğini seçer, sonra
+`<registry>/v1/packages/<name>/versions/<version>/source`'u indirir.
+
+Registry sürümü için bir registry URL'i gerekir — manifest'te
+`[registry] url = "..."`, `--registry` flag'i veya `TULPAR_REGISTRY` ortam
+değişkeni (varsayılan `https://api.pkg.tulparlang.dev`). `https://` URL'leri
+Tulpar'ın OpenSSL ile build'ini gerektirir
 (MSYS2'de `pacman -S mingw-w64-x86_64-openssl`).
 
 ## Lockfile
@@ -79,24 +89,31 @@ Her başarılı `pkg install` sonrası `tulpar.lock` yazılır:
 # DÜZENLEMEYİN. Reproducible install için tulpar.toml ile birlikte commit'le.
 
 [resolved]
-wings   = "https://pkg.tulparlang.dev/wings/1.2.3.tpr"
+wings   = "https://api.pkg.tulparlang.dev/v1/packages/wings/versions/1.2.3/source"
 greeter = "path:../greeter"
 lodash  = "url:http://cdn/lodash.tpr"
 ```
 
-Lockfile her bağımlılık için **tam çözümlenmiş URL veya yolu** kaydeder
-— başka bir makinada re-install aynı baytları çeker, registry'nin
-`latest` pointer'ı kayarsa bile.
+Lockfile her bağımlılık için **tam çözümlenmiş URL veya yolu** ve indirilen
+baytların bir **SHA-256**'sını kaydeder — başka bir makinada re-install aynı
+baytları çeker, registry'nin `latest` pointer'ı kayarsa bile. Aynı URL'in
+lockfile'dakinden farklı bir SHA-256 sunduğu bir re-install sessizce üzerine
+yazmak yerine reddedilir.
 
 ## Modül çözümlemesi
 
 `import "name"` gördüğünde AOT derleyicisi sırasıyla dener:
 
-1. Düz yol `./name`.
-2. `.tpr` uzantılı yol (`./name.tpr`).
-3. `./tulpar_modules/<name>/<name>.tpr` — vendored entry-point konvansiyonu.
-4. `./tulpar_modules/<name>.tpr` — tek-dosya vendor.
-5. Gömülü stdlib (`wings`, `router`, `http_client`, `orm`, `test`, …).
+1. Gömülü stdlib (`wings`, `router`, `http_client`, `orm`, `test`, …).
+2. Bundle-local kardeş — `<içe-aktaran-dosyanın-dizini>/name.tpr` — böylece çok-dosyalı bir paketin iç import'ları kendi dosyalarına çözülür.
+3. Düz yol `./name`.
+4. `.tpr` uzantılı yol (`./name.tpr`).
+5. `./tulpar_modules/<name>/<name>.tpr` — vendored entry-point konvansiyonu.
+6. `./tulpar_modules/<name>.tpr` — tek-dosya vendor.
+
+Bu sıralama, gömülü stdlib adlarının (`wings`, `orm`, …) her zaman kazandığı
+anlamına gelir — `wings`'i yerel bir `wings.tpr` ile gölgeleyemezsiniz — ve
+`tulpar_modules/`'daki vendored bir paket geri kalan her şey için fallback'tir.
 
 ## Alt komutlar
 
@@ -107,3 +124,136 @@ Lockfile her bağımlılık için **tam çözümlenmiş URL veya yolu** kaydeder
 | `tulpar pkg add <name>[@<spec>]`       | Manifest'e bağımlılık ekle/güncelle.                       |
 | `tulpar pkg remove <name>`             | Manifest'ten bağımlılık kaldır.                            |
 | `tulpar pkg install`                   | Hepsini `tulpar_modules/`'a vendor et + lockfile yaz.      |
+| `tulpar pkg search <sorgu>`            | Registry kataloğunu ad/açıklamaya göre ara.                |
+| `tulpar pkg info <name>`               | Bir paketin registry meta'sını + yayınlanmış sürümlerini yazdır. |
+| `tulpar pkg publish [--dry-run]`       | Projenin kaynaklarını paketle ve registry'ye POST et.      |
+
+## Yayınlama
+
+`pkg.tulparlang.dev`'deki paketler **public GitHub repo'larından** yayınlanır —
+registry, kaynağı sabitlediğin bir ref'te kendisi çekip cache'ler; böylece
+yüklenen şey değişmez (immutable) ve GitHub'ın erişilebilirliğinden bağımsızdır.
+İki yayınlama yolu var:
+
+- **GitHub repo'sundan (önerilen, self-serve)** — onaylı hesabı olan herkes için.
+  Registry'yi public repo'na + ref'ine yönlendirirsin, kaynağı o çeker.
+- **CLI ile bundle yükleme** — `tulpar pkg publish`, owner/maintainer seviyesi
+  (bearer token). Projenin `.tpr` kaynaklarını doğrudan yükler.
+
+Her iki yolda da **her yeni paket sürümü, public katalogda görünmeden önce
+registry sahibinin onayından geçer**.
+
+### 1. Hesap aç
+
+[pkg.tulparlang.dev](https://pkg.tulparlang.dev)'e git ve ya:
+
+- **GitHub ile giriş yap** (önerilen) — bir repo yayınlamak için gereken GitHub
+  kimliğini bağlar; ya da
+- **E-posta + şifre ile kayıt ol**.
+
+Yeni hesaplar **pending** (beklemede) durumunda başlar.
+
+### 2. Onaylan
+
+Registry sahibi yeni hesapları inceleyip onaylar veya reddeder. Giriş yapıp
+durumunu [hesap sayfanda](https://pkg.tulparlang.dev/account) görebilirsin, ama
+**onaylanana** kadar yayınlayamazsın — bu, kataloğu küratörlü tutar.
+
+### 3. Repo'nu hazırla
+
+Paketin, **sahibi olduğun public bir GitHub repo'sunda** yaşar. Yayınladığın
+ref'te (tag, branch veya commit) repo, paketin **giriş dosyasını** içermeli:
+
+- Varsayılan olarak, repo kökünde `<name>.tpr` (ör. `wings_jwt.tpr`), ya da
+- `entry` olarak verdiğin herhangi bir yol (ör. `src/mypkg.tpr`).
+
+Ref'in sabit olması için bir sürüm tag'le:
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+### 4. Web'den yayınla
+
+Giriş yap, sonra
+[pkg.tulparlang.dev/publish](https://pkg.tulparlang.dev/publish)'i aç ve doldur:
+
+| Alan         | Örnek               | Not                                              |
+| ------------ | ------------------- | ------------------------------------------------ |
+| Paket adı    | `my_pkg`            | Kullanıcıların `tulpar pkg add` yapacağı ad.     |
+| Sürüm        | `1.0.0`             | Semver; yayınlanınca değişmez.                   |
+| GitHub repo  | `you/my_pkg`        | `owner/name`; **kendi GitHub login'in** altında olmalı. |
+| Ref          | `v1.0.0`            | Tag, branch veya commit SHA.                     |
+| Giriş dosyası| `my_pkg.tpr`        | Opsiyonel; varsayılan `<name>.tpr`.              |
+| Açıklama     | `Tek satır özet`    | Opsiyonel.                                       |
+
+Gönderince registry,
+`https://raw.githubusercontent.com/<repo>/<ref>/<entry>`'i çeker, baytları
+cache'ler ve sürümü **owner onayı bekliyor** olarak kaydeder.
+
+### API ile yayınla
+
+Web formu, registry'nin HTTP API'sine POST eder; doğrudan kendi session
+token'ınla (ya da owner publish token'ıyla) çağırabilirsin:
+
+```http
+POST https://api.pkg.tulparlang.dev/v1/publish/github
+Authorization: Bearer <session-veya-publish-token>
+Content-Type: application/json
+
+{
+  "name": "my_pkg",
+  "version": "1.0.0",
+  "repo": "you/my_pkg",
+  "ref": "v1.0.0",
+  "entry": "my_pkg.tpr",
+  "description": "Tek satır özet"
+}
+```
+
+`entry` ve `description` opsiyonel. **Sahiplik:** owner olmayan bir hesap, yalnız
+`owner`'ı kendi bağlı GitHub login'iyle eşleşen repo'ları yayınlayabilir
+(büyük/küçük harf duyarsız); owner (veya registry publish token'ı olan) her
+repo'yu yayınlayabilir.
+
+### 5. Onay → public
+
+Yeni yayınlanan bir sürüm, owner onaylayana kadar public katalogda **gizlidir**
+(doğrudan erişimde 404 döner). Onaylanınca `tulpar pkg search`'te görünür ve
+`tulpar pkg add` ile yüklenir. Sürümler **değişmezdir** — yayınlanmış bir
+`(name, version)` sonsuza dek sabitlenir; aynı çifti yeniden yayınlamak
+`409 Conflict` döner.
+
+### CLI ile yayınlama (bundle yükleme)
+
+Owner/maintainer yolu, projendeki her `.tpr`'yi paketleyip baytları doğrudan
+yükler — GitHub repo'su gerekmez. Kimlik doğrulama bir bearer token'dır
+(`--token <tok>` ya da `TULPAR_PUBLISH_TOKEN`):
+
+```bash
+export TULPAR_PUBLISH_TOKEN="…"
+tulpar pkg publish --dry-run     # paketle + ne gönderileceğini göster, yükleme yok
+tulpar pkg publish               # <registry>/v1/publish'e POST
+```
+
+Registry hedefi install'larla aynı çözümlemeyi izler (`--registry` flag'i →
+`[registry] url` → `TULPAR_REGISTRY` → varsayılan
+`https://api.pkg.tulparlang.dev`). `--dry-run` POST'u atlar, böylece bundle'ı
+token olmadan inceleyebilirsin.
+
+### Hatalar
+
+| Durum | Anlamı |
+| ----- | ------ |
+| `401 authentication required` | Giriş yapılmamış (ve publish token yok). |
+| `403 account not approved` | Hesabın hâlâ pending ya da reddedilmiş. |
+| `403 github_required` | Repo yayınlamak için bağlı bir GitHub login gerekir — GitHub ile giriş yap. |
+| `403 not_your_repo` | Repo senin GitHub login'in altında değil. |
+| `409 conflict` | `(name, version)` zaten yayınlanmış — sürümler değişmez. |
+| `502 fetch_failed` | Registry kaynağı çekemedi — repo/ref/entry public ve doğru mu kontrol et. |
+
+## Yol haritası
+
+- Private-repo yayınlama (token-kapsamlı çekme).
+- Repo'dan çok-dosyalı paketler (tarball çıkarma).
+- Paket imzalama (lockfile zaten her bağımlılık için bir SHA-256 tutuyor).

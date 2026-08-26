@@ -1,0 +1,13 @@
+0f6044d195a3ffd185ae3a83c8e8ca4e1f9a9ec6		branch 'docs/debugger-and-tls' of https://github.com/hamer1818/tulpar-lang-web
+b7bf596cf3f234cea8f79bc9bb7036b9bb4fcd78	not-for-merge	branch 'chore/shrink-installer-art' of https://github.com/hamer1818/tulpar-lang-web
+764acc13a2facad2a2ba54a22d3b3e86eec3331c	not-for-merge	branch 'ci/auto-enable-automerge' of https://github.com/hamer1818/tulpar-lang-web
+4eeab31a7b957774123fe89980a0bed3e4b6b730	not-for-merge	branch 'docs/fill-feature-gaps' of https://github.com/hamer1818/tulpar-lang-web
+d631227e823240daa05e8aa5ef6b67e92cfa0c5e	not-for-merge	branch 'feat/install-ascii-art' of https://github.com/hamer1818/tulpar-lang-web
+2f31b1985d98acf67d8b84bf216e3cb4f3f16562	not-for-merge	branch 'feat/install-scripts' of https://github.com/hamer1818/tulpar-lang-web
+155db96dee03f6cad0aff75088d69d5982bb846f	not-for-merge	branch 'feat/install-scripts-runtime-lib' of https://github.com/hamer1818/tulpar-lang-web
+9258693ab576bae258e781e536cebee125809756	not-for-merge	branch 'feat/web-playground-interpreter' of https://github.com/hamer1818/tulpar-lang-web
+58c29942af074e71d335e49d539f81c7838101a7	not-for-merge	branch 'fix/install-bundle-openssl-dlls' of https://github.com/hamer1818/tulpar-lang-web
+a81e9643867b7204f1397ec3772e0d6d13a97f0a	not-for-merge	branch 'fix/install-ps-bcl-sha256' of https://github.com/hamer1818/tulpar-lang-web
+0e245ca44575c00bef2b522cce11201542b02732	not-for-merge	branch 'fix/install-ps1-speedup' of https://github.com/hamer1818/tulpar-lang-web
+cd2c9e54f95c0ac889ed3a5d0b4e888d3a49fcd9	not-for-merge	branch 'fix/install-verify-and-dll-bundling' of https://github.com/hamer1818/tulpar-lang-web
+90347eb82b1bed32d420454e5c9438da5fd0723a	not-for-merge	branch 'master' of https://github.com/hamer1818/tulpar-lang-web

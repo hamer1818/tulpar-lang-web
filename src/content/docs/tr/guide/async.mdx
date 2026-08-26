@@ -1,0 +1,220 @@
+---
+title: Async / Await
+description: Tulpar'da kooperatif eşzamanlılık — async fonksiyonlar, await, sleep_async, gather ve bloklamayan HTTP istemcisi.
+---
+
+Tulpar'ın yerleşik bir **async/await** runtime'ı vardır: stackful
+coroutine'leri süren tek-thread'li, kooperatif bir event loop. Bir
+`async func` hemen bir *promise* döndürür; `await` mevcut coroutine'i o
+promise yerleşene kadar askıya alır ve bu sırada diğer coroutine'lerin
+çalışmasına izin verir. Bu, JavaScript veya Python `asyncio` ile aynı
+modeldir — ham OS thread'lerinin kilitleme yükü olmadan eşzamanlılık.
+
+:::note
+Bu, [Eşzamanlılık (Thread'ler)](/tr/guide/concurrency/) sayfasından
+farklıdır. Thread'ler (`thread_create`) paylaşımlı bellekli *paralel* OS
+thread'leri verir; async/await ise görevlerin yalnızca `await`
+noktalarında geçiştiği *kooperatif*, tek-thread'li eşzamanlılık verir.
+I/O-yoğun işler (timer, HTTP) için async, CPU-yoğun paralel işler için
+thread kullanın.
+:::
+
+:::caution
+Async runtime yerel bir kurulum gerektirir — bu örnekleri bir `.tpr`
+dosyasına kopyalayıp `tulpar dosya.tpr` ile çalıştırın. Tarayıcı
+playground'u tek-thread'li WASM çalıştırır ve coroutine scheduler'ı
+barındırmaz.
+:::
+
+## İlk async fonksiyonunuz
+
+Bir fonksiyonu `async` ile işaretleyin, bir coroutine fabrikası olur.
+Çağırmak gövdeyi **çalıştırmaz** — bir görev kuyruğa alır ve size bir
+promise verir. `await`, onu gerçekten bir değere süren şeydir.
+
+```tulpar
+async func slow_double(int n) {
+    // Bloklamayan duraklama — scheduler bu sırada başka görevleri koşar.
+    await sleep_async(20);
+    return n * 2;
+}
+
+var p = slow_double(21);   // kuyruğa alındı, hemen promise döner
+int result = await p;      // sür; yerleşene kadar burada askıya alınır
+print("slow_double(21) = " + toString(result));   // 42
+```
+
+Promise olmayan bir şey üzerinde `await` kimlik fonksiyonudur; yani
+`await 5` sadece `5`'tir — bir değer promise olabilir de olmayabilir de
+olduğunda kullanışlıdır.
+
+## Eşzamanlılık: önce spawn, sonra await
+
+Bir `async func` çağrısı görevi hemen kuyruğa aldığı için, iki
+coroutine'i await'lemeden *önce* spawn etmek onları eşzamanlı koşar.
+Toplam süre `max(görevler)` olur, toplamları değil.
+
+```tulpar
+async func greet(str who) {
+    await sleep_async(10);
+    print("merhaba " + who);
+    return 1;
+}
+
+// İki görev de kuyruğa alınır, sonra biz await ederken eşzamanlı koşar.
+var a = slow_double(21);
+var g = greet("dunya");
+
+int r = await a;
+await g;
+print("bitti");
+```
+
+Runtime, program sonunda bekleyen tüm görevleri drene eder; yani
+spawn edip hiç await etmediğiniz bir coroutine bile bitme şansı bulur
+(Node tarzı).
+
+## sleep_async — bloklamayan timer
+
+`sleep_async(ms)`, `ms` milisaniye sonra yerleşen bir promise döndürür.
+Bloklayan `sleep(ms)`'in aksine kontrolü scheduler'a bırakır; bu yüzden
+aşağıdaki 10 ms'lik görev, ikinci spawn edilmesine rağmen 20 ms'likten
+önce yerleşir:
+
+```tulpar
+async func after(int ms, int val) {
+    await sleep_async(ms);
+    return val;
+}
+
+var slow = after(20, 100);
+var fast = after(10, 1);
+int f = await fast;   // önce fast — ~10ms'de yerleşir
+int s = await slow;   // toplam ~20ms, 30ms değil
+```
+
+## gather — birçoğunu aynı anda bekle
+
+`gather(...)`, birden çok promise'i eşzamanlı bekler ve sonuçlarını
+**argüman sırasında** bir dizi olarak verir. Promise olmayan argümanlar
+olduğu gibi geçer. Toplam süre `max(çocuklar)` olur, toplamları değil.
+
+```tulpar
+async func fetch_user(int id) {
+    await sleep_async(20);
+    return "user-" + toString(id);
+}
+
+async func main_flow() {
+    var results = await gather(fetch_user(1), fetch_user(2), 99);
+    print(results[0]);   // user-1
+    print(results[1]);   // user-2
+    print(toString(results[2]));   // 99 (olduğu gibi geçti)
+    return results;
+}
+
+await main_flow();
+```
+
+## Hata yönetimi — reject ve try/catch
+
+Bir `async func`'tan kaçan bir `throw`, onun promise'ini **reject**
+eder. Reject edilmiş bir promise'i await etmek, fırlatılan değeri
+yeniden fırlatır; böylece onu herhangi bir senkron hatada
+kullanacağınız sıradan [`try` / `catch`](/tr/guide/error-handling/) ile
+yakalarsınız:
+
+```tulpar
+async func boom(int n) {
+    await sleep_async(5);
+    throw "boom-" + toString(n);
+}
+
+try {
+    int r = await boom(1);
+    print("erişilmez");
+} catch (e) {
+    print("yakalandı: " + e);   // yakalandı: boom-1
+}
+```
+
+Reject, coroutine sınırları boyunca yayılır. Sarmalayan bir `async
+func`, bir çocuğun reject'ini kendi `try` / `catch`'i ile yakalayabilir
+ve kendi throw'unu yakalayan bir coroutine normal şekilde yerleşir:
+
+```tulpar
+async func wrapper() {
+    try {
+        int r = await boom(2);
+        return "throw-yok";
+    } catch (e) {
+        return "wrapper-yakaladı: " + e;
+    }
+}
+
+str w = await wrapper();
+print(w);   // wrapper-yakaladı: boom-2
+```
+
+`gather(...)`'a verilen bir çocuk reject ederse, reject `gather`
+await'inde yeniden fırlar — yani `gather` etrafındaki tek bir `try` /
+`catch` tüm çocukları kapsar. Hiç kimsenin await etmediği veya üst
+seviyeye yakalanmadan ulaşan bir async reject, `Uncaught Exception`
+yazıp sıfır-olmayan bir durumla çıkar.
+
+## Bloklamayan HTTP istemcisi
+
+Async I/O'nun başrol kullanımı **bloklamayan HTTP istemcisidir**.
+`http_request_async(method, url, body)` bir promise döndürür; istek bir
+worker pool'da koşarken event loop diğer coroutine'leri pompalamaya
+devam eder. `http_client` kütüphanesi onu olağan fiillerle sarmalar:
+
+```tulpar
+import "http_client";
+
+async func fetch_two(str a, str b) {
+    // İki istek de eşzamanlı uçar — toplam süre ~ max(a, b).
+    var r = await gather(http_get_async(a), http_get_async(b));
+    return r;
+}
+
+var out = await fetch_two("http://example.com/a", "http://example.com/b");
+print(toString(out[0]["status"]));   // 200
+print(out[0]["body"]);
+```
+
+Çözülen değer, bloklayan [`http_get` / `http_post`](/tr/ecosystem/http-client/)
+istemcisiyle aynı `{ ok, status, headers, body }` zarfıdır.
+Sarmalayıcılar: `http_get_async`, `http_post_async`, `http_put_async`,
+`http_delete_async`. Worker-pool boyutu default 4'tür;
+`TULPAR_HTTP_POOL` ortam değişkeniyle değiştirin.
+
+## Nasıl çalışır (ve sınırları)
+
+- **Stackful coroutine, state-machine dönüşümü değil.** Bir `async
+  func`, sıradan bir native fonksiyona derlenir; `await`, coroutine'in
+  yığınını scheduler'a geri takas eder (POSIX `ucontext` / Windows
+  Fiber). Bu, derleyici değişikliklerini minimal tutar ve her yerde —
+  döngülerde, `if`'lerde, hatta bir `try` bloğu boyunca — `await`
+  edebileceğiniz anlamına gelir.
+- **Tek-thread'li.** Coroutine'ler asla iç içe veya paralel koşmaz;
+  biri ya tamamlanır ya da bir `await`'te yield eder. Coroutine-yerel
+  durum için kilit gerekmez.
+- **Exception izolasyonu.** Her coroutine kendi exception-handler
+  bağlamını taşır; böylece bir `await`'i kapsayan bir `try`, kardeş
+  coroutine'ler bağımsızca fırlatıp yakalarken bile doğru çalışır.
+- **Parametre limiti.** `async func` en fazla **16** parametre destekler.
+- **Yalnızca AOT.** Her Tulpar özelliği gibi async da yalnızca AOT/LLVM
+  yolunda yaşar — VM yedeği yoktur.
+
+## async/await mı, thread mi?
+
+| async/await kullan | [thread](/tr/guide/concurrency/) kullan |
+| --- | --- |
+| I/O-yoğun iş (HTTP, timer) | CPU-yoğun paralel iş |
+| Çok eşzamanlı bekleme, az CPU | Birkaç uzun süren hesap işi |
+| Kooperatif, kilitsiz görevler istiyorsun | Gerçek OS-seviyesi paralellik gerek |
+
+Çok bağlantı işleyen bir HTTP sunucusu için [Wings](/tr/ecosystem/http-server/)
+listener'ları zaten thread- ve event-tabanlı eşzamanlılık verir;
+async/await'i birkaç upstream'e dağılan istemci kodunda kullanın.

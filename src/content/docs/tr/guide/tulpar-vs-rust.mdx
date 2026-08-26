@@ -1,0 +1,187 @@
+---
+title: Tulpar ve Rust Karşılaştırmaları
+description: Tulpar dilini Rust ile yan yana karşılaştırın — sözdizimi, diziler, string işlemleri ve üçüncü parti crate'lere ihtiyaç duymadan HTTP API kurmak.
+---
+
+import TulparPlayground from '../../../../components/TulparPlayground.astro';
+
+import TulparTabs from '../../../../components/TulparTabs.astro';
+import TulparTabItem from '../../../../components/TulparTabItem.astro';
+
+Rust ve Tulpar ikisi de derleme zamanında native ikiliye derlenir, VM ya da
+GC duraklaması yoktur ve aynı performans sınıfındadırlar. Asıl fark bellek
+modeli ile "kutudan çıkanlar" arasında: Rust'ın ownership/borrow checker'ı
+garbage collector olmadan bellek güvenliği sağlar, ama standart kütüphanesi
+ne bir HTTP sunucusu ne de SQLite bağlaması içerir — bunlar `actix-web`,
+`sqlx`, `diesel` gibi crate'lerden gelir. Tulpar'da borrow checker yok, ama
+`wings` ve `orm` zaten runtime'ın bir parçası.
+
+## JSON ve Struct Kullanımı
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+<TulparPlayground
+	title="JSON ve Struct Kullanımı"
+	code={String.raw`arrayJson user = {"name": "Hamza", "age": 27};
+
+print(user.name);
+print(user.age);`}
+/>
+
+  </TulparTabItem>
+  <TulparTabItem label="Rust">
+
+```rust
+struct User {
+    name: String,
+    age: u32,
+}
+
+fn main() {
+    let user = User { name: "Hamza".to_string(), age: 27 };
+
+    println!("{}", user.name);
+    println!("{}", user.age);
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## Diziler ve Döngüler
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+<TulparPlayground
+	title="Diziler ve Döngüler"
+	code={String.raw`arrayInt numbers = [1, 2, 3, 4, 5];
+
+for (int i = 0; i < length(numbers); i++) {
+    print("Item:", numbers[i]);
+}`}
+/>
+
+  </TulparTabItem>
+  <TulparTabItem label="Rust">
+
+```rust
+fn main() {
+    let numbers = [1, 2, 3, 4, 5];
+
+    for n in numbers.iter() {
+        println!("Item: {}", n);
+    }
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## String İşleme
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+<TulparPlayground
+	title="String İşleme"
+	code={String.raw`str input = "  TULPAR LANG  ";
+
+str cleaned = lower(trim(input));
+arrayStr parts = split(cleaned, " ");
+
+print("Cleaned:", cleaned);
+print("First word:", parts[0]);`}
+/>
+
+  </TulparTabItem>
+  <TulparTabItem label="Rust">
+
+```rust
+fn main() {
+    let input = "  TULPAR LANG  ";
+
+    let cleaned = input.trim().to_lowercase();
+    let parts: Vec<&str> = cleaned.split(' ').collect();
+
+    println!("Cleaned: {}", cleaned);
+    println!("First word: {}", parts[0]);
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## Tek Dosyada HTTP API
+
+Rust'ın standart kütüphanesinde HTTP sunucusu yok, bu yüzden en basit bir API
+bile `actix-web` ve JSON için `serde` gibi bir crate gerektirir — SQLite, bir
+ORM ve OpenAPI dokümantasyonu da (`sqlx`/`diesel`, `utoipa`, ...) bunun
+üzerine eklenen ayrı crate'lerdir. Tulpar'da `wings` ve `orm` derleyicinin
+kendi runtime'ında gelir.
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+```tulpar
+import "wings";
+import "orm";
+
+orm_open("app.db");
+define_model("users", {
+    "id":   "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "name": "TEXT NOT NULL",
+    "age":  "INTEGER"
+});
+
+func list_users(req)  { return ok(orm_all("users")); }
+func create_user(req) { return created(orm_create("users", req.json)); }
+
+get("/users",  "list_users");
+post("/users", "create_user");
+body_schema({"name": "str", "age?": "int"});   // hatalı body → otomatik 422
+
+serve(8080);   // + Swagger UI, /openapi.json, /metrics, /healthz
+```
+
+  </TulparTabItem>
+  <TulparTabItem label="Rust">
+
+```rust
+use actix_web::{get, web, App, HttpServer, HttpResponse};
+use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
+
+#[derive(Serialize, Deserialize, Clone)]
+struct User {
+    id: u32,
+    name: String,
+    age: u32,
+}
+
+#[get("/users")]
+async fn list_users(users: web::Data<Mutex<Vec<User>>>) -> HttpResponse {
+    HttpResponse::Ok().json(&*users.lock().unwrap())
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    let users = web::Data::new(Mutex::new(Vec::<User>::new()));
+
+    HttpServer::new(move || App::new().app_data(users.clone()).service(list_users))
+        .bind(("0.0.0.0", 8080))?
+        .run()
+        .await
+    // SQLite/ORM (sqlx veya diesel), OpenAPI (utoipa) ve /metrics
+    // (actix-web-prom) hepsi bunun üzerine eklenen ayrı crate'ler.
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+Tulpar tarafının rehberli, üç uygulamalı versiyonu için
+[Wings Öğreticisi](/tr/ecosystem/wings-tutorial/)'ne, ham HTTP verimi
+karşılaştırması için [Benchmark Sonuçları](/tr/ecosystem/benchmarks/)'na
+bakın.

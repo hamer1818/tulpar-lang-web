@@ -1,0 +1,209 @@
+---
+title: Tulpar ve Go Karşılaştırmaları
+description: Tulpar dilini Go ile yan yana karşılaştırın — sözdizimi, diziler, string işlemleri ve üçüncü parti modüllere ihtiyaç duymadan HTTP API kurmak.
+---
+
+import TulparPlayground from '../../../../components/TulparPlayground.astro';
+
+import TulparTabs from '../../../../components/TulparTabs.astro';
+import TulparTabItem from '../../../../components/TulparTabItem.astro';
+
+Go ve Tulpar ikisi de statik tipli, native ikiliye derlenir ve aynı
+performans sınıfında yer alır. Fark, kutudan çıkanda: Go'nun standart
+kütüphanesi HTTP ve JSON'ı içerir ama SQLite, bir ORM ve OpenAPI üretimini
+üçüncü parti modüllere bırakır — Tulpar bunların tamamını runtime'a gömer.
+
+## JSON ve Struct Kullanımı
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+<TulparPlayground
+	title="JSON ve Struct Kullanımı"
+	code={String.raw`arrayJson user = {"name": "Hamza", "age": 27};
+
+print(user.name);
+print(user.age);`}
+/>
+
+  </TulparTabItem>
+  <TulparTabItem label="Go">
+
+```go
+package main
+
+import "fmt"
+
+type User struct {
+	Name string
+	Age  int
+}
+
+func main() {
+	user := User{Name: "Hamza", Age: 27}
+
+	fmt.Println(user.Name)
+	fmt.Println(user.Age)
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## Diziler ve Döngüler
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+<TulparPlayground
+	title="Diziler ve Döngüler"
+	code={String.raw`arrayInt numbers = [1, 2, 3, 4, 5];
+
+for (int i = 0; i < length(numbers); i++) {
+    print("Item:", numbers[i]);
+}`}
+/>
+
+  </TulparTabItem>
+  <TulparTabItem label="Go">
+
+```go
+package main
+
+import "fmt"
+
+func main() {
+	numbers := []int{1, 2, 3, 4, 5}
+
+	for _, n := range numbers {
+		fmt.Println("Item:", n)
+	}
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## String İşleme
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+<TulparPlayground
+	title="String İşleme"
+	code={String.raw`str input = "  TULPAR LANG  ";
+
+str cleaned = lower(trim(input));
+arrayStr parts = split(cleaned, " ");
+
+print("Cleaned:", cleaned);
+print("First word:", parts[0]);`}
+/>
+
+  </TulparTabItem>
+  <TulparTabItem label="Go">
+
+```go
+package main
+
+import (
+	"fmt"
+	"strings"
+)
+
+func main() {
+	input := "  TULPAR LANG  "
+
+	cleaned := strings.ToLower(strings.TrimSpace(input))
+	parts := strings.Split(cleaned, " ")
+
+	fmt.Println("Cleaned:", cleaned)
+	fmt.Println("First word:", parts[0])
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## Tek Dosyada HTTP API
+
+İki dil burada en çok ayrışıyor. Go'nun `net/http`'i routing'i halleder ama
+SQLite erişimi, bir ORM, istek doğrulama ve OpenAPI/Swagger dokümantasyonu
+her biri ayrı bir modül seçip içe aktarmak demek. Tulpar'da `wings` ve `orm`
+zaten runtime'ın bir parçası.
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+```tulpar
+import "wings";
+import "orm";
+
+orm_open("app.db");
+define_model("users", {
+    "id":   "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "name": "TEXT NOT NULL",
+    "age":  "INTEGER"
+});
+
+func list_users(req)  { return ok(orm_all("users")); }
+func create_user(req) { return created(orm_create("users", req.json)); }
+
+get("/users",  "list_users");
+post("/users", "create_user");
+body_schema({"name": "str", "age?": "int"});   // hatalı body → otomatik 422
+
+serve(8080);   // + Swagger UI, /openapi.json, /metrics, /healthz
+```
+
+  </TulparTabItem>
+  <TulparTabItem label="Go">
+
+```go
+package main
+
+import (
+	"encoding/json"
+	"net/http"
+)
+
+type User struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+	Age  int    `json:"age"`
+}
+
+var users []User
+var nextID = 1
+
+func usersHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		json.NewEncoder(w).Encode(users)
+	case http.MethodPost:
+		var u User
+		json.NewDecoder(r.Body).Decode(&u)
+		u.ID = nextID
+		nextID++
+		users = append(users, u)
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(u)
+	}
+}
+
+func main() {
+	http.HandleFunc("/users", usersHandler)
+	http.ListenAndServe(":8080", nil)
+	// SQLite, bir ORM, OpenAPI/Swagger dokümantasyonu ve /metrics standart
+	// kütüphanede yok — her biri ayrı bir modül gerektirir (database/sql +
+	// bir driver, gorm, swaggo, prometheus/client_golang, ...).
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+Tulpar tarafının rehberli, üç uygulamalı versiyonu için
+[Wings Öğreticisi](/tr/ecosystem/wings-tutorial/)'ne, ham HTTP verimi
+karşılaştırması için [Benchmark Sonuçları](/tr/ecosystem/benchmarks/)'na
+bakın.

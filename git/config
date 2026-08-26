@@ -1,0 +1,74 @@
+[core]
+	repositoryformatversion = 0
+	filemode = false
+	bare = false
+	logallrefupdates = true
+	ignorecase = true
+[remote "origin"]
+	url = https://github.com/hamer1818/tulpar-lang-web.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "master"]
+	remote = origin
+	merge = refs/heads/master
+	vscode-merge-base = origin/master
+	vscode-merge-base = origin/master
+[branch "feat/install-scripts"]
+	remote = origin
+	merge = refs/heads/feat/install-scripts
+	vscode-merge-base = origin/master
+[branch "fix/install-ps1-speedup"]
+	remote = origin
+	merge = refs/heads/fix/install-ps1-speedup
+	vscode-merge-base = origin/master
+[branch "feat/install-ascii-art"]
+	remote = origin
+	merge = refs/heads/feat/install-ascii-art
+	vscode-merge-base = origin/master
+[branch "docs/fill-feature-gaps"]
+	vscode-merge-base = origin/master
+	remote = origin
+	merge = refs/heads/docs/fill-feature-gaps
+[branch "feat/web-playground-interpreter"]
+	vscode-merge-base = origin/master
+	remote = origin
+	merge = refs/heads/feat/web-playground-interpreter
+[branch "feat/install-scripts-runtime-lib"]
+	remote = origin
+	merge = refs/heads/feat/install-scripts-runtime-lib
+	vscode-merge-base = origin/master
+[branch "chore/shrink-installer-art"]
+	vscode-merge-base = origin/master
+	remote = origin
+	merge = refs/heads/chore/shrink-installer-art
+[branch "fix/install-verify-and-dll-bundling"]
+	vscode-merge-base = origin/chore/shrink-installer-art
+	remote = origin
+	merge = refs/heads/fix/install-verify-and-dll-bundling
+[branch "fix/install-ps-bcl-sha256"]
+	vscode-merge-base = origin/master
+	remote = origin
+	merge = refs/heads/fix/install-ps-bcl-sha256
+[branch "fix/install-bundle-openssl-dlls"]
+	remote = origin
+	merge = refs/heads/fix/install-bundle-openssl-dlls
+	vscode-merge-base = origin/fix/install-ps-bcl-sha256
+[branch "docs/language-reference"]
+	vscode-merge-base = origin/fix/install-bundle-openssl-dlls
+	remote = origin
+	merge = refs/heads/docs/language-reference
+[branch "feat/install-detect-existing"]
+	remote = origin
+	merge = refs/heads/feat/install-detect-existing
+	vscode-merge-base = origin/master
+[branch "feat/install-scripts-gpg-verify"]
+	remote = origin
+	merge = refs/heads/feat/install-scripts-gpg-verify
+	vscode-merge-base = origin/master
+[branch "ci/auto-enable-automerge"]
+	vscode-merge-base = origin/master
+	remote = origin
+	merge = refs/heads/ci/auto-enable-automerge
+[branch "docs/debugger-and-tls"]
+	remote = origin
+	merge = refs/heads/docs/debugger-and-tls
+	vscode-merge-base = origin/master

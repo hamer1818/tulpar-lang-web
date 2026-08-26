@@ -1,0 +1,78 @@
+---
+title: Games in the Browser
+description: Ten small games written in TulparLang, compiled to WebAssembly, with source you can read in both English and Turkish.
+---
+
+import { CardGrid, LinkCard, Card } from '@astrojs/starlight/components';
+
+Ten small games written in **TulparLang** and compiled to **WebAssembly** — they
+run in your browser, no install. Every game has **three levels**; clear all three
+and you win. And you can read each game's source in **both English and Turkish**:
+every TulparLang built-in has a name in both languages, so `player(...)` and
+`oyuncu(...)`, `on_hit(...)` and `carpisinca(...)` are the same call.
+
+<CardGrid>
+  <LinkCard title="▶ Play all games" href="/oyunlar/" target="_blank"
+    description="The full collection, with a per-game source viewer (EN / TR)." />
+</CardGrid>
+
+## How they're made
+
+The games sit on **`arcade`** — a tiny preset engine (itself written in
+TulparLang, on top of the `tame` raylib bindings). You don't write the loop,
+physics, collision or drawing; you place blocks and register callbacks, so a
+whole game is ~100 lines:
+
+```tulpar
+import "arcade";
+
+func setup() {
+    clear_entities();
+    player(300, 220, 24, 24, BLUE);      // arrows / WASD ready
+    item(80, 80, 18, 18, GOLD);
+}
+
+func collect() { kill(other()); score_add(10); }
+
+scene(640, 480, "Collect");
+on_start(setup);
+on_hit(TAG_PLAYER, TAG_ITEM, collect);   // tag-based collision
+play();                                   // loop + draw + collision, all managed
+```
+
+Levels are just a setup function each — `level(1, l1); level(2, l2); …` — and
+`next_level()` advances when a level's win condition is met. Score carries across
+levels; clearing the last one shows the win screen.
+
+## The games
+
+<CardGrid>
+  <LinkCard title="🦘 Jump" href="/oyunlar/jump.html" target="_blank"
+    description="Platformer — climb the platforms to the gold target. Levels: easy → zigzag climb → narrow platforms + a moving obstacle." />
+  <LinkCard title="💰 Collect" href="/oyunlar/collect.html" target="_blank"
+    description="Top-down — grab every yellow, avoid the red. Levels: 3 items / 1 enemy → 5 / 2 → 6 / 3 fast." />
+  <LinkCard title="🎯 Shooter" href="/oyunlar/shooter.html" target="_blank"
+    description="Shoot the falling reds to hit the target score. Levels: 30 → 60 → 100 as the tempo rises." />
+  <LinkCard title="🐍 Snake" href="/oyunlar/snake.html" target="_blank"
+    description="Eat food, don't hit yourself. Levels: slow → fast → fastest + obstacle walls." />
+  <LinkCard title="🧱 Breakout" href="/oyunlar/breakout.html" target="_blank"
+    description="Paddle and ball — break every brick. Levels: flat wall → pyramid → gapped wall + faster ball." />
+  <LinkCard title="👾 Space Invaders" href="/oyunlar/invaders.html" target="_blank"
+    description="Clear the fleet. Levels: 3×5 slow → 4×6 fast → 4×7 and the fleet shoots back." />
+  <LinkCard title="🗝️ Maze" href="/oyunlar/maze.html" target="_blank"
+    description="Collect the keys, dodge the patrols. Levels: open → symmetric / 2 patrols → dense / 3 fast patrols." />
+  <LinkCard title="🚗 Crossing" href="/oyunlar/crossing.html" target="_blank"
+    description="Reach the gold strip through flowing traffic. Levels: 3 lanes slow → 4 → 5 fast." />
+  <LinkCard title="🐦 Flight" href="/oyunlar/flight.html" target="_blank"
+    description="Flap through the pipe gaps. Levels: wide gap / slow → narrow / fast → narrowest / fastest." />
+  <LinkCard title="☄️ Meteor Dodge" href="/oyunlar/dodge.html" target="_blank"
+    description="Survive the timer while dodging meteors. Levels: 12s / sparse → 15s / dense → 18s / densest." />
+</CardGrid>
+
+## Read the source, in either language
+
+Open **[the games page](/oyunlar/)** and hit **“See code”** on any game — a
+side-by-side viewer shows the exact TulparLang source in Turkish and English.
+It's the same program compiled the same way; only the identifiers and strings
+differ. That's the point: TulparLang reads naturally to a Turkish or an English
+speaker.

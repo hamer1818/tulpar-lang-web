@@ -1,0 +1,3 @@
+0000000000000000000000000000000000000000 1b12ae9e51846716b4da74d6b0d10db2a337a56b Hamza ORTATEPE <hortatepe2002@gmail.com> 1777807509 +0300	branch: Created from HEAD
+1b12ae9e51846716b4da74d6b0d10db2a337a56b 716b3f46e17f3a1ab111504b385313f8a5d4d58e Hamza ORTATEPE <hortatepe2002@gmail.com> 1777807551 +0300	cherry-pick: docs: paket yoneticisi ornegine pkg.tulparlang.dev kayit URL'sini koy
+716b3f46e17f3a1ab111504b385313f8a5d4d58e 155db96dee03f6cad0aff75088d69d5982bb846f Hamza ORTATEPE <hortatepe2002@gmail.com> 1777807567 +0300	commit: install: AOT runtime kutuphanesini de indir ve binary yanina yerlestir

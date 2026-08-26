@@ -1,0 +1,2 @@
+0000000000000000000000000000000000000000 b8399108e0a93dd91d719724fde24682c6fd5da1 Hamza ORTATEPE <hortatepe2002@gmail.com> 1778404718 +0300	branch: Created from HEAD
+b8399108e0a93dd91d719724fde24682c6fd5da1 86c5c556d2beb364c95ea4f96e77c3fdb4d62dbe Hamza ORTATEPE <hortatepe2002@gmail.com> 1778404739 +0300	commit: feat(install): opt-in GPG verification of SHA256SUMS manifest

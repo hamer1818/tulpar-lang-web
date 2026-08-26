@@ -1,20 +1,46 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
+	site: 'https://tulparlang.dev',
 	integrations: [
 		starlight({
-			title: 'Tulpar Language',
-			favicon: './public/favicon.svg',
+			title: {
+				en: 'Tulpar Language',
+				tr: 'Tulpar Dili',
+			},
+			favicon: '/favicon.svg',
 
 			customCss: ['./src/styles/custom.css'],
 			logo: {
 				src: './src/assets/icon.png',
 			},
+			lastUpdated: true,
+			editLink: {
+				baseUrl: 'https://github.com/hamer1818/tulpar-lang-web/edit/master/',
+			},
+			social: [
+				{ icon: 'github', label: 'GitHub', href: 'https://github.com/hamer1818/TulparLang' },
+			],
+			components: {
+				Head: './src/components/Head.astro',
+			},
+			// PNG fallback for browsers that don't render SVG favicons, plus
+			// sitewide OG/Twitter card defaults (Starlight merges page-level
+			// `head` frontmatter on top of this, so individual pages can still
+			// override title/description/image).
 			head: [
 				{ tag: 'link', attrs: { rel: 'icon', href: '/icon.png', type: 'image/png' } },
+				{ tag: 'meta', attrs: { property: 'og:type', content: 'website' } },
+				{ tag: 'meta', attrs: { property: 'og:site_name', content: 'Tulpar Language' } },
+				{ tag: 'meta', attrs: { property: 'og:image', content: 'https://tulparlang.dev/og-image.png' } },
+				{ tag: 'meta', attrs: { property: 'og:image:width', content: '1200' } },
+				{ tag: 'meta', attrs: { property: 'og:image:height', content: '630' } },
+				{ tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
+				{ tag: 'meta', attrs: { name: 'twitter:image', content: 'https://tulparlang.dev/og-image.png' } },
 			],
 			defaultLocale: 'root',
 			locales: {
@@ -50,6 +76,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Getting Started', translations: { tr: 'Başlarken' }, slug: 'intro/getting-started' },
 						{ label: 'Installation', translations: { tr: 'Kurulum' }, slug: 'intro/installation' },
+						{ label: 'FAQ', translations: { tr: 'Sıkça Sorulan Sorular' }, slug: 'faq' },
 					],
 				},
 				{
@@ -64,7 +91,10 @@ export default defineConfig({
 						{ label: 'Modules & Imports', translations: { tr: 'Modüller ve İçe Aktarma' }, slug: 'guide/modules' },
 						{ label: 'Error Handling', translations: { tr: 'Hata Yönetimi' }, slug: 'guide/error-handling' },
 						{ label: 'Concurrency (Threads)', translations: { tr: 'Eşzamanlılık (Thread\'ler)' }, slug: 'guide/concurrency' },
+						{ label: 'Async / Await', translations: { tr: 'Async / Await' }, slug: 'guide/async' },
 						{ label: 'Tulpar vs C', translations: { tr: 'Tulpar ve C Karşılaştırma' }, slug: 'guide/tulpar-vs-c' },
+						{ label: 'Tulpar vs Go', translations: { tr: 'Tulpar ve Go Karşılaştırma' }, slug: 'guide/tulpar-vs-go' },
+						{ label: 'Tulpar vs Rust', translations: { tr: 'Tulpar ve Rust Karşılaştırma' }, slug: 'guide/tulpar-vs-rust' },
 					],
 				},
 				{
@@ -87,21 +117,14 @@ export default defineConfig({
 					items: [
 						{ label: 'Package Manager', translations: { tr: 'Paket Yöneticisi' }, slug: 'ecosystem/package-manager' },
 						{ label: 'HTTP Server (Wings)', translations: { tr: 'HTTP Sunucusu (Wings)' }, slug: 'ecosystem/http-server' },
+						{ label: 'Wings Tutorial', translations: { tr: 'Wings Öğreticisi' }, slug: 'ecosystem/wings-tutorial' },
+						{ label: 'Wings Cookbook', translations: { tr: 'Wings Tarif Kitabı' }, slug: 'ecosystem/wings-cookbook' },
 						{ label: 'TulparAPI (FastAPI-style)', translations: { tr: 'TulparAPI (FastAPI tarzı)' }, slug: 'ecosystem/tulpar-api' },
 						{ label: 'HTTP Client', translations: { tr: 'HTTP İstemcisi' }, slug: 'ecosystem/http-client' },
 						{ label: 'ORM (lib/orm)', translations: { tr: 'ORM (lib/orm)' }, slug: 'ecosystem/orm' },
 						{ label: 'Tooling — LSP / Formatter / VS Code', translations: { tr: 'Araçlar — LSP / Formatter / VS Code' }, slug: 'ecosystem/tooling' },
 						{ label: 'Debugger (DAP + VS Code F5)', translations: { tr: 'Hata Ayıklayıcı (DAP + VS Code F5)' }, slug: 'ecosystem/debugger' },
 						{ label: 'Benchmarks', translations: { tr: 'Benchmark Sonuçları' }, slug: 'ecosystem/benchmarks' },
-					],
-				},
-				{
-					label: 'Game Development',
-					translations: { tr: 'Oyun Geliştirme' },
-					items: [
-						{ label: 'Overview (tame / arcade / scene3d)', translations: { tr: 'Genel Bakış (tame / arcade / scene3d)' }, slug: 'games/overview' },
-						{ label: '3D Engine (scene3d)', translations: { tr: '3B Motor (scene3d)' }, slug: 'games/scene3d' },
-						{ label: '3D Scene Editor', translations: { tr: '3B Sahne Editörü' }, slug: 'games/editor' },
 					],
 				},
 				{
@@ -113,14 +136,30 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'Game Development',
+					translations: { tr: 'Oyun Geliştirme' },
+					items: [
+						{ label: 'Quick Start', translations: { tr: 'Hızlı Başlangıç' }, slug: 'games/quickstart' },
+						{ label: 'Overview (tame / arcade / scene3d)', translations: { tr: 'Genel Bakış (tame / arcade / scene3d)' }, slug: 'games/overview' },
+						{ label: 'Tame — Graphics Library', translations: { tr: 'Tame — Grafik Kütüphanesi' }, slug: 'games/tame' },
+						{ label: 'Arcade — Preset Engine', translations: { tr: 'Arcade — Preset Motoru' }, slug: 'games/arcade' },
+						{ label: '3D Engine (scene3d)', translations: { tr: '3B Motor (scene3d)' }, slug: 'games/scene3d' },
+						{ label: '3D Scene Editor', translations: { tr: '3B Sahne Editörü' }, slug: 'games/editor' },
+						{ label: 'Building & Publishing', translations: { tr: 'Derleme ve Yayınlama' }, slug: 'games/build' },
+					],
+				},
+				{
 					label: 'Examples',
 					translations: { tr: 'Örnekler' },
 					items: [
 						{ label: 'Basic Examples', translations: { tr: 'Temel Örnekler' }, slug: 'examples/basic' },
 						{ label: 'Advanced Examples', translations: { tr: 'İleri Seviye Örnekler' }, slug: 'examples/advanced' },
+						{ label: 'Games in the Browser', translations: { tr: 'Tarayıcıda Oyunlar' }, slug: 'examples/games' },
+						{ label: '🎮 Play Games in Browser', translations: { tr: '🎮 Tarayıcıda Oyun Oyna' }, link: '/oyunlar/', attrs: { target: '_blank' } },
 					],
 				},
 			],
 		}),
+		sitemap(),
 	],
 });

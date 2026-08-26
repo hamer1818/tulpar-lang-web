@@ -1,0 +1,148 @@
+---
+title: Tame — 2D Grafik Kütüphanesi
+description: Tüm tame API'si — pencere ve döngü, çizim, renkler, klavye / fare / dokunma / gamepad / eğim girdisi, ses, dokular, fontlar, kalıcı kayıt ve yardımcılar.
+---
+
+`import "tame"` size vendor'lanmış raylib üzerine ince ve hızlı bir sarmalayıcı
+verir: pencere, kare döngüsü, çizim, girdi, ses ve kalıcı kayıt. Yalnız programınız
+`"tame"` import ettiğinde ya da bir `tm_*` yerleşiğini çağırdığında linklenir —
+sıradan programlar bağımlılıksız kalır.
+
+Aşağıdaki her fonksiyonun bir **İngilizce** adı ve (varsa) bir **Türkçe** takma adı
+vardır; ikisi de aynı çağrıya derlenir.
+
+## Pencere ve döngü
+
+| Fonksiyon | Açıklama |
+| --- | --- |
+| `window(w, h, title): bool` | Pencere aç (döngüden önce bir kez). |
+| `running(): bool` | Kullanıcı pencereyi kapatınca `false` — döngü koşulunuz. |
+| `close_window()` | Pencereyi kapat (döngüden sonra). |
+| `set_fps(n)` | Hedef kare hızı (ör. `60`). |
+| `frame_begin()` / `frame_end()` | Çizdiğiniz her şeyi bir kareye sarar. |
+| `frame_time(): float` | Son kareden bu yana saniye (delta — hareketi bununla çarpın). |
+| `elapsed(): float` | Program başından bu yana saniye (monotonik). |
+| `get_fps(): int` | Ölçülen güncel kare hızı. |
+| `screen_width(): int` / `screen_height(): int` | Piksel cinsinden pencere boyutu. |
+
+Mobil/tam ekran ölçekleme için **görüntü sınırları** gerçek çizilebilir alanı verir:
+`view_left()` / `view_right()` / `view_top()` / `view_bottom()` (TR:
+`ekran_sol/sag/ust/alt`). Ekran-üstü kontrolleri bunlara demirleyin ki Android'de
+gerçek ekran kenarlarına yaslansınlar.
+
+## Çizim ve renkler
+
+| Fonksiyon | Açıklama |
+| --- | --- |
+| `clear(color)` | Tüm kareyi bir renkle doldur. |
+| `rect(x, y, w, h, color)` | Dolu dikdörtgen. |
+| `rect_lines(x, y, w, h, color)` | Dikdörtgen çerçevesi. |
+| `circle(x, y, radius, color)` | Dolu daire. |
+| `line(x1, y1, x2, y2, color)` | Çizgi. |
+| `triangle(x1, y1, x2, y2, x3, y3, color)` | Dolu üçgen. |
+| `pixel(x, y, color)` | Tek piksel. |
+| `text(s, x, y, size, color)` | Metin çiz (varsayılan font). |
+| `measure_text(s, size): int` | Bir metnin piksel genişliği — ortalamak için. |
+
+Renkler paketlenmiş tam sayılardır. Onları **`rgb(r, g, b)`** ya da
+**`rgba(r, g, b, a)`** ile üretin (her kanal `0–255`) veya adlandırılmış bir sabit
+kullanın:
+
+```
+WHITE  BLACK  GRAY  DARKGRAY  RED  MAROON  GREEN  LIME  BLUE  SKYBLUE
+GOLD  YELLOW  ORANGE  PINK  PURPLE  VIOLET  BEIGE  BROWN  MAGENTA
+```
+
+## Girdi
+
+**Klavye** — tuş adları `"LEFT"`, `"RIGHT"`, `"UP"`, `"DOWN"`, `"SPACE"`,
+`"ENTER"`, `"ESCAPE"`, `"A"`…`"Z"` gibi string'lerdir:
+
+| Fonksiyon | Açıklama |
+| --- | --- |
+| `key_down(k): bool` | Şu an basılı mı. |
+| `key_pressed(k): bool` | Bu karede basıldı (tek tetik). |
+| `key_released(k): bool` | Bu karede bırakıldı. |
+
+**Fare:** `mouse_x()`, `mouse_y()`, `mouse_down(b)`, `mouse_pressed(b)`,
+`mouse_wheel()`.
+
+**Dokunma** (mobil) — TR: `dokunma_*`:
+
+| Fonksiyon | Açıklama |
+| --- | --- |
+| `touch_count(): int` | Aktif parmak sayısı. |
+| `touch_x(i): int` / `touch_y(i): int` | `i`. parmağın konumu. |
+| `touched(): bool` | Herhangi bir parmak basılı mı? |
+
+Android'de dokunma koordinatları zaten oyununuzun dünya uzayına ölçeklenir; yani
+`touch_x/y` çizdiğinizle hizalıdır.
+
+**Gamepad:** `gamepad_available(id)`, `gamepad_name(id)`, `gamepad_down(id, btn)`,
+`gamepad_pressed(id, btn)`, `gamepad_axis(id, axis)`.
+
+**Eğim / ivmeölçer** (Android) — TR: `egim_*`:
+`accel_x()`, `accel_y()`, `accel_z()`, `accel_available()`. Masaüstü sıfır döner,
+o yüzden `accel_available()` ile koruyun.
+
+## Ses
+
+Dosya gerektirmez — anında bir ton sentezleyin:
+
+| Fonksiyon | Açıklama |
+| --- | --- |
+| `beep(freq, ms)` (TR `bip`) | `freq` Hz sinüsü `ms` milisaniye çalar. |
+| `tone(freq, ms, vol)` (TR `ton`) | Aynısı ama `0..1` ses seviyesiyle — efektlerin altında arka plan müziği için. |
+
+Ya da gerçek ses dosyaları yükleyin:
+
+| Fonksiyon | Açıklama |
+| --- | --- |
+| `load_sound(path): int` / `play_sound(s)` / `stop_sound(s)` / `sound_volume(s, v)` | Kısa ses efektleri. |
+| `load_music(path): int` / `play_music(m)` / `stop_music(m)` / `music_volume(m, v)` | Akış müziği. |
+
+## Dokular ve fontlar
+
+| Fonksiyon | Açıklama |
+| --- | --- |
+| `load_texture(path): int` | Bir resim yükle. |
+| `draw_texture(tex, x, y)` | Çiz. |
+| `draw_texture_ex(tex, x, y, scale, rotation)` | Ölçekli / döndürülmüş. |
+| `texture_width(tex): int` / `texture_height(tex): int` | Boyutlar. |
+| `unload_texture(tex)` | Serbest bırak. |
+| `load_font(path, size): int` | Bir TTF'yi bir boyutta yükle. |
+| `text_font(f, s, x, y, size, color)` | Yüklü fontla metin çiz. |
+
+Varlıkları web/Android derlemesine `TULPAR_WEB_ASSETS=<dizin>` ile gömün — bkz.
+[Derleme ve Yayınlama](/tr/games/build/).
+
+## Kalıcı kayıt ve cihaz
+
+| Fonksiyon | Açıklama |
+| --- | --- |
+| `save_data(name, text): bool` (TR `kayit_yaz`) | Küçük bir string yaz (rekorlar, ayarlar). Her platformda açılışlar arası kalıcıdır. |
+| `load_data(name): str` (TR `kayit_oku`) | Geri oku (`""` yoksa). |
+| `vibrate(ms)` (TR `titret`) | Android'de haptik titreşim; başka yerde no-op. |
+| `screenshot(path)` | Güncel karenin PNG'sini kaydet. |
+
+`name` düz bir dosya adıdır (ör. `"skor"`), yol değil. Android'de otomatik olarak
+uygulamanın özel depolamasına eşlenir.
+
+## Yardımcılar
+
+| Fonksiyon | Açıklama |
+| --- | --- |
+| `rgb(r, g, b): int` / `rgba(r, g, b, a): int` | Renk üret. |
+| `rect_overlap(x1,y1,w1,h1, x2,y2,w2,h2): bool` | AABB çakışma testi. |
+| `point_in_rect(px, py, x, y, w, h): bool` | Nokta-dikdörtgen testi. |
+| `clamp(v, lo, hi)` | Bir değeri aralığa kırp. |
+| `run(update_fn, draw_fn)` | Kolaylık döngüsü: pencere kapanana dek her kare `update` sonra `draw` çağırır (web animasyon karesini de sürer). |
+
+:::note[`%` operatörü yok]
+TulparLang'de `%` yoktur; tam sayılar için `mod(a, b)`, ondalıklar için
+`fmod(a, b)` kullanın. `/` operatörü, operandlardan biri float ise float bölmedir —
+tam sayı bölmesi gerektiğinde `toInt(...)` ile sarın.
+:::
+
+Döngü yazmadan entity, çarpışma ve bölümlere hazır mısınız?
+[Arcade preset motoru](/tr/games/arcade/)na geçin.

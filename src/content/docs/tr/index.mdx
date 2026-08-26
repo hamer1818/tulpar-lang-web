@@ -1,36 +1,375 @@
 ---
-title: Tulpar Dili
-description: UTF-8 desteği, JSON-yerel sözdizimi ve kapsamlı yerleşik kütüphanelere sahip modern, C tabanlı bir programlama dili.
+title: LLVM Tabanlı, AOT-Derlenen Programlama Dili
+description: Python kadar kolay, C kadar hızlı. LLVM 18 arka uçlu, statik tipli, AOT-derlenen bir dil — HTTP / JSON / SQLite / OpenAPI yığını runtime'a gömülü, framework gerekmez.
 template: splash
-hero:
-  tagline: UTF-8 desteği, JSON-yerel sözdizimi ve kapsamlı yerleşik kütüphanelere sahip modern, C tabanlı bir programlama dili.
-  image:
-    file: ../../../assets/icon.png
-  actions:
-    - text: Başlarken
-      link: /tr/intro/getting-started/
-      icon: right-arrow
-      variant: primary
-    - text: GitHub'da Görüntüle
-      link: https://github.com/hamer1818/TulparLang
-      icon: external
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import TulparPlayground from '../../../components/TulparPlayground.astro';
+import CodeTabs from '../../../components/CodeTabs.astro';
 
-## Temel Özellikler
+<div class="tlp-landing">
 
-<CardGrid stagger>
-	<Card title="UTF-8 Desteği" icon="pencil">
-		Değişken isimleri, metinler ve tanımlayıcılar için tam Unicode desteği.
-	</Card>
-	<Card title="JSON-Yerel Sözdizimi" icon="add-document">
-		Hash tablosu uygulaması ile birinci sınıf JSON nesne desteği.
-	</Card>
-	<Card title="Tip Güvenliği" icon="setting">
-		Tip güvenli diziler ve özel yapı (struct) tanımları ile güçlü tipleme.
-	</Card>
-	<Card title="Çapraz Platform" icon="open-book">
-		Bir kez yaz, her yerde çalıştır (Linux, macOS, Windows).
-	</Card>
-</CardGrid>
+<section class="tlp-hero">
+	<div class="tlp-hero__content">
+		<span class="tlp-eyebrow">AOT · LLVM 18 · piller dahil</span>
+		<h1 class="tlp-hero__title">Her şeyi kur<span>gereksiz kod olmadan</span></h1>
+		<p class="tlp-hero__lead">
+			Python kadar kolay, C kadar hızlı. Statik tipli, AOT-derlenen bir dil —
+			HTTP, JSON, SQLite, bir ORM, OpenAPI ve C FFI doğrudan runtime'a gömülü.
+			<code>npm install</code> yok, pip yok, bağımlılık yok.
+		</p>
+		<div class="tlp-hero__actions">
+			<a class="tlp-btn tlp-btn--primary" href="/tr/intro/getting-started/">Başlarken →</a>
+			<a class="tlp-btn tlp-btn--ghost" href="#playground">Playground'u Aç</a>
+			<a class="tlp-btn tlp-btn--minimal" href="https://github.com/hamer1818/TulparLang">GitHub'da Gör ↗</a>
+		</div>
+		<div class="tlp-hero__stats">
+			<div class="tlp-hero__stat"><b>~36k</b><span>istek/sn · Tulpar pool</span></div>
+			<div class="tlp-hero__stat"><b>~1.9× C</b><span>fib · yerel AOT</span></div>
+			<div class="tlp-hero__stat"><b>0</b><span>dış bağımlılık</span></div>
+		</div>
+	</div>
+
+	<CodeTabs
+		liveText="çalışıyor"
+		tabs={[
+			{
+				icon: "🌐",
+				label: "Web API",
+				file: "api.tpr",
+				code: `içe_aktar "wings";
+içe_aktar "orm";
+
+orm_open("app.db");
+define_model("users", {
+    "name": "TEXT", "age": "INTEGER"
+});
+
+fonk kullanicilari_listele(req) {
+    döndür ok(orm_all("users"));
+}
+
+get("/users", "kullanicilari_listele");
+serve(8080);  // + Swagger UI, /openapi.json`
+			},
+			{
+				icon: "🛠️",
+				label: "CLI Aracı",
+				file: "sayac.tpr",
+				code: `// Tüm .tpr dosyalarındaki satırları say
+değişken toplam = 0;
+değişken dosyalar = list_dir(".");
+
+için (str d içinde dosyalar) {
+    eğer (endsWith(d, ".tpr")) {
+        str icerik = read_file(d);
+        değişken satirlar = split(icerik, "\\n");
+        tamsayi n = length(satirlar);
+        print(d + ": " + toString(n));
+        toplam = toplam + n;
+    }
+}
+
+print("Toplam: " + toString(toplam));`
+			},
+			{
+				icon: "📊",
+				label: "Veri İşleme",
+				file: "istatistik.tpr",
+				code: `// Bir veri setinden istatistik hesapla
+fonk ortalama(array veri) {
+    ondalik toplam = 0.0;
+    için (değişken x içinde veri) {
+        toplam = toplam + toFloat(x);
+    }
+    döndür toplam / toFloat(length(veri));
+}
+
+değişken notlar = [85, 92, 78, 96, 88, 73, 91];
+ondalik ort = ortalama(notlar);
+print("Ortalama: " + toString(ort));
+print("En yüksek: " + toString(max(notlar)));
+print("En düşük:  " + toString(min(notlar)));`
+			}
+		]}
+	/>
+</section>
+
+<section class="tlp-section">
+	<div class="tlp-section__head">
+		<span class="tlp-eyebrow">Benchmark</span>
+		<h2>Önemli yerde hızlı</h2>
+		<p><code>GET /</code> → JSON <code>{"{"}"hello":"world"{"}"}</code> throughput'u, keep-alive, native yük aracı, tek 14-vCPU kutu. Her runtime kendi önerilen tek-process yapılandırmasında.</p>
+	</div>
+
+	<div class="tlp-bench">
+		<div class="tlp-bench__row tlp-bench__row--hero">
+			<div class="tlp-bench__name">Tulpar<span class="tlp-bench__tag">pool · 14c</span></div>
+			<div class="tlp-bench__track"><div class="tlp-bench__fill" style="--val:100%"></div></div>
+			<div class="tlp-bench__val">~36k istek/sn</div>
+		</div>
+		<div class="tlp-bench__row">
+			<div class="tlp-bench__name">Go net/http<span class="tlp-bench__tag">14c</span></div>
+			<div class="tlp-bench__track"><div class="tlp-bench__fill" style="--val:83%"></div></div>
+			<div class="tlp-bench__val">~30k istek/sn</div>
+		</div>
+		<div class="tlp-bench__row">
+			<div class="tlp-bench__name">Node.js http<span class="tlp-bench__tag">1c</span></div>
+			<div class="tlp-bench__track"><div class="tlp-bench__fill" style="--val:24%"></div></div>
+			<div class="tlp-bench__val">~8.7k istek/sn</div>
+		</div>
+		<div class="tlp-bench__row">
+			<div class="tlp-bench__name">FastAPI<span class="tlp-bench__tag">uvicorn · 1w</span></div>
+			<div class="tlp-bench__track"><div class="tlp-bench__fill" style="--val:10%"></div></div>
+			<div class="tlp-bench__val">~3.5k istek/sn</div>
+		</div>
+		<p class="tlp-bench__note">
+			Üstelik latency düşük kalıyor: <strong>p50 0.32 ms</strong> (Tulpar) vs 3.3 ms (FastAPI). CPU'da fib, <strong>1.37× C</strong> (Windows / MinGW) ile <strong>~1.9× C</strong> (Linux gcc -O2) arasında — her iki ortamda da Rust/Go sınıfı. <a href="/tr/ecosystem/benchmarks/">Tüm metodoloji →</a>
+		</p>
+	</div>
+</section>
+
+<section class="tlp-section">
+	<div class="tlp-section__head">
+		<span class="tlp-eyebrow">Neden Tulpar?</span>
+		<h2>Hepsi bir arada vs. parça parça kurulum</h2>
+		<p>Başka yerde dört paket gerektiren şey, Tulpar'da tek binary ile gelir.</p>
+	</div>
+
+	<div class="tlp-compare">
+		<table>
+			<thead>
+				<tr>
+					<th></th>
+					<th class="tlp-compare__highlight">TulparLang</th>
+					<th>Go</th>
+					<th>Python (FastAPI)</th>
+					<th>Node.js</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>HTTP Sunucusu</td>
+					<td class="tlp-compare__highlight">✅ Gömülü</td>
+					<td>✅ Gömülü</td>
+					<td>❌ pip install</td>
+					<td>⚠️ Minimal</td>
+				</tr>
+				<tr>
+					<td>ORM / Veritabanı</td>
+					<td class="tlp-compare__highlight">✅ Gömülü</td>
+					<td>❌ go get gorm</td>
+					<td>❌ pip install</td>
+					<td>❌ npm install</td>
+				</tr>
+				<tr>
+					<td>OpenAPI / Swagger</td>
+					<td class="tlp-compare__highlight">✅ Otomatik</td>
+					<td>❌ Harici araç</td>
+					<td>⚠️ Eklenti</td>
+					<td>❌ npm install</td>
+				</tr>
+				<tr>
+					<td>Dağıtım</td>
+					<td class="tlp-compare__highlight">Tek binary</td>
+					<td>Tek binary</td>
+					<td>Container gerekli</td>
+					<td>Container gerekli</td>
+				</tr>
+				<tr>
+					<td>Bellek Modeli</td>
+					<td class="tlp-compare__highlight">ARC</td>
+					<td>GC (stop-the-world)</td>
+					<td>GC + refcount</td>
+					<td>GC (V8)</td>
+				</tr>
+				<tr>
+					<td>Throughput</td>
+					<td class="tlp-compare__highlight">~36k istek/sn</td>
+					<td>~30k istek/sn</td>
+					<td>~3.5k istek/sn</td>
+					<td>~8.7k istek/sn</td>
+				</tr>
+				<tr>
+					<td>C Interop (FFI)</td>
+					<td class="tlp-compare__highlight">✅ Native</td>
+					<td>✅ cgo</td>
+					<td>⚠️ ctypes / cffi</td>
+					<td>⚠️ node-ffi</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+</section>
+
+<section class="tlp-section">
+	<div class="tlp-section__head">
+		<span class="tlp-eyebrow">Özellikler</span>
+		<h2>İhtiyacın olan her şey zaten kutuda</h2>
+	</div>
+
+	<div class="tlp-bento tlp-bento--expanded">
+		<div class="tlp-bento__item tlp-bento__item--feature">
+			<div class="tlp-bento__icon">🚀</div>
+			<h3>İlk günden API</h3>
+			<p><code>import "wings"</code>, bir route kaydet, <code>serve(8080)</code> — bitti. Otomatik OpenAPI 3.0 + Swagger UI, şema doğrulama (geçersiz gövde → 422), bağımlılık enjeksiyonu, yapılandırılmış log, keep-alive, ayrıca bedava gelen yerleşik <code>/healthz</code> ve <code>/metrics</code> (JSON + Prometheus).</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">⚡</div>
+			<h3>C sınıfı performans</h3>
+			<p>LLVM 18 ile bağımsız yerel binary'ye AOT-derlenir. Üretimde VM yükü yok.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">🗄️</div>
+			<h3>SQLite + ORM</h3>
+			<p>Gömülü SQLite ve Active-Record ORM — bağlanacak sürücü yok.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">🧬</div>
+			<h3>ARC Bellek Yönetimi</h3>
+			<p>Otomatik Referans Sayımı (ARC) — güvenli, öngörülebilir bellek, stop-the-world GC duraksaması yok.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">🔗</div>
+			<h3>C FFI</h3>
+			<p>Herhangi bir C kütüphanesini doğrudan çağır. Sıfır sarmalayıcı yükü ile native interop.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">🧰</div>
+			<h3>Editör araçları</h3>
+			<p>Gömülü LSP, <code>tulpar fmt</code> ve bir VS Code eklentisi.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">📦</div>
+			<h3>Paket yöneticisi</h3>
+			<p><code>tulpar pkg</code>, <code>tulpar.toml</code> manifesti ve kilit dosyası.</p>
+		</div>
+		<div class="tlp-bento__item">
+			<div class="tlp-bento__icon">🌍</div>
+			<h3>UTF-8 · TR + EN</h3>
+			<p>Tam Türkçe anahtar kelime desteği (<code>fonk</code>, <code>eğer</code>, <code>döndür</code>) ve iki dilli derleyici tanıları.</p>
+		</div>
+	</div>
+</section>
+
+<section class="tlp-section">
+	<div class="tlp-section__head">
+		<span class="tlp-eyebrow">Kendi dilinde kod yaz</span>
+		<h2>İngilizce ve Türkçe — aynı derleyici, aynı binary</h2>
+		<p>Her anahtar kelimenin Türkçe karşılığı var. Serbestçe karıştır veya tamamen tek dilde yaz. Derleyici tanıları yerel ayarını takip eder.</p>
+	</div>
+
+	<div class="tlp-bilingual">
+		<div class="tlp-bilingual__pane">
+			<div class="tlp-bilingual__header">
+				<span class="tlp-bilingual__lang">EN</span>
+				<span class="tlp-bilingual__filename">greet.tpr</span>
+				<span class="tlp-bilingual__badge">English syntax</span>
+			</div>
+			<pre class="tlp-bilingual__code" set:html={`<code><span class="kw">import</span> <span class="str">"wings"</span>;\n\n<span class="kw">func</span> <span class="fn">greet</span>(req) {\n    <span class="kw">var</span> name = req.json[<span class="str">"name"</span>];\n    <span class="kw">if</span> (name == <span class="str">""</span>) { <span class="kw">return</span> <span class="fn">bad_request</span>(<span class="str">"Name required"</span>); }\n    <span class="kw">return</span> <span class="fn">ok</span>(<span class="str">"Hello, "</span> + name + <span class="str">"!"</span>);\n}\n\n<span class="fn">post</span>(<span class="str">"/greet"</span>, <span class="str">"greet"</span>);\n<span class="fn">serve</span>(<span class="num">8080</span>);</code>`} />
+		</div>
+		<div class="tlp-bilingual__pane">
+			<div class="tlp-bilingual__header">
+				<span class="tlp-bilingual__lang">TR</span>
+				<span class="tlp-bilingual__filename">selamla.tpr</span>
+				<span class="tlp-bilingual__badge">Türkçe sözdizimi</span>
+			</div>
+			<pre class="tlp-bilingual__code" set:html={`<code><span class="kw">içe_aktar</span> <span class="str">"wings"</span>;\n\n<span class="kw">fonk</span> <span class="fn">selamla</span>(req) {\n    <span class="kw">değişken</span> isim = req.json[<span class="str">"name"</span>];\n    <span class="kw">eğer</span> (isim == <span class="str">""</span>) { <span class="kw">döndür</span> <span class="fn">bad_request</span>(<span class="str">"İsim gerekli"</span>); }\n    <span class="kw">döndür</span> <span class="fn">ok</span>(<span class="str">"Merhaba, "</span> + isim + <span class="str">"!"</span>);\n}\n\n<span class="fn">post</span>(<span class="str">"/selamla"</span>, <span class="str">"selamla"</span>);\n<span class="fn">serve</span>(<span class="num">8080</span>);</code>`} />
+		</div>
+	</div>
+</section>
+
+<section id="playground" class="tlp-section">
+	<div class="tlp-section__head">
+		<span class="tlp-eyebrow">Canlı playground</span>
+		<h2>Doğrudan tarayıcında dene</h2>
+		<p>Kurulum yok, ayar yok. Kodu düzenle ve <strong>Çalıştır</strong>'a bas — sayfa içinde çalışır.</p>
+	</div>
+
+	<TulparPlayground
+		title="merhaba.tpr — özyineleme + ternary operatörü"
+		rows={9}
+		code={`// Klasik özyineleme, tek satır dallar:  cond ? a : b
+func fib(int n) {
+    return n < 2 ? n : fib(n - 1) + fib(n - 2);
+}
+
+for (int i = 0; i < 12; i++) {
+    print("fib(" + toString(i) + ") = " + toString(fib(i)));
+}`}
+	/>
+</section>
+
+<section class="tlp-section">
+	<div class="tlp-section__head">
+		<span class="tlp-eyebrow">Sıfırdan bir REST API'ye</span>
+		<h2>Tek dosyada kalıcı bir CRUD servisi</h2>
+		<p>Model, route'lar ve sunucu tek bir <code>.tpr</code> dosyasında — <code>/healthz</code>, <code>/metrics</code>, <code>/openapi.json</code> ve bir Swagger UI ile bedava açılır.</p>
+	</div>
+
+```tulpar
+import "wings";
+import "orm";
+
+orm_open("app.db");
+define_model("users", {
+    "id":   "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "name": "TEXT NOT NULL",
+    "age":  "INTEGER"
+});
+
+func list_users(req)  { return ok(orm_all("users")); }
+
+func create_user(req) {
+    int id = orm_create("users", req.json);
+    return created(orm_find("users", id));
+}
+
+get("/users",  "list_users");
+post("/users", "create_user");
+body_schema({"name": "str", "age?": "int"});   // geçersiz gövde → otomatik 422
+
+serve(8080);
+```
+
+Rehberli halini mi istersin? **[Wings Öğreticisi](/tr/ecosystem/wings-tutorial/)**
+üç tam uygulamayı adım adım kurar — REST, token auth ve SQLite destekli bir API.
+
+</section>
+
+<div class="tlp-cta">
+	## Tek komutla hazır
+
+	<p>Araç zincirini kur, ilk programını derleyip çalıştır. macOS, Linux ve Windows.</p>
+
+	<div class="tlp-cta__cmd"><span class="tlp-prompt">$ </span>curl -fsSL https://tulparlang.dev/install.sh | bash</div>
+
+	<div style="margin-top:1.5rem">
+		[Başlarken →](/tr/intro/getting-started/) &nbsp;·&nbsp; [Kurulum](/tr/intro/installation/) &nbsp;·&nbsp; [Dil Rehberi](/tr/guide/syntax/)
+	</div>
+</div>
+
+</div>
+
+<script>
+{`
+// Scroll-triggered benchmark bar animation
+if (typeof IntersectionObserver !== 'undefined') {
+	const bench = document.querySelector('.tlp-bench');
+	if (bench) {
+		const observer = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((entry) => {
+					if (entry.isIntersecting) {
+						bench.classList.add('is-visible');
+						observer.disconnect();
+					}
+				});
+			},
+			{ threshold: 0.3 }
+		);
+		observer.observe(bench);
+	}
+}
+`}
+</script>

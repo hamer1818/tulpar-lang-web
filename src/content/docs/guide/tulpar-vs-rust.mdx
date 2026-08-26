@@ -1,0 +1,185 @@
+---
+title: Tulpar vs Rust
+description: Compare the Tulpar language with Rust side by side — syntax, arrays, strings, and building an HTTP API without reaching for third-party crates.
+---
+
+import TulparPlayground from '../../../components/TulparPlayground.astro';
+
+import TulparTabs from '../../../components/TulparTabs.astro';
+import TulparTabItem from '../../../components/TulparTabItem.astro';
+
+Rust and Tulpar both compile ahead-of-time to native binaries with no VM or
+GC pause, and both land in the same performance class. The trade-off is
+memory model versus batteries: Rust's ownership/borrow checker buys memory
+safety without a garbage collector, but its standard library ships no HTTP
+server, no SQLite bindings, and no ORM — those come from crates like
+`actix-web`, `sqlx`, and `diesel`. Tulpar has no borrow checker, but `wings`
+and `orm` are already part of the runtime.
+
+## JSON vs Struct Usage
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+<TulparPlayground
+	title="JSON vs Struct Usage"
+	code={String.raw`arrayJson user = {"name": "Hamza", "age": 27};
+
+print(user.name);
+print(user.age);`}
+/>
+
+  </TulparTabItem>
+  <TulparTabItem label="Rust">
+
+```rust
+struct User {
+    name: String,
+    age: u32,
+}
+
+fn main() {
+    let user = User { name: "Hamza".to_string(), age: 27 };
+
+    println!("{}", user.name);
+    println!("{}", user.age);
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## Arrays and Loops
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+<TulparPlayground
+	title="Arrays and Loops"
+	code={String.raw`arrayInt numbers = [1, 2, 3, 4, 5];
+
+for (int i = 0; i < length(numbers); i++) {
+    print("Item:", numbers[i]);
+}`}
+/>
+
+  </TulparTabItem>
+  <TulparTabItem label="Rust">
+
+```rust
+fn main() {
+    let numbers = [1, 2, 3, 4, 5];
+
+    for n in numbers.iter() {
+        println!("Item: {}", n);
+    }
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## String Processing
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+<TulparPlayground
+	title="String Processing"
+	code={String.raw`str input = "  TULPAR LANG  ";
+
+str cleaned = lower(trim(input));
+arrayStr parts = split(cleaned, " ");
+
+print("Cleaned:", cleaned);
+print("First word:", parts[0]);`}
+/>
+
+  </TulparTabItem>
+  <TulparTabItem label="Rust">
+
+```rust
+fn main() {
+    let input = "  TULPAR LANG  ";
+
+    let cleaned = input.trim().to_lowercase();
+    let parts: Vec<&str> = cleaned.split(' ').collect();
+
+    println!("Cleaned: {}", cleaned);
+    println!("First word: {}", parts[0]);
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## HTTP API in One File
+
+Rust has no standard-library HTTP server, so even a minimal API reaches for
+a crate like `actix-web` plus `serde` for JSON — and SQLite, an ORM, and
+OpenAPI docs are each further crates (`sqlx`/`diesel`, `utoipa`, ...) on top
+of that. Tulpar's `wings` and `orm` ship in the compiler's own runtime.
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+```tulpar
+import "wings";
+import "orm";
+
+orm_open("app.db");
+define_model("users", {
+    "id":   "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "name": "TEXT NOT NULL",
+    "age":  "INTEGER"
+});
+
+func list_users(req)  { return ok(orm_all("users")); }
+func create_user(req) { return created(orm_create("users", req.json)); }
+
+get("/users",  "list_users");
+post("/users", "create_user");
+body_schema({"name": "str", "age?": "int"});   // invalid body → 422, automatically
+
+serve(8080);   // + Swagger UI, /openapi.json, /metrics, /healthz
+```
+
+  </TulparTabItem>
+  <TulparTabItem label="Rust">
+
+```rust
+use actix_web::{get, web, App, HttpServer, HttpResponse};
+use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
+
+#[derive(Serialize, Deserialize, Clone)]
+struct User {
+    id: u32,
+    name: String,
+    age: u32,
+}
+
+#[get("/users")]
+async fn list_users(users: web::Data<Mutex<Vec<User>>>) -> HttpResponse {
+    HttpResponse::Ok().json(&*users.lock().unwrap())
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    let users = web::Data::new(Mutex::new(Vec::<User>::new()));
+
+    HttpServer::new(move || App::new().app_data(users.clone()).service(list_users))
+        .bind(("0.0.0.0", 8080))?
+        .run()
+        .await
+    // SQLite/ORM (sqlx or diesel), OpenAPI (utoipa), and /metrics
+    // (actix-web-prom) are all separate crates layered on top of this.
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+See [Wings Tutorial](/ecosystem/wings-tutorial/) for the guided, three-app
+version of the Tulpar side, and [Benchmarks](/ecosystem/benchmarks/) for how
+the two compare on raw HTTP throughput.

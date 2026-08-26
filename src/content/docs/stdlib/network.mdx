@@ -26,6 +26,19 @@ socket_close(client);
 socket_close(sockfd);
 ```
 
+### Peer address
+
+`socket_peer_ip(fd)` returns the remote (client) IP of an accepted
+connection — handy for logging or rate limiting. It returns `""` on error
+(bad fd, unconnected socket). The Wings/router stack already exposes it on the
+request as `_request["remote_addr"]`.
+
+```tulpar
+int client = socket_accept(sockfd);
+str ip = socket_peer_ip(client);   // e.g. "127.0.0.1"
+print("connection from", ip);
+```
+
 ## Client
 
 You can create a TCP client using `socket_create`, `socket_connect`, `socket_send`, and `socket_receive`.

@@ -1,0 +1,105 @@
+---
+title: Building & Publishing Games
+description: Compile and ship a TulparLang game to desktop, the web (WebAssembly) or Android (APK / AAB) — including the one-command tulpar.toml config build.
+---
+
+One game module compiles to **desktop**, the **web** and **Android** from the same
+source. `import "arcade"` and `import "tame"` behave identically on all three.
+
+## Desktop
+
+```bash
+tulpar game.tpr                 # compile + run
+tulpar build game.tpr mygame    # standalone native binary
+```
+
+## Web (WebAssembly)
+
+```bash
+tulpar build --target=web game.tpr out/game
+# → out/game.html + out/game.js + out/game.wasm
+```
+
+- Serve the files over HTTP (not `file://`).
+- The **output directory must already exist**.
+- The output name is a *base*: `.html` / `.js` / `.wasm` are appended (a trailing
+  `.html` you write yourself is stripped, so `-o game` and `-o game.html` are
+  equivalent).
+- Every web build gets a **touch gamepad** for free — it appears only on
+  touch devices and drives the game through synthetic key events, so arcade games
+  are mobile-playable in the browser with no extra work.
+
+## Android (APK / AAB)
+
+```bash
+tulpar build --target=android game.tpr out   # APK staging (arm64-v8a + x86_64)
+tulpar build --apk game.tpr out              # → signed APK in one step
+tulpar build --aab game.tpr out              # → Play Store bundle
+```
+
+From one compiled module the driver emits both device (`arm64-v8a`) and emulator
+(`x86_64`) objects and links them into a NativeActivity app. `import "arcade"` runs
+on-device unchanged, and its on-screen D-pad / joystick / action button make every
+arcade game touch-playable.
+
+The app's **identity** (package name, label, icon, orientation, version) comes from
+`[android]` in `tulpar.toml` — see below.
+
+## Assets
+
+Bundle images, fonts and audio into the web/Android build:
+
+```bash
+TULPAR_WEB_ASSETS=./assets tulpar build --apk game.tpr out
+```
+
+Files are embedded so `load_texture("player.png")`, `load_font(...)`,
+`load_sound(...)` resolve at runtime on every platform.
+
+## The `tulpar.toml` config build
+
+Instead of remembering a long command, describe the target once in `tulpar.toml`
+and run a bare `tulpar build`:
+
+```toml
+name = "my-arcade"
+version = "1.0.0"
+
+[android]
+package = "dev.example.arcade"
+name = "My Arcade"
+icon = "icon.png"
+orientation = "landscape"
+version_code = "1"
+version_name = "1.0"
+
+[build]
+target = "apk"                 # desktop | web | android | apk | aab
+entry  = "game.tpr"
+output = "my-arcade"
+```
+
+```bash
+tulpar build          # reads [build] → produces the signed my-arcade.apk
+```
+
+CLI flags still win (`tulpar build --target=web game.tpr` overrides the manifest),
+so the config is a default, not a lock.
+
+:::caution[One malformed line fails the whole manifest]
+`tulpar.toml` is parsed strictly — a single unrecognized line makes the parser fall
+back to defaults (and a mobile build silently produces a generic app). Top-level
+keys are only `name`, `version`, `description`, `author`, `license`; keep other
+settings inside their `[section]`. Don't put inline comments on value lines.
+:::
+
+## Publishing
+
+- **Web:** copy the `.html` / `.js` / `.wasm` (and any `.data`) to any static host
+  and serve over HTTP.
+- **Android:** the signed `.apk` installs directly (`adb install -r app.apk`); the
+  `.aab` is what you upload to the Google Play Console. Bump `version_code` in
+  `[android]` for every release.
+
+The shipped [Tulpar Arcade](/oyunlar/) app — 13 games in one launcher — is built
+exactly this way.

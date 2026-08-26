@@ -1,0 +1,104 @@
+---
+title: Oyunları Derleme ve Yayınlama
+description: Bir TulparLang oyununu masaüstüne, web'e (WebAssembly) veya Android'e (APK / AAB) derleyip yayınlayın — tek-komutluk tulpar.toml config build dahil.
+---
+
+Tek bir oyun modülü aynı kaynaktan **masaüstü**, **web** ve **Android**'e derlenir.
+`import "arcade"` ve `import "tame"` üçünde de aynı davranır.
+
+## Masaüstü
+
+```bash
+tulpar oyun.tpr                 # derle + çalıştır
+tulpar build oyun.tpr oyunum    # bağımsız yerel ikili
+```
+
+## Web (WebAssembly)
+
+```bash
+tulpar build --target=web oyun.tpr cikti/oyun
+# → cikti/oyun.html + cikti/oyun.js + cikti/oyun.wasm
+```
+
+- Dosyaları HTTP üzerinden servis edin (`file://` değil).
+- **Çıktı dizini önceden var olmalı.**
+- Çıktı adı bir *taban*tır: `.html` / `.js` / `.wasm` eklenir (kendi yazdığınız
+  sondaki `.html` soyulur, yani `-o oyun` ve `-o oyun.html` eşdeğerdir).
+- Her web derlemesi bedava bir **dokunmatik gamepad** alır — yalnız dokunmatik
+  cihazlarda görünür ve oyunu sentetik tuş olaylarıyla sürer, yani arcade oyunları
+  tarayıcıda ekstra iş olmadan mobil-oynanır.
+
+## Android (APK / AAB)
+
+```bash
+tulpar build --target=android oyun.tpr cikti   # APK hazırlığı (arm64-v8a + x86_64)
+tulpar build --apk oyun.tpr cikti              # → tek adımda imzalı APK
+tulpar build --aab oyun.tpr cikti              # → Play Store paketi
+```
+
+Sürücü tek derlenmiş modülden hem cihaz (`arm64-v8a`) hem emülatör (`x86_64`)
+nesnelerini üretir ve bir NativeActivity uygulamasına linkler. `import "arcade"`
+cihazda değişmeden çalışır ve ekran-üstü D-pad / joystick / aksiyon butonu her
+arcade oyununu dokunmatik oynanır kılar.
+
+Uygulamanın **kimliği** (paket adı, etiket, ikon, yön, sürüm) `tulpar.toml`'daki
+`[android]`'den gelir — aşağı bakın.
+
+## Varlıklar
+
+Resim, font ve sesleri web/Android derlemesine gömün:
+
+```bash
+TULPAR_WEB_ASSETS=./varliklar tulpar build --apk oyun.tpr cikti
+```
+
+Dosyalar gömülür, böylece `load_texture("oyuncu.png")`, `load_font(...)`,
+`load_sound(...)` her platformda çalışma anında çözülür.
+
+## `tulpar.toml` config build
+
+Uzun bir komut ezberlemek yerine hedefi `tulpar.toml`'da bir kez tanımlayın ve
+argümansız `tulpar build` çalıştırın:
+
+```toml
+name = "benim-arcade"
+version = "1.0.0"
+
+[android]
+package = "dev.ornek.arcade"
+name = "Benim Arcade'im"
+icon = "icon.png"
+orientation = "landscape"
+version_code = "1"
+version_name = "1.0"
+
+[build]
+target = "apk"                 # desktop | web | android | apk | aab
+entry  = "oyun.tpr"
+output = "benim-arcade"
+```
+
+```bash
+tulpar build          # [build]'i okur → imzalı benim-arcade.apk üretir
+```
+
+CLI bayrakları hâlâ kazanır (`tulpar build --target=web oyun.tpr` manifesti ezer),
+yani config bir varsayılandır, kilit değil.
+
+:::caution[Tek hatalı satır tüm manifesti düşürür]
+`tulpar.toml` katı ayrıştırılır — tek tanınmayan satır ayrıştırıcıyı varsayılana
+düşürür (ve bir mobil derleme sessizce generic bir uygulama üretir). Üst-seviye
+anahtarlar yalnız `name`, `version`, `description`, `author`, `license`'tır; diğer
+ayarları kendi `[bölüm]`ünde tutun. Değer satırlarına satır-içi yorum koymayın.
+:::
+
+## Yayınlama
+
+- **Web:** `.html` / `.js` / `.wasm` (ve varsa `.data`) dosyalarını herhangi bir
+  statik host'a kopyalayıp HTTP üzerinden servis edin.
+- **Android:** imzalı `.apk` doğrudan kurulur (`adb install -r app.apk`); `.aab`
+  ise Google Play Console'a yüklediğinizdir. Her yayında `[android]`'deki
+  `version_code`'u artırın.
+
+Yayınlanan [Tulpar Arcade](/oyunlar/) uygulaması — tek launcher'da 13 oyun — tam
+olarak böyle derlenir.

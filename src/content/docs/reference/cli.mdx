@@ -1,6 +1,6 @@
 ---
 title: CLI Reference
-description: Every tulpar command and flag — run modes, REPL, build, fmt, pkg, lsp, version, update, help.
+description: Every tulpar command and flag — run, build, fmt, pkg, lsp, version, update, help.
 ---
 
 The `tulpar` binary bundles the compiler, runtime, package manager,
@@ -11,22 +11,20 @@ Started](/intro/getting-started/) guide is a friendlier introduction.
 ## Running a program
 
 ```bash
-tulpar <source.tpr>          # AOT compile + run (default; native speed)
-tulpar --vm <source.tpr>     # Bytecode VM (instant startup, dev loop)
-tulpar --legacy <source.tpr> # Tree-walk interpreter (slowest, debug)
+tulpar <source.tpr>          # AOT compile + run (native speed)
 ```
 
-Without flags, `tulpar` runs the AOT pipeline (LLVM → native binary →
-exec). If the AOT path fails for an *infrastructure* reason (clang
-missing, runtime archive not linkable) it silently falls back to the
-VM. Source-level errors (parse, codegen) **do not** fall back — you
-get the diagnostic once, not twice.
+`tulpar` is **AOT-only** (since v3.0.0): it runs the LLVM pipeline
+(LLVM → native binary → exec) and there is no other execution path. An
+AOT failure (parse, codegen, or a missing clang / runtime archive) is a
+hard error — so "it ran" always means the native binary ran.
 
-| Mode | Startup | Throughput | When to use |
-|------|---------|------------|-------------|
-| AOT (default) | ~200 ms cold | Native (≈ Rust) | Production, benchmarks, deploys |
-| `--vm` | < 10 ms | ~3-5× slower than AOT | Edit-run loop, CI test runs |
-| `--legacy` | < 10 ms | ~50× slower | Last-resort debugging only |
+:::note[Removed in v3.0.0]
+The bytecode **VM** and the **REPL** were removed; Tulpar follows the
+C/Rust/Go model of a single AOT path. `--vm` / `--run` are accepted but
+**ignored with a warning**; `--repl` / `-i` print a removal notice and
+exit. The earlier `--legacy` tree-walk interpreter is also gone.
+:::
 
 ## Building a standalone binary
 
@@ -45,22 +43,6 @@ tulpar build hello.tpr           # produces ./hello (./hello.exe on Windows)
 tulpar build hello.tpr myapp     # produces ./myapp
 TULPAR_AOT_NOCACHE=1 tulpar build hello.tpr   # always recompile
 ```
-
-## REPL
-
-```bash
-tulpar --repl       # or: tulpar -i
-```
-
-Interactive read-eval-print loop, backed by the legacy interpreter
-(starts instantly, runs each line as you press enter). Built-in
-commands inside the REPL:
-
-| Command | Effect |
-|---------|--------|
-| `exit`, `quit` | Leave the REPL |
-| `help` | Show the REPL command list |
-| `clear` | Clear the screen |
 
 ## Formatter
 
@@ -124,13 +106,73 @@ Prints the same command reference shown when you run `tulpar` with no
 arguments. Output language follows the system locale (Turkish on TR
 locale, English elsewhere).
 
+## Compiler flags
+
+These modify a single `tulpar` / `tulpar build` invocation. Everything
+else on the command line is the program and its arguments.
+
+| Flag | Effect |
+|------|--------|
+| `--aot` | Explicit AOT compile (already the default — there is no other backend) |
+| `--build` | Emit a standalone binary instead of compile-and-run (same as the `build` subcommand) |
+| `--debug` / `-g` | Forward `-g` to the `clang++` link so debug sections survive into the binary |
+| `--no-typecheck` | Skip the `[typecheck]` pre-pass for this run |
+| `--strict` | Promote type-checker warnings to hard errors |
+| `--vm` / `--run` | **Ignored with a warning** — Tulpar is AOT-only, there is no VM |
+| `--repl` / `-i` | **Removed** — prints a notice and exits (no interpreter) |
+
 ## Environment variables
+
+Grouped by subsystem. Booleans treat any non-empty value as "on" unless
+noted.
+
+#### Diagnostics & locale
 
 | Variable | Effect |
 |----------|--------|
-| `TULPAR_LANG=tr` / `en` | Override the system locale for diagnostic messages |
+| `LANG` / `LC_ALL` / `LC_MESSAGES` | CLI + diagnostic language: a value containing `tr` selects Turkish, anything else English (Windows falls back to the OS UI locale) |
+
+#### Type checking
+
+| Variable | Effect |
+|----------|--------|
+| `TULPAR_NO_TYPECHECK=1` | Disable the `[typecheck]` pre-pass on every `run` / `build` |
+| `TULPAR_STRICT=1` | Treat type-checker warnings as errors (`=0` forces it off) |
+
+#### AOT / compiler
+
+| Variable | Effect |
+|----------|--------|
 | `TULPAR_AOT_NOCACHE=1` | Force `tulpar build` to recompile even if the output is up-to-date |
-| `TULPAR_INSTALL_DIR` | Where `install.sh` puts the binary (default: `~/.local/bin`) |
+| `TULPAR_AOT_TIME=1` | Print a per-phase wallclock breakdown of the AOT pipeline |
+| `TULPAR_AOT_EMIT_LL=1` | Also emit the LLVM `.ll` IR alongside the object file |
+| `TULPAR_AOT_LINK_FLAGS=…` | Extra flags forwarded to the final `clang++` link (e.g. `-fsanitize=address` to leak-check against an ASan-built runtime) |
+| `TULPAR_RUNTIME_DIR=path` | Extra directory to search for `libtulpar_runtime.a` |
+
+#### Async / HTTP runtime
+
+| Variable | Effect |
+|----------|--------|
+| `TULPAR_HTTP_POOL=N` | Worker-pool size for the [async HTTP client](/ecosystem/http-client/) (default 4) |
+| `TULPAR_HTTP_MAX_BODY=bytes` | Max inbound HTTP request body for Wings servers (default 16 MiB) |
+| `TULPAR_HTTP_QUIET=1` | Silence HTTP client request logging |
+| `TULPAR_WINGS_HOST=127.0.0.1` | Bind host for Wings listeners — loopback avoids LAN firewall prompts |
+
+#### TLS
+
+| Variable | Effect |
+|----------|--------|
+| `TULPAR_CA_BUNDLE=path` | Custom CA bundle (PEM) for HTTPS certificate verification |
+| `TULPAR_TLS_INSECURE=1` | Skip certificate verification — dev / self-signed only |
+
+#### Package manager & tooling
+
+| Variable | Effect |
+|----------|--------|
+| `TULPAR_REGISTRY=url` | Override the package registry base URL |
+| `TULPAR_PUBLISH_TOKEN=token` | Auth token for `tulpar pkg publish` |
+| `TULPAR_LSP_DEBUG=1` | Verbose logging from the `--lsp` language server |
+| `TULPAR_INSTALL_DIR=path` | Where `install.sh` puts the binary (default `~/.local/bin`) |
 
 ## Exit codes
 

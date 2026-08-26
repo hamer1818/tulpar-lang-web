@@ -1,0 +1,4 @@
+# Shell installers must use LF or `curl | bash` breaks on Linux/macOS.
+*.sh text eol=lf
+# PowerShell installer keeps CRLF (Windows convention).
+*.ps1 text eol=crlf

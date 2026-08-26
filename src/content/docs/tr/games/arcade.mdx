@@ -1,0 +1,248 @@
+---
+title: Arcade — Preset Oyun Motoru
+description: Arcade preset motoru — entity'ler, hareket presetleri, çarpışmalar, fizik, bölümler, bölüm-başına yıldız ve rozetler, kontrol şemaları, efektler, çok-oyunlu launcher ve liderlik tabloları.
+---
+
+`import "arcade"`, [`tame`](/tr/games/tame/) üzerine kurulu bir preset motorudur.
+**Entity**, **çarpışma**, **bölüm** ve **skor** tanımlarsınız; motor döngüyü,
+fiziği, çarpışma dağıtımını, HUD'u, duraklat menüsünü, oyun-bitti ekranını,
+dokunmatik kontrolleri, yıldızları ve rozetleri yürütür. Oyunlar genelde 20–60
+satırdır. Her şey çift dillidir (Türkçe + İngilizce takma adlar).
+
+## Bir oyunun iskeleti
+
+```rust
+import "arcade";
+
+func setup() {
+    player(300, 220, 28, 28, BLUE);
+    item(120, 120, 20, 20, GOLD);
+}
+func on_pickup() { kill(other()); score_add(10); }
+
+scene(640, 480, "Oyunum");    // pencereyi aç
+on_start(setup);              // dünyayı kur (başta + her yeniden başlamada çalışır)
+on_hit(TAG_PLAYER, TAG_ITEM, on_pickup);
+play();                       // döngüyü motora bırak
+```
+
+| Çağrı | İngilizce | Amaç |
+| --- | --- | --- |
+| `sahne(w, h, title)` | `scene` | Pencereyi aç; `title` aynı zamanda rekor anahtarıdır. |
+| `baslangicta(fn)` | `on_start` | Dünyayı kur. Başta ve her yeniden başlamada / bölüm yüklemesinde çalışır. |
+| `her_kare(fn)` | `on_frame` | İsteğe bağlı kendi kare mantığınız (özel hareket, zamanlayıcı). |
+| `ciz_ustune(fn)` | `on_draw` | Entity'lerin üstüne isteğe bağlı ek çizim. |
+| `oyna()` | `play` | Oyunu çalıştır. |
+
+## Entity'ler
+
+Entity'ler bir **id** (bir handle — asla dizi indeksi olarak kullanmayın, hep
+motora geri verin) döndüren preset üreticilerle oluşturulur:
+
+| Üretici | İngilizce | Etiket + hareket |
+| --- | --- | --- |
+| `oyuncu(x,y,w,h,color)` | `player` | `TAG_PLAYER`, top-down (ok tuşları / dokunma) |
+| `oyuncu_p(x,y,w,h,color)` | `platformer` | `TAG_PLAYER`, yerçekimi + zıplama |
+| `dusman(x,y,w,h,color)` | `enemy` | `TAG_ENEMY`, otomatik hareketsiz |
+| `esya(x,y,w,h,color)` | `item` | `TAG_ITEM` |
+| `duvar(x,y,w,h,color)` | `wall` | `TAG_WALL` (katı) |
+| `mermi(x,y,w,h,color,vx,vy)` | `bullet` | `TAG_BULLET`, kendi hızıyla hareket |
+| `uret(x,y,w,h,color,tag,mv)` | `spawn` | Tamamen özel: etiket + hareket presetini seçin |
+
+Hareket presetleri: `MV_TOPDOWN`, `MV_PLATFORM`, `MV_VELOCITY`, `MV_NONE`.
+Etiketler: `TAG_PLAYER`, `TAG_ENEMY`, `TAG_ITEM`, `TAG_WALL`, `TAG_BULLET` (kendi
+etiketleriniz için `6+` küçük tam sayılar da kullanabilirsiniz).
+
+**Entity'leri değiştirme** (hepsi bir id alır):
+
+```
+hiz_ver(id, vx, vy)   konumla(id, x, y)   hiz_ayarla(id, s)
+renk_ata(id, c)       resim_ata(id, tex)  oldur(id)
+x_of(id)  y_of(id)  vx_of(id)  vy_of(id)  tag_al(id)  yasiyor(id)
+```
+
+İngilizce takma adlar: `set_vel`, `set_pos`, `move_speed`, `set_color`,
+`set_sprite`, `kill`, `get_x`, `get_y`, `get_vx`, `get_vy`, `tag_of`, `alive`.
+
+Sayma: `entity_sayisi()`, `canli_sayisi()` (`live_count`), `tag_sayisi(tag)`
+(`tag_count` — bir etiketli canlı entity'ler, ör. "tüm eşyalar toplandı mı?").
+
+## Çarpışmalar
+
+Bir etiket çifti için bir işleyici kaydedin; bu tür iki entity çakışınca motor onu
+çağırır:
+
+```rust
+func on_pickup() {
+    kill(other());        // dokunduğumuz eşya
+    score_add(10);
+}
+on_hit(TAG_PLAYER, TAG_ITEM, on_pickup);   // TR: carpisinca
+```
+
+İşleyici içinde `me()` (`ben`) ilk-etiket entity'si, `other()` (`oteki`)
+ikinci-etiket entity'sidir. `overlaps(a, b)` (`degiyor`) herhangi iki id'yi anında
+test eder.
+
+:::caution[İşleyici kuralları]
+Çarpışma işleyicileri motorun dinamik dağıtımıyla çağrılır. Her kuralı kurulumda
+**bir kez** kaydedin — aynı çifti iki kez kaydetmek iki kez tetikler. Rezerve
+kelimeler burada ısırır: `move` ve `don` (=return) birer anahtar kelimedir; bir
+değişkene `don` ya da `move` adı vermeyin.
+:::
+
+## Fizik (platformer)
+
+```rust
+gravity(1400);        // TR: yercekimi — aşağı yönlü ivme
+jump_power(640);      // TR: ziplama — zıplama hızı
+platformer(60, 300, 28, 28, BLUE);
+wall(0, 440, 640, 40, DARKGRAY);   // katı zemin
+```
+
+`TAG_WALL` entity'leri katıdır: motor çarpışmaları minimum-öteleme-vektörü itmesiyle
+çözer (üste in → yere basılı; yana çarp → engellenir). Varsayılan olarak entity'ler
+dünyaya kırpılır; `clamp_to_world(false)` bunu kapatır.
+
+## Skor, HUD ve oyun-bitti
+
+```
+score_add(n)   score()   set_score(n)         // skor_ekle / skor / skor_ata
+game_over()                                    // oyun_bitti — oyunu bitirir
+is_over()  is_won()                            // bitti_mi / kazandin_mi
+best_score()                                   // en_iyi_skor — sahne başlığına göre kalıcı
+hud("Altin: ")   hide_hud()                    // skor satırını özelleştir / gizle
+controls("Ok tuslari hareket, Space zipla")    // bilgi — bir ipucu şeridi
+```
+
+`game_over()` otomatik olarak ekran sarsıntısı, flash, kayıp tonu, haptik ve rekor
+kontrolü ekler — her oyun bu "juice"i bedava alır. Profesyonel oyun-bitti örtüsü
+(skor, en iyi, **Tekrar Oyna** / **Menü** butonları) motor tarafından çizilir.
+
+## Bölümler
+
+Çok bölümlü oyunlar motorun işidir — akışı asla yeniden yazmazsınız:
+
+```rust
+func setup() { player(300, 220, 28, 28, BLUE); }   // her bölümden önce çalışır
+func lvl1() { item(120, 120, 20, 20, GOLD); }
+func lvl2() { item(120, 120, 20, 20, GOLD); item(500, 340, 20, 20, GOLD); }
+
+func on_pickup() {
+    kill(other()); score_add(10);
+    if (tag_count(TAG_ITEM) == 0) { next_level(); }   // bolum_gec
+}
+
+on_start(setup);
+level(1, lvl1);           // TR: bolum
+level(2, lvl2);
+on_hit(TAG_PLAYER, TAG_ITEM, on_pickup);
+```
+
+`next_level()` ilerletir (son bölümde kazanır); **kare sonuna ertelenir**, yani bir
+çarpışma işleyicisinden çağırmak güvenlidir. Skor bölümler arası korunur.
+`level_no()` / `level_count()` (`bolum_no` / `bolum_sayisi`) ile sorgulayın.
+
+## Yıldızlar ve rozetler
+
+İlerleme otomatik ve kalıcıdır. **Launcher**'da (aşağı bakın) bölümlü bir oyuna
+dokununca bir **bölüm seçim ekranı** açılır; **her bölüm geçtiğiniz an kendi altın
+yıldızını** kazanır ve eski bölümler tekrar oynanabilir. Kartlar `tamamlanan / tüm`
+gösterir.
+
+Sonsuz oyunlar (hiç `level(...)` çağrısı yok) bunun yerine skor eşiği tanımlar:
+
+```rust
+star_goals(100, 400, 1000);   // TR: yildiz_hedef — en iyi skora göre 1★ / 2★ / 3★
+```
+
+Beş kalıcı **rozet** oynadıkça açılır: İlk Zafer, Rekortmen, Üç Yıldız, Koleksiyoncu
+(toplam 15 yıldız) ve Usta (30) — launcher menüsündeki kupa düğmesinin arkasında,
+yeni kazanınca bir toast ile. Hiçbir şey asla kilitli değildir.
+
+## Kontrol şemaları (mobil)
+
+Motor ekran-üstü dokunmatik kontrolleri otomatik çizer ve okur. Oyuna uyan şemayı
+`control_scheme(...)` (TR `kontrol_semasi`) ile seçin:
+
+| Değer | Gösterilen kontrol |
+| --- | --- |
+| `"joystick"` | Yüzen analog çubuk (8 yön) |
+| `"dpad"` / `"yon4"` | 4 yönlü D-pad |
+| `"yatay"` / `"horizontal"` | Yalnız ◀ ▶ butonları |
+| `"dikey"` / `"vertical"` | Yalnız ▲ ▼ butonları |
+| `"tilt"` / `"egim"` | İvmeölçerle yönlendirme |
+| `"none"` / `"yok"` | Kontrol yok (yalnız dokunma oyunları) |
+| *(ayarsız)* | Otomatik — oyunun okuduğu yönlerden çıkarılır |
+
+Hareketi motor üzerinden okuyun ki klavye **ve** dokunma birlikte çalışsın:
+`left()`, `right()`, `up()`, `down()` (TR `sol/sag/yukari/asagi`); aksiyonlar
+`action_pressed()` / `fire_pressed()` (`aksiyon_basildi` / `ates_basildi`);
+tüm-ekran dokunuşları `tapped()` (`dokunuldu`); jestler `swiped("left")`
+(`kaydirildi`). Masaüstü klavye değişmeden çalışmaya devam eder.
+
+## Efektler (juice)
+
+```
+explode(x, y, color)      // patlama — parçacık patlaması
+explode_n(x, y, color, n) // patlama_n — özel parçacık sayısıyla
+shake()                   // sars — kısa ekran sarsıntısı
+flash()                   // parla — beyaz flaş
+```
+
+`game_over()` zaten sarsıntı + flash + rekor kontrolü tetikler, yani sade bir oyun
+bile canlı hisseder.
+
+## Ses, haptik ve dil
+
+```
+sound_on(true)   music_on(true)   haptics_on(true)   show_fps(true)
+language("en")   // dil — "en" veya "tr"; motor HUD'unu yeniden çevirir
+```
+
+Bunlar yerleşik Ayarlar ekranında da açığa çıkar ve otomatik kalıcıdır.
+
+## Launcher — birçok oyun, tek uygulama
+
+Birkaç oyunu tek pencerede (ve tek APK'da) launcher ile toplayın:
+
+```rust
+import "arcade";
+// ... her oyun, scene()/play() ÇAĞIRMAYAN ama sahne/bölüm/çarpışma kaydeden
+//     0-arg bir setup fonksiyonu olarak ...
+
+launcher_title("BENIM ARCADE'IM");    // menu_basligi
+add_game("Topla", topla_setup);        // oyun_ekle
+add_game("Zipla", zipla_setup);
+scene(640, 480, "Arcade");
+launcher();                            // menü ↔ oyun ↔ ayarlar ↔ rozetler makinesi
+```
+
+`add_game(name, setup)` bir oyun kaydeder; `launcher()` duyarlı bir kart ızgarası,
+oyun-başına yıldızlar, ayarlar dişlisi ve rozet kupasını çizer ve oyunlar arası
+geçiş yapar. Yayınlanan **Tulpar Arcade** uygulaması tek launcher arkasında 13
+oyundur.
+
+## İsteğe bağlı: global liderlik tablosu
+
+```
+leaderboard_url("http://10.0.2.2:3000")   // skor_tablosu_url — bir Wings sunucusu
+player_name("Ada")                          // oyuncu_adi
+```
+
+Ayarlanınca her oyun oyun-bitişinde skorunu gönderir ve global top-5'i gösterir.
+Varsayılan kapalı (URL yok → ağ yok).
+
+## Pencere açmadan test
+
+Motorun headless adım API'si vardır — pencere açmadan simülasyonu bir tık ilerletir,
+regresyon testleri için idealdir:
+
+```rust
+step(0.016);   // TR: adim — bir kare fizik + çarpışma çalıştır
+```
+
+Arcade regresyon paketleri bölüm akışını, çarpışmaları, yıldızları ve rozetleri CI'da
+ekran olmadan böyle doğrular.
+
+Yayına hazır mısınız? [Derleme ve Yayınlama](/tr/games/build/)ya geçin.

@@ -1,0 +1,293 @@
+---
+title: Wings Öğreticisi — Sıfırdan Gerçek Bir Uygulamaya
+description: Gerçek Wings uygulamaları kuran üç aşamalı rehberli bir yürüyüş — REST Todo API'si, bağımlılık enjeksiyonlu token-auth API'si ve SQLite destekli kalıcı bir API. Her aşama çalıştırabileceğin tam bir programdır.
+---
+
+[Tarif Kitabı](/tr/ecosystem/wings-cookbook/) sana kopyala-yapıştır tarifler verir;
+[HTTP Sunucusu referansı](/tr/ecosystem/http-server/) her fonksiyonu listeler. Bu
+sayfa farklı: **rehberli bir öğretici** — üç tam uygulama kurarak dili *ve*
+framework'ü birlikte, her seferinde tek bir kavramla öğretir.
+
+Her aşama, deponun `examples/` klasöründe çalıştırılabilir bir dosya olarak gelir
+ve baştan sona Türkçe yorumludur. Bu sayfayla birlikte aç:
+
+| Aşama | Dosya | Ne öğretir |
+| ----- | ----- | ---------- |
+| 1 | `examples/wings_todo_api.tpr`  | REST yönlendirme, yol parametreleri, JSON gövde, doğrulama, query filtreleri, otomatik doküman |
+| 2 | `examples/wings_auth_api.tpr`  | Middleware, bağımlılık enjeksiyonu, route grupları, response model, status yardımcıları |
+| 3 | `examples/wings_notes_db.tpr`  | SQLite kalıcılık, güvenli SQL kurma, yeniden başlatmaya dayanma |
+
+:::tip[Wings'in çoğunu kapsayan üç gerçek]
+1. Bir route, handler'ı **isimle** bağlar: `get("/", "index")`.
+2. Handler `req` alır ve **düz bir nesne döndürür** → `200 application/json`.
+3. Sunucu `serve()` ile başlar (varsayılan port `8484`). `/docs` ve
+   `/openapi.json` bedava gelir.
+:::
+
+## 1. Aşama — REST Todo API'si
+
+Hâlâ *gerçek* bir API olan en küçük şeyle başla: beş REST fiili üzerinden sunulan,
+bellek içi bir todo listesi.
+
+```tulpar
+import "wings";
+
+array _todos  = [];
+int   _next_id = 1;
+
+func seed() {
+    push(_todos, {"id": 1, "title": "Tulpar'ı öğren",  "done": true});
+    push(_todos, {"id": 2, "title": "API yaz",         "done": false});
+    _next_id = 3;
+}
+seed();
+
+// id → _todos içindeki indeks (-1 = yok). İndeks döndürmek, referanssız bir
+// satırı "işaret etmenin" en sade yoludur.
+func find_index(int id) {
+    for (int i = 0; i < length(_todos); i++) {
+        if (_todos[i]["id"] == id) { return i; }
+    }
+    return -1;
+}
+
+func list_todos(req) {
+    return {"data": _todos, "count": length(_todos)};
+}
+
+func show_todo(req) {
+    int id  = toInt(req.params.id);          // params daima string → toInt
+    int idx = find_index(id);
+    if (idx < 0) { return not_found(t"todo {id} bulunamadı"); }
+    return ok(_todos[idx]);
+}
+
+func create_todo(req) {
+    json body = req.json;                    // gövde senin için parse edilir
+    json todo = {"id": _next_id, "title": body["title"], "done": false};
+    push(_todos, todo);
+    _next_id = _next_id + 1;
+    return created(todo);                    // 201 Created
+}
+
+get("/todos",      "list_todos");
+get("/todos/:id",  "show_todo");
+
+post("/todos",     "create_todo");
+body_schema({"title": "str", "done?": "bool"});   // geçersiz gövde → 422, handler'a hiç girmez
+
+serve();
+```
+
+Çalıştır ve dürt:
+
+```bash
+tulpar examples/wings_todo_api.tpr
+
+curl http://127.0.0.1:8484/todos
+curl -X POST http://127.0.0.1:8484/todos -d '{"title":"süt al"}'
+curl http://127.0.0.1:8484/todos/3
+curl -X POST http://127.0.0.1:8484/todos -d '{"hata":1}'   # → 422
+```
+
+### Ne oldu
+
+- **`req.params.id`** yoldaki `:id`'yi tutar — daima string olduğu için
+  `toInt(...)` uygula.
+- **`req.json`** istek gövdesidir, nesneye parse edilmiş hâlde.
+- **`body_schema({...})`** kendi *üstündeki* route'a bir şema takar. Eksik/yanlış
+  tipli alanı olan istek otomatik `422` alır; handler'ın yalnızca geçerli girdiyle
+  çalışır. `?` eki (`"done?"`) alanı opsiyonel işaretler.
+- **`ok` / `created` / `not_found`** doğru status'u koyan ince yardımcılardır.
+  Bir handler düz `200` için sadece `return {...}` da yapabilir.
+- Tam örnek `PUT`, `DELETE` ve `query_int` / `query_bool` ile `?done=&limit=`
+  filtrelemesini ekler. **http://127.0.0.1:8484/docs** adresinde, `body_schema`
+  tanımlarından üretilmiş otomatik bir Swagger UI bulursun.
+
+## 2. Aşama — Auth: giriş, token, korumalı uçlar
+
+Şimdi bazı route'ları gizli yap. Akış klasik: *giriş yap, token al, korumalı
+uçları onunla çağır.* Yükü üç yeni fikir taşır — **bağımlılık enjeksiyonu**,
+**route grupları** ve **response model**.
+
+```tulpar
+import "wings";
+
+array _users  = [];
+json  _tokens = {};        // "token-1" → user_id   (global dict bir depo olarak)
+
+func seed() {
+    push(_users, {"id": 1, "username": "ada",  "password": "1234", "role": "user"});
+    push(_users, {"id": 2, "username": "root", "password": "admin","role": "admin"});
+}
+seed();
+
+func user_by_id(int id) {
+    for (u in _users) { if (u["id"] == id) { return u; } }
+    return {};
+}
+
+// BAĞIMLILIK: handler'dan önce çalışır, bir değer üretir — ya da bir cevap
+// (burada 401) döndürerek kısa devre yapar, handler hiç çalışmaz.
+func current_user(req) {
+    str auth = req["headers"]["Authorization"];
+    str prefix = "Bearer ";
+    if (length(auth) <= length(prefix)) {
+        return unauthorized("Bearer token gerekli");
+    }
+    str token = substring(auth, length(prefix), length(auth));
+    if (_wings_has_key(_tokens, token) == false) {
+        return unauthorized("geçersiz token");
+    }
+    return user_by_id(_tokens[token]);       // dep("current_user") olur
+}
+
+func login(req) {
+    json body = req.json;
+    for (u in _users) {
+        if (u["username"] == body["username"] && u["password"] == body["password"]) {
+            str token = "token-" + toString(u["id"]);
+            _tokens[token] = u["id"];        // istekler arası kalıcı (nota bak)
+            return {"token": token, "role": u["role"]};
+        }
+    }
+    return unauthorized("hatalı kimlik");
+}
+
+func me(req)    { return ok(dep("current_user")); }
+
+func admin(req) {
+    json u = dep("current_user");
+    if (u["role"] != "admin") { return forbidden("sadece admin"); }
+    return ok({"secret": "fırlatma kodları 🔐"});
+}
+
+// group() bunları ortak bir "/api" öneki altında kaydeder.
+func protected_routes() {
+    get("/me", "me");
+    depends("current_user");                                   // üstteki route'a DI tak
+    response_model({"id": "int", "username": "str", "role": "str"});  // "password"i gizler
+
+    get("/admin", "admin");
+    depends("current_user");
+}
+
+post("/login", "login");
+body_schema({"username": "str", "password": "str"});
+
+group("/api", "protected_routes");   // → /api/me, /api/admin
+serve();
+```
+
+```bash
+tulpar examples/wings_auth_api.tpr
+
+# 1) giriş yap → token al
+curl -X POST http://127.0.0.1:8484/login -d '{"username":"ada","password":"1234"}'
+# 2) token yok → 401
+curl -i http://127.0.0.1:8484/api/me
+# 3) token'la → profil, password ALANI OLMADAN (response_model)
+curl http://127.0.0.1:8484/api/me -H "Authorization: Bearer token-1"
+# 4) ada admin değil → 403
+curl http://127.0.0.1:8484/api/admin -H "Authorization: Bearer token-1"
+```
+
+### Ne oldu
+
+- **`depends("current_user")`** bağımlılığı, hemen üstünde bildirilen route'a
+  takar. Bağımlılık önce çalışır; bir cevap döndürürse (status'lu bir dict, ör.
+  `unauthorized(...)`) handler atlanır. Aksi halde dönüş değeri saklanır ve
+  **`dep("current_user")`** ile okunur. Auth mantığı her handler'a kopyalanmak
+  yerine tek bir yerde durur.
+- **`group("/api", "protected_routes")`** fonksiyonunu çağırır ve kaydettiği her
+  route'un başına `/api` ekler. `depends` / `response_model` daima **en son
+  kaydedilen** route'a bağlanır, bu yüzden ilgili `get`/`post` satırının hemen
+  altına yazılırlar.
+- **`response_model({...})`** başarılı bir cevabı bildirilen alanlara indirger —
+  sırları (`password`) tel üzerinden uzak tutmanın temiz bir yolu.
+
+:::note[Global dict gerçekten kullanılabilir bir depodur]
+`_tokens[token] = uid` global bir nesneye yazar ve bu yazma **istekler arası
+korunur** — yani global bir dict, bellek içi oturum/token/cache tablosu olarak
+çalışır. (Diziler de aynı: `push(_global, x)` de kalıcıdır.) İstek-başına veri —
+istek nesnesi, yerel değişkenler, kurduğun cevap — her istekten sonra geri alınır,
+yani yalnızca bir global'e kök salmış yazmalar kalıcıdır.
+:::
+
+## 3. Aşama — SQLite ile kalıcılık
+
+Bellek içi durum, süreç sonlanınca buharlaşır. 3. aşama **aynı Todo API'sidir**,
+ama gerçek bir SQLite dosyasıyla desteklenir — sunucuyu yeniden başlat, verin hâlâ
+orada.
+
+```tulpar
+import "wings";
+
+// DB'yi bir kez aç; tablo yoksa oluştur. SQLite'ta bool yok, bu yüzden "done"
+// 0/1 olarak saklanır ve okurken geri çevrilir.
+int _db = db_open("notes.db");
+db_execute(_db, "CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0);");
+
+// Parametreli sorgu YOK — SQL'i birleştirerek kurarsın. Bu yüzden kullanıcı
+// metnini ESCAPE ETMEK ZORUNDASIN: tek tırnağı ikile ve sar. Sayıları toInt()
+// güvenli kılar; ham kullanıcı string'ini asla doğrudan gömme.
+func sql_str(str s) {
+    return "'" + replace(s, "'", "''") + "'";
+}
+
+func row_to_note(json row) {
+    return {"id": toInt(row["id"]), "title": row["title"], "done": (toInt(row["done"]) == 1)};
+}
+
+func list_notes(req) {
+    array rows = db_query(_db, "SELECT * FROM notes ORDER BY id;");
+    array out = [];
+    for (row in rows) { push(out, row_to_note(row)); }
+    return {"data": out, "count": length(out)};
+}
+
+func create_note(req) {
+    json body = req.json;
+    str title_sql = sql_str(body["title"]);     // değerleri hazırla, t-string sade kalsın
+    db_execute(_db, t"INSERT INTO notes (title, done) VALUES ({title_sql}, 0);");
+    int new_id = db_last_insert_id(_db);
+    array rows = db_query(_db, t"SELECT * FROM notes WHERE id = {toString(new_id)};");
+    return created(row_to_note(rows[0]));
+}
+
+get("/notes",  "list_notes");
+post("/notes", "create_note");
+body_schema({"title": "str", "done?": "bool"});
+
+serve();
+```
+
+```bash
+tulpar examples/wings_notes_db.tpr
+
+curl -X POST http://127.0.0.1:8484/notes -d '{"title":"süt al"}'
+curl -X POST http://127.0.0.1:8484/notes -d "{\"title\":\"ada'nın notu\"}"   # tırnak escape edilir, enjeksiyon değil
+curl http://127.0.0.1:8484/notes
+# Sunucuyu Ctrl+C ile kapat, tekrar çalıştır → notların HÂLÂ orada.
+```
+
+### Ne oldu
+
+- **`db_open(path)`** bir handle döndürür; bir kez açıp global'e koy.
+- **`db_execute(db, sql)`** `INSERT`/`UPDATE`/`DELETE` çalıştırır (etkilenen satır
+  sayısını döner); **`db_query(db, sql)`** bir `SELECT` çalıştırır ve sütun adlarıyla
+  anahtarlanmış satır nesnelerinden bir dizi döner; **`db_last_insert_id(db)`** yeni
+  rowid'yi verir.
+- **SQL'i güvenle kurmak:** `?`-parametre bağlama yoktur, bu yüzden SQL string'lerini
+  kendin kurarsın. Her kullanıcı **metnini** `sql_str` gibi bir escaper'dan geçir
+  (`'` → `''` ikiler), **sayıları** ise `toInt`'ten geçir. Değerleri önce yerel
+  değişkenlere hazırla ki `t"..."` interpolasyonun okunur kalsın.
+
+## Sırada ne var
+
+- **[Wings Tarif Kitabı](/tr/ecosystem/wings-cookbook/)** — göreve dönük tarifler:
+  sayfalama, dosya yükleme, CSV indirme, önbellekleme, statik dosyalar, CORS.
+- **[HTTP Sunucusu referansı](/tr/ecosystem/http-server/)** — her fonksiyon; ayrıca
+  middleware, OpenAPI, TLS ve tek-thread vs. havuzlu serve modları.
+- **[ORM](/tr/ecosystem/orm/)** — ham SQL tekrarlayınca SQLite üzerine daha üst
+  seviye bir veri katmanı.

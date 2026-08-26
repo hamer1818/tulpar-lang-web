@@ -1,0 +1,41 @@
+[branch "master"]
+	gk-last-accessed = 2026-05-12T17:48:01.182Z
+	gk-last-modified = 2026-05-12T17:48:01.182Z
+[branch "feat/install-scripts"]
+	gk-last-accessed = 2026-05-02T12:21:27.434Z
+	gk-last-modified = 2026-05-02T12:21:27.434Z
+[branch "fix/install-ps1-speedup"]
+	gk-last-accessed = 2026-05-02T12:55:15.144Z
+	gk-last-modified = 2026-05-02T12:55:15.144Z
+[branch "feat/install-ascii-art"]
+	gk-last-accessed = 2026-05-02T13:26:36.493Z
+	gk-last-modified = 2026-05-02T13:26:36.493Z
+[branch "docs/fill-feature-gaps"]
+	gk-last-accessed = 2026-05-03T09:14:30.911Z
+	gk-last-modified = 2026-05-02T13:49:01.738Z
+[branch "feat/web-playground-interpreter"]
+	gk-last-accessed = 2026-05-03T10:02:13.724Z
+	gk-last-modified = 2026-05-03T10:02:13.724Z
+[branch "chore/shrink-installer-art"]
+	gk-last-accessed = 2026-05-06T10:17:41.445Z
+	gk-last-modified = 2026-05-04T12:07:17.171Z
+[branch "fix/install-verify-and-dll-bundling"]
+	gk-last-accessed = 2026-05-06T11:28:26.588Z
+	gk-last-modified = 2026-05-06T11:28:26.588Z
+[branch "fix/install-ps-bcl-sha256"]
+	gk-last-accessed = 2026-05-06T13:26:45.814Z
+	gk-last-modified = 2026-05-06T13:26:45.814Z
+[branch "fix/install-bundle-openssl-dlls"]
+	gk-last-accessed = 2026-05-06T14:56:20.669Z
+	gk-last-modified = 2026-05-06T14:56:37.109Z
+[branch "docs/language-reference"]
+	gk-last-accessed = 2026-05-07T16:18:44.175Z
+[branch "feat/install-detect-existing"]
+	gk-last-accessed = 2026-05-09T21:00:32.830Z
+	gk-last-modified = 2026-05-09T21:00:32.830Z
+[branch "feat/install-scripts-gpg-verify"]
+	gk-last-accessed = 2026-05-10T09:25:22.941Z
+	gk-last-modified = 2026-05-10T09:25:22.941Z
+[branch "ci/auto-enable-automerge"]
+	gk-last-accessed = 2026-05-11T17:13:22.190Z
+	gk-last-modified = 2026-05-10T09:32:24.019Z

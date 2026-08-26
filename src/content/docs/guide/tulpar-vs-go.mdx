@@ -1,0 +1,209 @@
+---
+title: Tulpar vs Go
+description: Compare the Tulpar language with Go side by side — syntax, arrays, strings, and building an HTTP API without reaching for third-party modules.
+---
+
+import TulparPlayground from '../../../components/TulparPlayground.astro';
+
+import TulparTabs from '../../../components/TulparTabs.astro';
+import TulparTabItem from '../../../components/TulparTabItem.astro';
+
+Go and Tulpar are both statically-typed, compile to native binaries, and land
+in the same rough performance class. The difference is what ships in the
+box: Go's standard library covers HTTP and JSON but leaves SQLite, an ORM,
+and OpenAPI generation to third-party modules — Tulpar bundles all of it in
+the runtime.
+
+## JSON vs Struct Usage
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+<TulparPlayground
+	title="JSON vs Struct Usage"
+	code={String.raw`arrayJson user = {"name": "Hamza", "age": 27};
+
+print(user.name);
+print(user.age);`}
+/>
+
+  </TulparTabItem>
+  <TulparTabItem label="Go">
+
+```go
+package main
+
+import "fmt"
+
+type User struct {
+	Name string
+	Age  int
+}
+
+func main() {
+	user := User{Name: "Hamza", Age: 27}
+
+	fmt.Println(user.Name)
+	fmt.Println(user.Age)
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## Arrays and Loops
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+<TulparPlayground
+	title="Arrays and Loops"
+	code={String.raw`arrayInt numbers = [1, 2, 3, 4, 5];
+
+for (int i = 0; i < length(numbers); i++) {
+    print("Item:", numbers[i]);
+}`}
+/>
+
+  </TulparTabItem>
+  <TulparTabItem label="Go">
+
+```go
+package main
+
+import "fmt"
+
+func main() {
+	numbers := []int{1, 2, 3, 4, 5}
+
+	for _, n := range numbers {
+		fmt.Println("Item:", n)
+	}
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## String Processing
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+<TulparPlayground
+	title="String Processing"
+	code={String.raw`str input = "  TULPAR LANG  ";
+
+str cleaned = lower(trim(input));
+arrayStr parts = split(cleaned, " ");
+
+print("Cleaned:", cleaned);
+print("First word:", parts[0]);`}
+/>
+
+  </TulparTabItem>
+  <TulparTabItem label="Go">
+
+```go
+package main
+
+import (
+	"fmt"
+	"strings"
+)
+
+func main() {
+	input := "  TULPAR LANG  "
+
+	cleaned := strings.ToLower(strings.TrimSpace(input))
+	parts := strings.Split(cleaned, " ")
+
+	fmt.Println("Cleaned:", cleaned)
+	fmt.Println("First word:", parts[0])
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+## HTTP API in One File
+
+This is where the two languages diverge the most. Go's `net/http` handles
+routing, but SQLite access, an ORM, request validation, and OpenAPI/Swagger
+docs each mean picking, importing, and wiring up a separate module. Tulpar's
+`wings` and `orm` are already part of the runtime.
+
+<TulparTabs>
+  <TulparTabItem label="Tulpar" icon="tulpar">
+
+```tulpar
+import "wings";
+import "orm";
+
+orm_open("app.db");
+define_model("users", {
+    "id":   "INTEGER PRIMARY KEY AUTOINCREMENT",
+    "name": "TEXT NOT NULL",
+    "age":  "INTEGER"
+});
+
+func list_users(req)  { return ok(orm_all("users")); }
+func create_user(req) { return created(orm_create("users", req.json)); }
+
+get("/users",  "list_users");
+post("/users", "create_user");
+body_schema({"name": "str", "age?": "int"});   // invalid body → 422, automatically
+
+serve(8080);   // + Swagger UI, /openapi.json, /metrics, /healthz
+```
+
+  </TulparTabItem>
+  <TulparTabItem label="Go">
+
+```go
+package main
+
+import (
+	"encoding/json"
+	"net/http"
+)
+
+type User struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+	Age  int    `json:"age"`
+}
+
+var users []User
+var nextID = 1
+
+func usersHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		json.NewEncoder(w).Encode(users)
+	case http.MethodPost:
+		var u User
+		json.NewDecoder(r.Body).Decode(&u)
+		u.ID = nextID
+		nextID++
+		users = append(users, u)
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(u)
+	}
+}
+
+func main() {
+	http.HandleFunc("/users", usersHandler)
+	http.ListenAndServe(":8080", nil)
+	// SQLite, an ORM, OpenAPI/Swagger docs, and /metrics aren't in the
+	// standard library — each needs a separate module (database/sql plus
+	// a driver, gorm, swaggo, prometheus/client_golang, ...).
+}
+```
+
+  </TulparTabItem>
+</TulparTabs>
+
+See [Wings Tutorial](/ecosystem/wings-tutorial/) for the guided, three-app
+version of the Tulpar side, and [Benchmarks](/ecosystem/benchmarks/) for how
+the two compare on raw HTTP throughput.

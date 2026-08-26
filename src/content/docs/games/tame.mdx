@@ -1,0 +1,146 @@
+---
+title: Tame — 2D Graphics Library
+description: The full tame API — window and loop, drawing, colors, keyboard / mouse / touch / gamepad / tilt input, audio, textures, fonts, persistence and helpers.
+---
+
+`import "tame"` gives you a thin, fast wrapper over a vendored raylib: a window, a
+frame loop, drawing, input, audio and persistence. It links only when your program
+imports `"tame"` or calls a `tm_*` built-in — ordinary programs stay dependency-free.
+
+Every function below has an **English** name and a **Turkish** alias (where one
+exists); both compile to the same call.
+
+## Window & loop
+
+| Function | Description |
+| --- | --- |
+| `window(w, h, title): bool` | Open a window (call once, before the loop). |
+| `running(): bool` | `false` once the user closes the window — your loop condition. |
+| `close_window()` | Close the window (after the loop). |
+| `set_fps(n)` | Target frame rate (e.g. `60`). |
+| `frame_begin()` / `frame_end()` | Wrap everything you draw in a frame. |
+| `frame_time(): float` | Seconds since last frame (delta time — multiply movement by this). |
+| `elapsed(): float` | Seconds since the program started (monotonic). |
+| `get_fps(): int` | Current measured frame rate. |
+| `screen_width(): int` / `screen_height(): int` | Window size in pixels. |
+
+For mobile/full-screen scaling, the **view bounds** report the real drawable area:
+`view_left()` / `view_right()` / `view_top()` / `view_bottom()` (TR:
+`ekran_sol/sag/ust/alt`). Anchor on-screen controls to these so they hug the true
+screen edges on Android.
+
+## Drawing & colors
+
+| Function | Description |
+| --- | --- |
+| `clear(color)` | Fill the whole frame with a color. |
+| `rect(x, y, w, h, color)` | Filled rectangle. |
+| `rect_lines(x, y, w, h, color)` | Rectangle outline. |
+| `circle(x, y, radius, color)` | Filled circle. |
+| `line(x1, y1, x2, y2, color)` | Line. |
+| `triangle(x1, y1, x2, y2, x3, y3, color)` | Filled triangle. |
+| `pixel(x, y, color)` | Single pixel. |
+| `text(s, x, y, size, color)` | Draw text (default font). |
+| `measure_text(s, size): int` | Pixel width of a string — for centering. |
+
+Colors are packed integers. Build them with **`rgb(r, g, b)`** or
+**`rgba(r, g, b, a)`** (each channel `0–255`), or use a named constant:
+
+```
+WHITE  BLACK  GRAY  DARKGRAY  RED  MAROON  GREEN  LIME  BLUE  SKYBLUE
+GOLD  YELLOW  ORANGE  PINK  PURPLE  VIOLET  BEIGE  BROWN  MAGENTA
+```
+
+## Input
+
+**Keyboard** — key names are strings like `"LEFT"`, `"RIGHT"`, `"UP"`, `"DOWN"`,
+`"SPACE"`, `"ENTER"`, `"ESCAPE"`, `"A"`…`"Z"`:
+
+| Function | Description |
+| --- | --- |
+| `key_down(k): bool` | Held right now. |
+| `key_pressed(k): bool` | Went down this frame (single fire). |
+| `key_released(k): bool` | Went up this frame. |
+
+**Mouse:** `mouse_x()`, `mouse_y()`, `mouse_down(b)`, `mouse_pressed(b)`,
+`mouse_wheel()`.
+
+**Touch** (mobile) — TR aliases `dokunma_*`:
+
+| Function | Description |
+| --- | --- |
+| `touch_count(): int` | Number of active fingers. |
+| `touch_x(i): int` / `touch_y(i): int` | Position of finger `i`. |
+| `touched(): bool` | Any finger down? |
+
+On Android, touch coordinates are already scaled into your game's world space, so
+`touch_x/y` line up with what you draw.
+
+**Gamepad:** `gamepad_available(id)`, `gamepad_name(id)`, `gamepad_down(id, btn)`,
+`gamepad_pressed(id, btn)`, `gamepad_axis(id, axis)`.
+
+**Tilt / accelerometer** (Android) — TR aliases `egim_*`:
+`accel_x()`, `accel_y()`, `accel_z()`, `accel_available()`. Desktop returns zeros,
+so guard with `accel_available()`.
+
+## Audio
+
+No asset files required — synth a tone on the fly:
+
+| Function | Description |
+| --- | --- |
+| `beep(freq, ms)` (TR `bip`) | Play a `freq` Hz sine for `ms` milliseconds. |
+| `tone(freq, ms, vol)` (TR `ton`) | Same, but with a `0..1` volume — for background music under sound effects. |
+
+Or load real audio files:
+
+| Function | Description |
+| --- | --- |
+| `load_sound(path): int` / `play_sound(s)` / `stop_sound(s)` / `sound_volume(s, v)` | Short sound effects. |
+| `load_music(path): int` / `play_music(m)` / `stop_music(m)` / `music_volume(m, v)` | Streaming music. |
+
+## Textures & fonts
+
+| Function | Description |
+| --- | --- |
+| `load_texture(path): int` | Load an image. |
+| `draw_texture(tex, x, y)` | Draw it. |
+| `draw_texture_ex(tex, x, y, scale, rotation)` | Scaled / rotated. |
+| `texture_width(tex): int` / `texture_height(tex): int` | Dimensions. |
+| `unload_texture(tex)` | Free it. |
+| `load_font(path, size): int` | Load a TTF at a size. |
+| `text_font(f, s, x, y, size, color)` | Draw text with a loaded font. |
+
+Bundle assets into the web/Android build with `TULPAR_WEB_ASSETS=<dir>` — see
+[Building & Publishing](/games/build/).
+
+## Persistence & device
+
+| Function | Description |
+| --- | --- |
+| `save_data(name, text): bool` (TR `kayit_yaz`) | Write a small string (high scores, settings). Persists across launches on every platform. |
+| `load_data(name): str` (TR `kayit_oku`) | Read it back (`""` if missing). |
+| `vibrate(ms)` (TR `titret`) | Haptic buzz on Android; a no-op elsewhere. |
+| `screenshot(path)` | Save a PNG of the current frame. |
+
+`name` is a plain file name (e.g. `"score"`), not a path. On Android it maps to the
+app's private storage automatically.
+
+## Helpers
+
+| Function | Description |
+| --- | --- |
+| `rgb(r, g, b): int` / `rgba(r, g, b, a): int` | Build a color. |
+| `rect_overlap(x1,y1,w1,h1, x2,y2,w2,h2): bool` | AABB overlap test. |
+| `point_in_rect(px, py, x, y, w, h): bool` | Point-in-rectangle test. |
+| `clamp(v, lo, hi)` | Constrain a value to a range. |
+| `run(update_fn, draw_fn)` | Convenience loop: calls `update` then `draw` each frame until the window closes (also drives the web animation frame). |
+
+:::note[No `%` operator]
+TulparLang has no `%`; use `mod(a, b)` for integers and `fmod(a, b)` for floats.
+`/` is float division if either operand is a float — wrap with `toInt(...)` when you
+need integer division.
+:::
+
+Ready for entities, collisions and levels without writing a loop? Move up to the
+[Arcade preset engine](/games/arcade/).

@@ -4,6 +4,7 @@ export type Node =
 	| Assign
 	| BinaryOp
 	| LogicalOp
+	| Conditional
 	| UnaryOp
 	| Postfix
 	| Call
@@ -29,11 +30,34 @@ export type Node =
 	| TryStmt
 	| ThrowStmt
 	| ExprStmt
-	| ImportStmt;
+	| ImportStmt
+	| MatchExpr;
 
 export interface NodeBase {
 	line: number;
 	col: number;
+}
+
+// `match subject { pat | pat => body, _ => body }`. A pattern is a literal
+// (equality), a `_` wildcard, or an inclusive `lo .. hi` range. An arm body is
+// an expression (its value is the match result) or a block (executed for its
+// effect, in statement position).
+export interface MatchPattern {
+	kind: 'literal' | 'wildcard' | 'range';
+	value?: Node; // literal
+	lo?: Node; // range low
+	hi?: Node; // range high
+}
+
+export interface MatchArm {
+	patterns: MatchPattern[];
+	body: Node; // expression or Block
+}
+
+export interface MatchExpr extends NodeBase {
+	kind: 'Match';
+	subject: Node;
+	arms: MatchArm[];
 }
 
 export interface Program extends NodeBase {
@@ -67,6 +91,13 @@ export interface LogicalOp extends NodeBase {
 	op: '&&' | '||';
 	left: Node;
 	right: Node;
+}
+
+export interface Conditional extends NodeBase {
+	kind: 'Conditional';
+	cond: Node;
+	then: Node;
+	otherwise: Node;
 }
 
 export interface UnaryOp extends NodeBase {

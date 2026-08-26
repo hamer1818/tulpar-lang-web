@@ -1,0 +1,42 @@
+docs(ecosystem): debugger page + HTTPS section for wings_tls
+
+Two recent shipments needed user-facing docs:
+
+- **Plan 07 Parça B (DAP server, hamer1818/TulparLang#178/#180/#186/#188/#190 + ext #1):**
+  `tulpar debug <file>` is on main with full breakpoints / stack /
+  locals / stepping; vscode-tulpar v0.4.0 ships F5 ergonomics.
+  Nothing on tulparlang.dev told users it exists.
+
+- **wings_tls smoke (hamer1818/TulparLang#197):** the HTTPS listener
+  has been functional for a while but `ecosystem/http-server.mdx`
+  only covered plain HTTP.
+
+This PR fills both gaps:
+
+New `ecosystem/debugger.mdx`:
+  * Requirements: gdb on PATH, VS Code + vscode-tulpar 0.4+.
+  * VS Code F5 walkthrough.
+  * launch.json snippet.
+  * Capability table: what works (breakpoints, stack, locals,
+    continue/next/stepIn/stepOut, pause, console output) and
+    what's deferred (evaluate, conditional breakpoints, struct
+    drill-down, etc.).
+  * Direct-adapter shape for non-VS-Code DAP clients.
+  * Diagnostic [dap] log format.
+
+Extended `ecosystem/http-server.mdx` (and the tr/ mirror) with an
+"HTTPS (Wings TLS)" section:
+  * 10-line wings_tls hello world.
+  * Cert + key generation (dev openssl one-liner + production
+    Let's Encrypt paths).
+  * Build requirement (find_package(OpenSSL) gating).
+  * Known limitations: TLS keep-alive, mTLS, HTTP/2 + ALPN.
+
+`astro.config.mjs` sidebar: new "Debugger (DAP + VS Code F5)" /
+"Hata Ayıklayıcı (DAP + VS Code F5)" entry under Ecosystem.
+
+Verified locally with `pnpm build` — 66 pages built, no errors;
+`/ecosystem/debugger/` and `/tr/ecosystem/debugger/` both
+generated.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>

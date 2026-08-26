@@ -197,7 +197,7 @@ if [ "$verify_enabled" = "1" ] && command -v gpg >/dev/null 2>&1; then
             gpg_verify_enabled=1
             note "GPG imzası doğrulandı (anahtar ${TULPAR_RELEASE_KEY_FP})."
         elif echo "$gpg_out" | grep -q "NO_PUBKEY"; then
-            warn "GPG anahtarı yerel keyring'de yok; release-public.asc'i import edip yeniden çalıştırın."
+            note "GPG anahtarı keyring'de yok; SHA-256 ile doğrulanıyor. İstersen release-public.asc'i import edip GPG imza doğrulamasını da açabilirsin (zorunlu değil)."
         elif echo "$gpg_out" | grep -q "GOODSIG"; then
             warn "GPG imzası geçerli ama beklenen TulparLang Release anahtarından değil."
         else
@@ -354,7 +354,8 @@ show_art
 echo ""
 printf "%sDeneme:%s\n" "$c_cyan" "$c_reset"
 echo "  tulpar --version"
-echo "  tulpar --repl"
+echo "  tulpar --help"
+echo "  tulpar merhaba.tpr      # bir .tpr dosyasını AOT derleyip çalıştırır"
 echo ""
 printf "%sGüncellemek için:%s\n" "$c_cyan" "$c_reset"
 echo "  tulpar update            # built-in (varsa)"

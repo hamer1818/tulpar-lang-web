@@ -1,0 +1,103 @@
+---
+title: Game Development — Quick Start
+description: Build 2D games in TulparLang. Two layers — the tame graphics library and the arcade preset engine — with a bilingual (English + Turkish) API.
+---
+
+TulparLang ships a batteries-included 2D game stack. It comes in **two layers**,
+and you pick the one that fits your game:
+
+- **`tame`** — the low-level graphics library: open a window, draw shapes and
+  textures, read the keyboard / mouse / touch / gamepad / tilt sensor, play
+  sounds, save data. A thin, fast wrapper over a vendored raylib. Full control,
+  you write the game loop.
+- **`arcade`** — a *preset engine* built on top of `tame`. You describe entities,
+  collisions, levels and score in a few lines; it runs the loop, physics,
+  collision dispatch, HUD, pause, game-over, touch controls, stars and badges for
+  you. Most of the shipped games use this.
+
+Every built-in has a name in **both English and Turkish** — `player(...)` and
+`oyuncu(...)`, `on_hit(...)` and `carpisinca(...)` are the same call. Use whichever
+you like; you can even mix them.
+
+## Your first game with `tame`
+
+A bouncing box in ~20 lines:
+
+```rust
+import "tame";
+
+func main() {
+    window(640, 480, "Bouncing box");
+    set_fps(60);
+
+    float x = 100.0; float y = 100.0;
+    float vx = 220.0; float vy = 180.0;
+
+    while (running()) {
+        float dt = frame_time();
+        x = x + vx * dt;
+        y = y + vy * dt;
+        if (x < 0.0 || x > 600.0) { vx = 0.0 - vx; }
+        if (y < 0.0 || y > 440.0) { vy = 0.0 - vy; }
+
+        frame_begin();
+        clear(rgb(16, 18, 26));
+        rect(x, y, 40, 40, GOLD);
+        text("Hello, tame", 12, 12, 20, WHITE);
+        frame_end();
+    }
+    close_window();
+}
+
+main();
+```
+
+Every frame sits between `frame_begin()` and `frame_end()`. `running()` is false
+when the user closes the window. See the [Tame API reference](/games/tame/) for
+the full surface.
+
+## Your first game with `arcade`
+
+The same window, but now the engine owns the loop. Collect the gold squares:
+
+```rust
+import "arcade";
+
+func setup() {
+    player(300, 220, 28, 28, BLUE);      // arrow keys / touch move it
+    item(120, 120, 20, 20, GOLD);
+    item(500, 340, 20, 20, GOLD);
+}
+
+func on_pickup() {
+    kill(other());                        // remove the item we hit
+    score_add(10);
+}
+
+scene(640, 480, "Collector");
+on_start(setup);
+on_hit(TAG_PLAYER, TAG_ITEM, on_pickup);  // when player touches an item
+play();
+```
+
+No game loop, no input handling, no HUD code — `arcade` supplies all of it. The
+same program is touch-playable on Android and runs in the browser unchanged. See
+the [Arcade guide](/games/arcade/) for entities, levels, stars and more.
+
+## Running it
+
+```bash
+tulpar game.tpr                    # desktop: compile + run
+tulpar build --target=web game.tpr out/game     # → out/game.html + .js + .wasm
+tulpar build --apk game.tpr out/game            # → signed Android APK
+```
+
+The output directory must already exist. For the full build matrix — desktop,
+web, Android, and the one-command `tulpar.toml` config build — see
+[Building & Publishing](/games/build/).
+
+:::tip[Which layer?]
+Making a small arcade/puzzle/action game with entities and levels? Start with
+**arcade**. Doing something unusual (a custom renderer, a tool, a visualization)?
+Use **tame** directly.
+:::

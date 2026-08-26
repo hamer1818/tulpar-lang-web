@@ -13,8 +13,15 @@ import {
 	makeStr,
 } from './values.ts';
 import type { Value } from './values.ts';
+import { messages, type Locale } from './i18n.ts';
 
-export function registerBuiltins(env: Env, write: (s: string) => void): void {
+export function registerBuiltins(
+	env: Env,
+	write: (s: string) => void,
+	locale: Locale = 'en',
+): void {
+	const m = messages(locale);
+	const h = m.hints;
 	const def = (name: string, fn: (args: Value[]) => Value) => {
 		env.define(name, { kind: 'native', name, fn });
 	};
@@ -22,9 +29,7 @@ export function registerBuiltins(env: Env, write: (s: string) => void): void {
 	const unsupported = (name: string, hint?: string) => {
 		def(name, () => {
 			throw new TulparError(
-				hint
-					? `'${name}()' is not supported in the web playground — ${hint}`
-					: `'${name}()' is not supported in the web playground. Run locally with the Tulpar CLI.`,
+				hint ? m.unsupportedWithHint(name, hint) : m.unsupportedNoHint(name),
 			);
 		});
 	};
@@ -262,10 +267,10 @@ export function registerBuiltins(env: Env, write: (s: string) => void): void {
 	});
 
 	// === Input — playground cannot prompt synchronously ===
-	unsupported('input', 'no stdin in the browser');
-	unsupported('inputInt', 'no stdin in the browser');
-	unsupported('inputFloat', 'no stdin in the browser');
-	unsupported('readLine', 'no stdin in the browser');
+	unsupported('input', h.stdin);
+	unsupported('inputInt', h.stdin);
+	unsupported('inputFloat', h.stdin);
+	unsupported('readLine', h.stdin);
 
 	// === I/O, network, db, threads, http — out of scope for the web sandbox ===
 	for (const name of [
@@ -278,7 +283,7 @@ export function registerBuiltins(env: Env, write: (s: string) => void): void {
 		'mkdir',
 		'rmdir',
 	]) {
-		unsupported(name, 'browsers have no filesystem access');
+		unsupported(name, h.fs);
 	}
 	for (const name of [
 		'socket_create',
@@ -297,7 +302,7 @@ export function registerBuiltins(env: Env, write: (s: string) => void): void {
 		'http_get_json',
 		'http_post_json',
 	]) {
-		unsupported(name, 'sockets and HTTP are blocked by browser sandboxing');
+		unsupported(name, h.net);
 	}
 	for (const name of [
 		'db_open',
@@ -314,7 +319,7 @@ export function registerBuiltins(env: Env, write: (s: string) => void): void {
 		'orm_where',
 		'define_model',
 	]) {
-		unsupported(name, 'SQLite/ORM is not bundled in the web playground');
+		unsupported(name, h.db);
 	}
 	for (const name of [
 		'thread_create',
@@ -325,7 +330,7 @@ export function registerBuiltins(env: Env, write: (s: string) => void): void {
 		'mutex_lock',
 		'mutex_unlock',
 	]) {
-		unsupported(name, 'the web playground runs single-threaded');
+		unsupported(name, h.threads);
 	}
 	for (const name of [
 		'get',
@@ -338,7 +343,7 @@ export function registerBuiltins(env: Env, write: (s: string) => void): void {
 		'wings_json',
 		'wings_html',
 	]) {
-		unsupported(name, 'the Wings HTTP server needs the CLI');
+		unsupported(name, h.wings);
 	}
 	// === Test framework — needs CLI ===
 	for (const name of [
@@ -352,6 +357,6 @@ export function registerBuiltins(env: Env, write: (s: string) => void): void {
 		'test',
 		'test_summary',
 	]) {
-		unsupported(name, "the test runner ships with the CLI");
+		unsupported(name, h.test);
 	}
 }

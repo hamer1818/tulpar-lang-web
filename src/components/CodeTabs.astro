@@ -1,0 +1,103 @@
+---
+/**
+ * CodeTabs — A lightweight tabbed code-window for the hero section.
+ *
+ * Each tab shows a different `.tpr` snippet inside the same macOS-style
+ * window chrome. Switching is handled with vanilla JS — no framework deps.
+ *
+ * Usage (MDX):
+ *   <CodeTabs tabs={[
+ *     { icon: "🌐", label: "Web API", file: "api.tpr", code: `...` },
+ *     { icon: "🛠️", label: "CLI Tool", file: "cli.tpr", code: `...` },
+ *   ]} />
+ */
+export interface Tab {
+	icon: string;
+	label: string;
+	file: string;
+	code: string;
+}
+
+export interface Props {
+	tabs: Tab[];
+	/** Text shown on the live-indicator badge (e.g. "running" / "çalışıyor") */
+	liveText?: string;
+}
+
+const { tabs, liveText = 'running' } = Astro.props;
+---
+
+<div class="tlp-hero__preview">
+	<div class="tlp-window tlp-window--tabbed not-content" data-codetabs>
+		<div class="tlp-window__bar">
+			<span class="tlp-window__dot tlp-window__dot--r"></span>
+			<span class="tlp-window__dot tlp-window__dot--y"></span>
+			<span class="tlp-window__dot tlp-window__dot--g"></span>
+
+			<div class="tlp-window__tabs" role="tablist">
+				{tabs.map((tab, i) => (
+					<button
+						class:list={['tlp-window__tab', { 'is-active': i === 0 }]}
+						role="tab"
+						aria-selected={i === 0 ? 'true' : 'false'}
+						data-tab-index={i}
+					>
+						<span class="tlp-window__tab-icon">{tab.icon}</span>
+						{tab.label}
+					</button>
+				))}
+			</div>
+
+			<span class="tlp-window__live">{liveText}</span>
+		</div>
+
+		{tabs.map((tab, i) => (
+			<div
+				class:list={['tlp-window__panel', { 'is-active': i === 0 }]}
+				role="tabpanel"
+				data-panel-index={i}
+			>
+				<div class="tlp-window__filename">
+					<span>{tab.file}</span>
+				</div>
+				<pre class="tlp-window__code"><code>{tab.code}</code></pre>
+			</div>
+		))}
+	</div>
+</div>
+
+<script>
+	function initCodeTabs() {
+		document.querySelectorAll<HTMLElement>('[data-codetabs]').forEach((root) => {
+			const tabs = root.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+			const panels = root.querySelectorAll<HTMLElement>('[role="tabpanel"]');
+
+			tabs.forEach((tab) => {
+				tab.addEventListener('click', () => {
+					const idx = tab.dataset.tabIndex;
+
+					tabs.forEach((t) => {
+						t.classList.remove('is-active');
+						t.setAttribute('aria-selected', 'false');
+					});
+					panels.forEach((p) => p.classList.remove('is-active'));
+
+					tab.classList.add('is-active');
+					tab.setAttribute('aria-selected', 'true');
+					const targetPanel = root.querySelector<HTMLElement>(
+						`[data-panel-index="${idx}"]`,
+					);
+					if (targetPanel) targetPanel.classList.add('is-active');
+				});
+			});
+		});
+	}
+
+	if (typeof window !== 'undefined') {
+		if (document.readyState === 'loading') {
+			document.addEventListener('DOMContentLoaded', initCodeTabs);
+		} else {
+			initCodeTabs();
+		}
+	}
+</script>

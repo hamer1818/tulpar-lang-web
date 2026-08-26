@@ -13,27 +13,42 @@ ve multi-thread işleme zaten bağlanmış halde.
 ```tulpar
 import "wings";
 
-func index_handler() {
+func index(req) {
     return {"hello": "world"};
 }
 
-get("/", "index_handler");
-listen(8080);
+get("/", index);          // handler'ı adıyla bağla — string değil
+serve();                  // port yok → varsayılan 8484; açık için serve(8080)
 ```
 
 Bu eksiksiz bir HTTP/1.1 sunucusu — keep-alive, CORS uyumlu varsayılan
-header'lar, `/healthz` + `/metrics` otomatik kayıtlı.
+header'lar, `/healthz` + `/metrics` otomatik kayıtlı. Route'lar handler
+**fonksiyonunu** bağlar (`index`, `"index"` değil) — yanlış yazım
+derleme hatası, sessiz 404 değil.
+
+Port'suz `serve()` Tulpar'ın varsayılan portunu kullanır: **8484** (ASCII `T`
+= 84 → ikili `01010100`, "Tulpar portu"); doluysa yukarı yürür (8485, 8486, …)
+ki ikinci bir uygulama da başlayabilsin. Açık port verirsen — `serve(8080)` —
+Wings tam onu bağlar ve doluysa sessizce kaydırmak yerine seni bilgilendirir.
+`serve()` = `listen()`; ikisi de aynı opsiyonel port'u alır.
 
 ## Routing
 
 ```tulpar
-get("/users/:id", "show_user");      // path param'lar _request["params"]'da
-post("/users", "create_user");
-put("/users/:id", "update_user");
-del("/users/:id", "delete_user");
+get("/users/:id", show_user);   // path param'lar req.params'a gelir
+post("/users", create_user);
+put("/users/:id", update_user);
+del("/users/:id", delete_user);
+
+func show_user(req) {
+    return orm_find("users", toInt(req.params.id));
+}
 ```
 
-Handler içinde parsed request global `_request`'tedir:
+Her handler isteği ilk parametre (`req`) olarak alır. Alanları noktalı
+erişimle okuyun — `req.params.id`, `req.query.page`, `req.json` (otomatik
+parse edilmiş gövde). Aynı veri global `_request`'te de var, yani
+parametre almayan bir handler da çalışır:
 
 | Alan       | Tip   | Notlar                                |
 | ---------- | ----- | ------------------------------------- |
@@ -44,6 +59,76 @@ Handler içinde parsed request global `_request`'tedir:
 | `headers`  | `json`| Header haritası (case-sensitive).     |
 | `body`     | `str` | Ham body byte'ları, length-bounded.   |
 
+## Middleware (`use`)
+
+`use("fn_name")` ile global bir middleware kaydet. Kaydedilen her
+middleware — kayıt sırasıyla — eşleşen handler'dan **önce**, tüm serve
+modlarında çalışır (tek bir dispatch noktası var). Bir middleware,
+`func mw(req)` biçiminde: ya bir response dict döner (`_status` set →
+zincir **kısa devre** yapar ve o yanıt gönderilir) ya da `{}` döner
+(devam). `req`'i yerinde değiştirebilir, böylece sonraki middleware'ler ve
+handler değişikliği görür:
+
+```tulpar
+func require_auth(req) {
+    str token = req["headers"]["Authorization"];
+    if (length(token) == 0) {
+        return unauthorized("token required");   // kısa devre → 401
+    }
+    req["user"] = {"id": 1, "name": "Ada"};      // handler'a görünür
+    return {};                                    // devam
+}
+
+use("require_auth");
+```
+
+Hiç middleware kaydedilmediğinde zincir sıfır maliyetlidir — Wings hot
+path'te onu tamamen atlar.
+
+## Route grupları (`group`)
+
+`group(prefix, register_fn)`, `register_fn`'i (bir fonksiyon **adı**)
+kaydettiği her route'a uygulanan bir path prefix'iyle çalıştırır. Prefix
+çağrının etrafında saklanır ve geri yüklenir, böylece gruplar **iç içe**
+geçebilir:
+
+```tulpar
+func api_v1() {
+    get("/users", "list_users");      // → /api/v1/users
+    post("/users", "create_user");    // → /api/v1/users
+}
+group("/api/v1", "api_v1");
+```
+
+`get` / `post` / `put` / `del` / `cached_get` hepsi aktif prefix'i dikkate
+alır, yani iç `group(...)` çağrıları birleşir (`/api/v1` + `/admin` →
+`/api/v1/admin`).
+
+## Dependency injection (`depends` / `dep`)
+
+FastAPI tarzı route-başına bağımlılıklar. `depends("fn_name")` bağımlılığı
+**en son kaydedilen** route'a iliştirir; handler çalışmadan önce her
+bağımlılık `req` ile çağrılır ve dönüş değeri enjekte edilir. Handler bunu
+`dep("name")` ile okur. Bir bağımlılık, response dict döndürerek (`_status`
+set) kısa devre yapabilir — tıpkı middleware gibi, ama route-başına ve
+değer üreten:
+
+```tulpar
+func current_user(req) {
+    str t = req["headers"]["Authorization"];
+    if (length(t) == 0) { return unauthorized("token required"); }
+    return {"id": 1, "name": "Ada"};
+}
+
+func profile(req) { return ok(dep("current_user")); }
+
+get("/profile", "profile");
+depends("current_user");
+```
+
+Çözülen değerler thread-local bir depoda durur, böylece `listen_pool` /
+`listen_async` altında eşzamanlı istekler arasında sızmaz.
+
 ## Tek-thread vs multi-thread
 
 ```tulpar
@@ -52,8 +137,11 @@ listen_async(8080);    // bağlantı başına thread, paralel recv/send
 ```
 
 `listen()` test edilmiş tek-thread sunucu: kabul edilen her socket'te
-çoklu keep-alive request'i seri serve eder. Throughput: **~24k req/sec**,
-Node.js seviyesi.
+çoklu keep-alive request'i seri serve eder. **En düşük request-başı
+latency'ye** (~0.22 ms p50) sahip ama seri bir accept döngüsü olduğundan
+eşzamanlı keep-alive bağlantılarını serileştirir — ham throughput için
+`listen_pool` tercih et (Go `net/http`'yi geçiyor). Tam karşılaştırma
+için [Benchmark](/tr/ecosystem/benchmarks/) sayfasına bak.
 
 `listen_async()` her TCP bağlantısı için detached worker spawn'lar.
 Her worker kendi `recv` / parse / `send`'ini paralel yapar; handler
@@ -112,6 +200,241 @@ log_error("ödeme başarısız: " + toString(code));
 
 Wings'in kendi access log'u da bu formatı kullanır. Benchmark / production
 yolda satırı susturmak için `TULPAR_HTTP_QUIET=1`.
+
+## Response helper'ları
+
+Düz bir obje döndürün, `200 application/json` olarak serileşir. Diğer
+durum kodları için `{"_status": N}` envelope'unu elle yazmak yerine
+helper'ları kullanın — niyet okunur:
+
+```tulpar
+func get_user(req) {
+    json u = find_user();
+    if (!u) { return not_found("kullanıcı yok"); }
+    return ok(u);                 // 200
+}
+
+func create_user(req) {
+    return created(new_user());   // 201
+}
+```
+
+Mevcut: `ok(data)`, `created(data)` (201), `no_content()` (204),
+`bad_request(msg)` (400), `unauthorized(msg)` (401), `forbidden(msg)`
+(403), `not_found(msg)` (404), `conflict(msg)` (409), `server_error(msg)`
+(500). Hata helper'ları ortak `{"error": msg}` gövdesi paylaşır.
+`text(body)` düz metin döner; `with_status(data, code)` herhangi bir kod.
+
+## İstek gövdesini okuma
+
+JSON istek gövdesi sizin için parse edilir — doğrudan `_request["json"]`
+okuyun, `fromJson()` gerekmez:
+
+```tulpar
+func create_user(req) {
+    json body = req.json;                  // zaten parse edildi
+    if (length(body["name"]) == 0) {
+        return bad_request("name gerekli");
+    }
+    return created({"name": body["name"]});
+}
+```
+
+`req` (ve global `_request`) ayrıca şunları taşır: `params` (`:id` gibi
+path yakalamaları), `query`, `headers`, `cookies`, `body` (ham), ve
+`method` / `path`.
+
+## İstek gövdesini doğrulama
+
+Bir route'u kaydettikten hemen sonra `body_schema()` ile şema iliştir. Gövde
+handler **çalışmadan önce** kontrol edilir — geçersiz gövde koduna hiç
+ulaşmaz ve tüm hatalı alanları listeleyen otomatik bir `422` alır:
+
+```tulpar
+post("/users", create_user);
+body_schema({"name": "str", "age?": "int"});   // sonda ? = opsiyonel
+```
+
+```
+POST {"name": 123}  →  422 {"error":"validation failed",
+                            "fields":{"name":"expected str, got int"}}
+POST {}             →  422 {"fields":{"name":"required"}}
+POST {"name":"Ada"} →  create_user'a ulaşır
+```
+
+Tipler: `str`, `int`, `float`, `num` (int veya float), `bool`, `array`,
+`object`, `json` (object veya array), `any` (var, herhangi bir tip).
+
+## Tipli query parametreleri
+
+`req["query"]` ham string değerleri tutar. Tipli erişimciler varsayılan bir
+fallback ile coerce eder, böylece bir liste endpoint'i sayfalama/filtreleri
+tek satırda okur — varlığı elle kontrol edip `toInt()` çağırmak yerine:
+
+```tulpar
+func list_items(req) {
+    int page  = query_int(req, "page", 1);     // ?page=2  → 2, yoksa → 1
+    str sort  = query(req, "sort", "id");       // ?sort=name → "name"
+    bool desc = query_bool(req, "desc", false); // 1/true/yes → true, 0/false/no → false
+    return ok(fetch_items(page, sort, desc));
+}
+```
+
+`query_int` eksik veya boş değerde fallback döner; `query_bool`
+`1`/`true`/`yes` ve `0`/`false`/`no` (büyük/küçük harf duyarsız) kabul eder,
+aksi halde fallback'e düşer.
+
+## Response model (çıktı şekillendirme)
+
+`body_schema()`'nın simetrik karşılığı: en son kaydedilen route'a bir şema
+iliştirerek **başarılı çıktıyı** yalnızca bildirilen alanlara filtreler.
+Listelenmeyen her şey (bir `password_hash`, bir `_internal` bayrağı)
+serileştirmeden önce düşürülür, böylece bir handler tüm satırını sır
+sızdırmadan dönebilir:
+
+```tulpar
+get("/users/:id", "show_user");
+response_model({"id": "int", "name": "str"});   // password vb. düşürülür
+```
+
+Tek bir obje veya obje dizisi üzerinde çalışır. Hatalar (status ≥ 400)
+filtrelemeyi atlar, böylece bir `{"error": ...}` gövdesi asla kırpılmaz.
+
+## Dosya yükleme (multipart/form-data)
+
+`multipart/form-data` istekleri için metin alanlarını
+`form(req, name, fallback)` ile, yüklenen dosyaları ise `uploaded_files(req)`
+ile oku — `{name, filename, content_type, data, size}` dizisi. Dosya `data`'sı
+**ham byte** taşır (binary-safe, length-tracked), böylece PNG'ler ve diğer
+binary'ler byte-exact round-trip eder:
+
+```tulpar
+func upload(req) {
+    str title = form(req, "title", "");
+    for (f in uploaded_files(req)) {
+        write_file("./uploads/" + f["filename"], f["data"]);
+    }
+    return created({"title": title, "count": length(uploaded_files(req))});
+}
+post("/upload", "upload");
+```
+
+Parse lazy'dir (yalnızca `form` / `uploaded_files` çağrılınca) ve native
+`parse_multipart` builtin'iyle desteklenir. Her çağrı yeniden parse eder; çok
+alanlı durumlarda bir kez `form_data(req)` çağır ve dönen `{fields, files}`'i
+doğrudan oku.
+
+## İnteraktif dokümanlar (Swagger UI)
+
+`serve()` otomatik olarak **`/docs`** (Swagger UI) ve onu besleyen
+**`/openapi.json`** uçlarını route'larından üreterek bağlar — `:id` path
+param'ları ve her `body_schema()` OpenAPI parametre ve request body'sine
+dönüşür. Başlık/sürümü `serve()` öncesi `docs_info("Users API", "1.0.0")` ile
+ayarla. Kapatmak için `TULPAR_WINGS_NODOCS=1` ortam değişkeni veya `/docs`'u
+kendin kaydet.
+
+## In-memory durum (otomatik persist)
+
+Wings her isteğin belleğini yanıttan sonra geri alır (arena reset); yani
+handler'ın ürettiği bir değer istek bitince yok olur. Veriyi uzun-ömürlü
+bir **global**'de tutmak — in-memory "veritabanı" deseni — istediğin tek
+şey: global'e yaz, gerisini Tulpar halleder. Global'e yapılan yazımlar
+(`push(_users, u)`, `_users[i]["name"]=v`, `_g = v`) derleme zamanında
+**otomatik kalıcılaştırılır** — manuel bir çağrı gerekmez:
+
+```tulpar
+import "wings";
+
+json _users = [{"id": 1, "name": "Ada"}];
+int _next_id = 2;
+
+func list_users(req) { return ok(_users); }
+
+func create_user(req) {
+    json body = req.json;
+    json u = {"id": _next_id, "name": body["name"]};
+    _next_id = _next_id + 1;
+    push(_users, u);              // global'e push → otomatik kalıcı
+    return created(u);
+}
+
+get("/users", list_users);
+post("/users", create_user);
+serve(8080);                      // serve() == listen()
+```
+
+:::tip
+Auto-persist bir runtime write-barrier'dır: istek verisi isteği aşan bir şeye
+(bir global'e veya zaten bir global'de tutulan bir objeye) yazıldığında
+otomatik derin kopyalanır; response objeleri ve yerel scratch değerleri
+dokunulmaz, böylece sıcak yol bedava kalır. Value-flow tabanlı olduğu için
+global'i yerele alias'layıp yazmayı da kapsar
+(`let x = _users[i]; x["name"] = v;`). Daha büyük veya çok-süreçli veri için
+[veritabanını](/tr/stdlib/database/) kullan.
+:::
+
+## Statik dosya sunumu (`static`)
+
+`static(url_prefix, dir)` bir dizini URL prefix'i altında mount eder.
+Dosyalar bir **404-fallback** olarak sunulur: gerçek route'lar (tam veya
+`:param`) her zaman önce eşleşir, static yalnızca hiçbir şey eşleşmediğinde
+kontrol edilen catch-all'dur:
+
+```tulpar
+static("/static", "./public");   // GET /static/app.css → ./public/app.css
+```
+
+Dizin-tarzı bir istek (mount kökü veya `/` ile biten yol) `index.html` sunar,
+böylece bir single-page app'i doğrudan kökten servis edebilirsin:
+
+```tulpar
+static("/", "./public");   // GET / → ./public/index.html
+```
+
+Path traversal (`..`) reddedilir. Metin asset'leri
+(`html`/`css`/`js`/`json`/`svg`/`txt`) doğru `Content-Type` alır; geri kalan
+her şey `application/octet-stream`'e düşer. Binary asset'ler (gömülü NUL'lu
+bir PNG) byte-exact round-trip eder, çünkü `read_file` /
+`http_create_response` `strlen` yerine length-tracked çalışır.
+
+## Özel yanıtlar
+
+Varsayılan `200 application/json` + CORS header'ları çoğu durumu karşılar. Düz
+string gövdeli özel bir **content type** için `_raw` / `_content_type`
+envelope'unu dön — Wings string'i JSON'a çevirmeden olduğu gibi gönderir:
+
+```tulpar
+func export_csv(req) {
+    str body = "id,name\n1,Ada\n2,Linus\n";
+    return {"_raw": body, "_content_type": "text/csv; charset=utf-8"};
+}
+```
+
+:::caution
+Handler'dan `return http_create_response(...)` yapma. Bu builtin **tam bir HTTP
+wire string'i** döndürür, ama dispatcher handler'ın dönüş değerini serialize
+edilecek veri sayar — yani string tekrar JSON olarak sarılır. Yukarıdaki `_raw`
+envelope'unu ya da aşağıdaki streaming desenini kullan.
+:::
+
+Ayrıca **özel header'lara** ihtiyacın olduğunda — örneğin `Content-Disposition`
+indirme dosya adı — tam yanıtı sokete kendin `http_create_response(...)` ile yaz,
+sonra `{"_stream": 1}` dön; böylece Wings wire'ı senin hallettiğini bilir ve
+kendi framing'ini atlar:
+
+```tulpar
+func download_csv(req) {
+    str body = "id,name\n1,Ada\n2,Linus\n";
+    json headers = {"Content-Disposition": "attachment; filename=\"users.csv\""};
+    str wire = http_create_response(200, "text/csv; charset=utf-8", body, headers, 0);
+    socket_send(wings_current_fd(), wire);
+    return {"_stream": 1};
+}
+```
+
+`http_create_response(status, content_type, body, headers, keep_alive)` alttaki
+primitif; `wings_current_fd()` aktif istek soketidir. Bu aynı `{"_stream": 1}`
+deseni SSE veya WebSocket upgrade'i de bu şekilde yazılır.
 
 ## HTTPS (Wings TLS)
 
