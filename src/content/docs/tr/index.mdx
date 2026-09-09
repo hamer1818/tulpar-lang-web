@@ -25,7 +25,7 @@ import CodeTabs from '../../../components/CodeTabs.astro';
 		</div>
 		<div class="tlp-hero__stats">
 			<div class="tlp-hero__stat"><b>~36k</b><span>istek/sn · Tulpar pool</span></div>
-			<div class="tlp-hero__stat"><b>~1.9× C</b><span>fib · yerel AOT</span></div>
+			<div class="tlp-hero__stat"><b>5'te 3</b><span>mikro-kıyasta C'yi geçtik</span></div>
 			<div class="tlp-hero__stat"><b>0</b><span>dış bağımlılık</span></div>
 		</div>
 	</div>
@@ -124,7 +124,7 @@ print("En düşük:  " + toString(min(notlar)));`
 			<div class="tlp-bench__val">~3.5k istek/sn</div>
 		</div>
 		<p class="tlp-bench__note">
-			Üstelik latency düşük kalıyor: <strong>p50 0.32 ms</strong> (Tulpar) vs 3.3 ms (FastAPI). CPU'da fib, <strong>1.37× C</strong> (Windows / MinGW) ile <strong>~1.9× C</strong> (Linux gcc -O2) arasında — her iki ortamda da Rust/Go sınıfı. <a href="/tr/ecosystem/benchmarks/">Tüm metodoloji →</a>
+			Üstelik latency düşük kalıyor: <strong>p50 0.32 ms</strong> (Tulpar) vs 3.3 ms (FastAPI). CPU'da dokuz dil arasında Tulpar <strong>fib, strcat ve arrayiter'de birinci</strong>; sieve ve intloop'ta <code>gcc -O2</code>'nin 0,1 ms içinde. <a href="/tr/ecosystem/benchmarks/">Tüm tablo + metodoloji →</a>
 		</p>
 	</div>
 </section>

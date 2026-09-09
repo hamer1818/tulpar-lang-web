@@ -23,7 +23,7 @@ head:
             "name": "How fast is Tulpar?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Tulpar compiles ahead-of-time to a native binary via LLVM, landing at roughly 1.37x to 1.9x the runtime of equivalent C on CPU-bound benchmarks like fib, and around 36k req/s on a keep-alive HTTP benchmark using the built-in Wings server pool — in the same performance class as Go and Rust."
+              "text": "Tulpar compiles ahead-of-time to a native binary via LLVM. On a nine-language microbenchmark suite it is the fastest on fib, strcat and arrayiter — ahead of C, C++, Rust and Go — and within 0.1 ms of gcc -O2 on sieve and intloop. On HTTP it serves around 36k req/s on a keep-alive benchmark using the built-in Wings server pool."
             }
           },
           {
@@ -91,11 +91,16 @@ no external framework or dependency install.
 
 ## How fast is Tulpar?
 
-Tulpar compiles ahead-of-time to a native binary via LLVM, landing at roughly
-**1.37x to 1.9x the runtime of equivalent C** on CPU-bound benchmarks like
-`fib`, and around **36k req/s** on a keep-alive HTTP benchmark using the
-built-in Wings server pool — the same performance class as Go and Rust. See
-[Benchmarks](/ecosystem/benchmarks/) for the full methodology.
+Tulpar compiles ahead-of-time to a native binary via LLVM. On a nine-language
+microbenchmark suite it is **the fastest of the nine on `fib`, `strcat` and
+`arrayiter`** — ahead of C, C++, Rust and Go — and **within 0.1 ms of
+`gcc -O2`** on `sieve` and `intloop`. On HTTP it serves around **36k req/s** on
+a keep-alive benchmark using the built-in Wings server pool.
+
+Two honest caveats: on `sieve` and `intloop` the top four languages sit inside
+0.1–0.9 ms of each other, so the band is meaningful but the rank order is not;
+and these are microbenchmarks, not production traffic. Full table, workloads and
+methodology in [Benchmarks](/ecosystem/benchmarks/).
 
 ## Does Tulpar have a VM, bytecode interpreter, or REPL?
 

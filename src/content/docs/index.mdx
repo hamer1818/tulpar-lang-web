@@ -25,7 +25,7 @@ import CodeTabs from '../../components/CodeTabs.astro';
 		</div>
 		<div class="tlp-hero__stats">
 			<div class="tlp-hero__stat"><b>~36k</b><span>req/s · Tulpar pool</span></div>
-			<div class="tlp-hero__stat"><b>~1.9× C</b><span>fib · native AOT</span></div>
+			<div class="tlp-hero__stat"><b>3 of 5</b><span>microbenchmarks beat C</span></div>
 			<div class="tlp-hero__stat"><b>0</b><span>external dependencies</span></div>
 		</div>
 	</div>
@@ -124,7 +124,7 @@ print("Min:     " + toString(min(scores)));`
 			<div class="tlp-bench__val">~3.5k req/s</div>
 		</div>
 		<p class="tlp-bench__note">
-			And latency stays low: <strong>p50 0.32 ms</strong> (Tulpar) vs 3.3 ms (FastAPI). On CPU, fib lands at <strong>1.37× C</strong> (Windows / MinGW) to <strong>~1.9× C</strong> (Linux gcc -O2) — Rust/Go class either way. <a href="/ecosystem/benchmarks/">Full methodology →</a>
+			And latency stays low: <strong>p50 0.32 ms</strong> (Tulpar) vs 3.3 ms (FastAPI). On CPU, across nine languages Tulpar is <strong>fastest on fib, strcat and arrayiter</strong> and within 0.1 ms of <code>gcc -O2</code> on sieve and intloop. <a href="/ecosystem/benchmarks/">Full table + methodology →</a>
 		</p>
 	</div>
 </section>

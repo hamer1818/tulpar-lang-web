@@ -3,34 +3,85 @@ title: Benchmark Sonuçları
 description: Tulpar'ın CPU ve HTTP iş yüklerinde C / Go / Node.js / FastAPI karşısında nasıl performans verdiği.
 ---
 
-Tulpar'ın sloganı "Python kadar kolay, C kadar hızlı". CPU'da Rust/Go
-bölgesinde; HTTP'de çok-çekirdekli `listen_pool` sunucusu Go'nun `net/http`'sini
-geçiyor ve FastAPI'yi çok geride bırakıyor — hepsi gönderilecek bir runtime
-olmadan, tek bağımsız binary'den.
+Tulpar'ın sloganı "Python kadar kolay, C kadar hızlı". CPU'da artık beş
+mikro-kıyasın üçünde `gcc -O2`'yi geçiyor, ikisinde başa baş; HTTP'de
+çok-çekirdekli `listen_pool` sunucusu Go'nun `net/http`'sini geçiyor ve
+FastAPI'yi çok geride bırakıyor — hepsi gönderilecek bir runtime olmadan, tek
+bağımsız binary'den.
 
 ## CPU benchmark'ları
 
-`benchmarks/fib.tpr`, native LLVM `i64` codegen için typed AOT path (explicit
-`: int` return) kullanır. Özyineleme derinliği bir env var'dan okunur, böylece
-LLVM sonucu derleme zamanında kısmi-değerlendiremez.
+Dokuz dil, beş mikro-kıyas, tek makine. **Düşük olan hızlı**; her sütunun en
+hızlı girdisi kalın. Her dil iş yükü boyutunu `BENCH_N` ortam değişkeninden
+okur, böylece hiçbir derleyici döngüyü kapalı forma katlayıp onu hiç
+çalıştırmadan "kazanamaz". 7 koşumun en iyisi, 2026-09-08, tek bir Linux
+kutusunda (Tulpar LLVM 22 ile derlendi), commit `3edb4f4`.
 
-| Ortam                                        | C            | Tulpar AOT | Oran        |
-| -------------------------------------------- | -----------: | ---------: | ----------- |
-| Windows 11 / MinGW64, `fib(35)`, best-of-3   | 83 ms        | 114 ms     | **1.37× C** |
-| Linux WSL2 / gcc 15 `-O2`, `fib(40)`, best-of-5 | 140 ms    | 261 ms     | **1.86× C** |
+| Dil | fib(32) | sieve(5M) | strcat(2M) | arrayiter(5M) | intloop(50M) |
+|---|---:|---:|---:|---:|---:|
+| **Tulpar AOT** | **0,6** | 7,7 | **13,2** | **1,2** | 134,5 |
+| C (gcc -O2) | 1,6 | **7,6** | 37,6 | 2,2 | **134,4** |
+| C++ (g++ -O2) | 1,9 | 8,0 | 14,7 | 2,7 | 134,9 |
+| Rust (-O3) | 3,8 | 8,1 | 18,7 | 1,5 | 144,0 |
+| Go | 6,7 | 8,5 | 24,3 | 4,3 | 134,5 |
+| Java | 12,4 | 19,7 | 32,9 | 18,2 | 144,1 |
+| C# (.NET) | 20,3 | 20,9 | 31,2 | 18,3 | 149,3 |
+| Node.js | 24,6 | 28,2 | 96,4 | 18,5 | 712,2 |
+| Python | 140,8 | 448,1 | 200,0 | 410,2 | 3127,3 |
 
-**Oran yalnızca Tulpar'a değil, C derleyicisine de bağlı.** Her iki taraf da
-LLVM/AOT-native; fark, `gcc -O2`'ye (çok agresif bir C) karşı MinGW'nin eski
-GCC'sine göre daha geniş. Her iki durumda da Tulpar **~1.4–1.9× C** bandında —
-Rust ve Go ile aynı mahalle, yorumlanan Python'un kat kat önünde.
+Aynı makinede boş program taban çizgisi — süreç başlatma maliyeti, ve yukarıdaki
+her sayının *içinde*: C 0,17 · **Tulpar 0,23** · C++ 0,44 · Python 5,6 ·
+C# 8,2 · Node 10,7 ms.
 
-:::note[Neden burada `loopsum` yok]
-Eski `loopsum` (`0..n` toplamı) geçerli bir Tulpar-vs-C satırı **değil**: LLVM'in
-scalar-evolution geçişi seriyi kapalı formu `n·(n-1)/2`'ye derleme zamanında
-fold eder — opaque bir runtime `n` ile bile — yani Tulpar binary'si ~5 ms'de
-döner ve döngüyü değil, process startup'ını ölçer. `fib`, LLVM'in fold
-edemeyeceği gerçek özyineleme, yük taşıyan CPU rakamıdır.
+**Tulpar AOT dokuz dil arasında `fib`, `strcat` ve `arrayiter`'de birinci;
+`sieve` ve `intloop`'ta C'nin 0,1 ms içinde.**
+
+Bir satırı alıntılamadan önce dikkatle okunması gereken üç şey:
+
+- **`intloop` ve `sieve` fiilen dörtlü beraberlik.** İkisinde de ilk dört dil
+  birbirinin 0,5 ms içinde; bu aralıkta sıra numarası koşumdan koşuma değişiyor.
+  Anlamlı olan *bant*, bandın içindeki sıra değil.
+- **`strcat`te C sondan üçüncü** (37,6 ms) — elle yazılmış `realloc` + `snprintf`
+  döngüsü, C++'ın `std::string`inden 2,5 kat yavaş. Kap seçimi dil seçimini
+  yeniyor; "C her zaman en hızlıdır" bir yasa değil.
+- **Java ve C# bu sayılarda açılış maliyeti taşıyor.** Tek başına C#'ın boş
+  programı 8,2 ms. Kıyas, kullanıcının hissettiği şey olduğu için duvar saatini
+  ölçüyor; maliyet çıkarılmıyor, gösteriliyor — ama kısa iş yüklerinde o iki
+  satırın çoğu bu.
+
+:::note[Neden `loopsum` değil de `intloop`]
+Eski `loopsum` (`0..n` toplamı) diller arası geçerli bir satır değil: LLVM'in
+scalar-evolution geçişi seriyi derleme zamanında kapalı formu `n·(n-1)/2`'ye
+katlıyor — **opak bir çalışma zamanı `n` ile bile** — yani Rust ve Tulpar boş
+program hızında dönüyor, satır döngüyü değil süreç başlatmayı ölçüyordu. Yerine
+gerçek bir seri bağımlılık taşıyan bir döngü kondu:
+`t = (t*31 + i) % 1000000007`. Hiçbir derleyicinin bulabileceği kapalı formu yok.
 :::
+
+### Bu sayılar nasıl dürüst tutuluyor
+
+Bu sayfanın daha önceki bir sürümü Tulpar'ı "C'nin 1,37–1,9 katı sürede" diye
+gösteriyordu. O tablo Eylül 2026'da denetlendi ve **çöpe atıldı** — her biri
+tek başına sonucu geçersiz kılan üç kusuru vardı; en ağırı, iş yükü boyutunu
+çalışma zamanında yalnızca Tulpar'ın okuması, `gcc -O2` ve `rustc -O3`'ün ise
+kendilerininkini sabit-katlayıp yok etmesiydi. Yerine gelen takım
+[`benchmarks/fair/`](https://github.com/hamer1818/TulparLang/blob/main/benchmarks/fair/README.md)
+altında ve üçünü de düzeltiyor:
+
+- **İş yükü boyutu her dilde ortamdan geliyor**, yani derleme zamanında hiçbir
+  şey katlanamıyor.
+- **Aynı algoritma, aynı veri yapısı** — her dil kendi deyimsel aracını
+  kullanarak (`StringBuilder` / `std::string` / `strings.Builder` /
+  `Int32Array` / `int[]`). Birine naif yolu dayatmak dili değil, o tuzağı
+  ölçerdi.
+- **Çıktılar diller arasında karşılaştırılıyor.** Uyuşmazlarsa satır
+  yayınlanmıyor, geçersiz raporlanıyor. Yukarıdaki beş satırın hepsi uyuşuyor.
+- Isıtma koşumu atılıyor, en iyi **ve** ortanca kaydediliyor, boş program taban
+  çizgisi yanına yazılıyor ki bir sayının ne kadarının açılış olduğunu
+  görebilesin.
+
+Yeniden üretmek için: `cd benchmarks/fair && python3 run.py`. Eksik araç
+zincirleri kendi satırlarını düşürür, kalanlar normal koşar.
 
 ## HTTP throughput
 
@@ -39,6 +90,10 @@ edemeyeceği gerçek özyineleme, yük taşıyan CPU rakamıdır.
 taranır (kutunun çekirdek sayısının altında tutulur, böylece yük üreteci sunucuyu
 aç bırakmaz), seviye başına 4 sn, en iyi koşu ikinci geçişle doğrulanır.
 Kutu: 14-vCPU WSL2. **Her runtime kendi önerilen tek-process yapılandırmasında.**
+
+Bu HTTP rakamları, yukarıdaki CPU tablosundan **ayrı ve daha eski** bir koşumdan,
+farklı bir makineden geliyor — satırları kendi tablosu içinde karşılaştır,
+tablolar arasında değil.
 
 | Sunucu                | istek/sn | p50 latency | Yapılandırma                          |
 | --------------------- | -------: | ----------: | ------------------------------------- |
@@ -66,7 +121,45 @@ vs Python + ~50 MB bağımlılık).
 
 ## Bizi buraya getirenler
 
-**Uygulanan hot-path optimizasyonları:**
+İlk adil ölçümden (2026-09-02) bu yana — ki o ölçümde Tulpar beş kıyasın
+hiçbirinde ilk üçe girmiyordu: `strcat` 233,5 → **13,2** ms (17,7×), `fib(32)`
+5,8 → **0,6** ms (9,7×), `sieve` 60,4 → **7,7** ms (7,8×), `arrayiter`
+6,6 → **1,2** ms (5,5×). `intloop` beklendiği gibi hiç kıpırdamadı — seri
+bağımlılık zinciri olduğu için derleyiciyi değil, CPU'yu ölçüyor.
+
+### Derleyici / CPU
+
+- **Kutulanmamış sayısal diziler.** Bir dizi ya kutulu `VMValue` vektörü ya da
+  ham tamsayı tamponu; eleman erişimi codegen'de satır içi GEP + load, üstüne
+  eleman deposunu dizi başlığından ayıran TBAA ve **döngü-değişmezi şekil
+  önbelleği** — işaretçi ile uzunluk yineleme başına değil, döngü başına bir kez
+  okunuyor.
+- **Döngü sürümleme.** `for`/`while` gövdesi iki kez üretiliyor; hızlı sürümde
+  sınır denetimi hiç yok, çünkü döngü girişindeki tek bir sınav onu gereksiz
+  kanıtlıyor. Kanıt sözdizimsel değil, anlamsal.
+- **32-bit eleman deposu.** C/Rust/Go elekte 4 baytlık eleman kullanıyor, biz 8
+  kullanıyorduk. Diziler artık 32-bit başlıyor ve sığmayan bir değer yazılınca
+  **genişliyor** (asla kutulanmıyor) — dilin `int`i 64-bit kalıyor. Genişlik
+  dalı eleman erişiminde değil *sürüm seçiminde*, yani iki genişlik de sıcak
+  yolda dalsız.
+- **Özyineleme zinciri.** LLVM bir fonksiyonu kendi içine satır içi almaz (gcc
+  alır — `fib`de bütün LLVM dillerini 2,4 kat geçmesinin tek sebebi buydu). Arka
+  uç dört kopya üretip halkaya diziyor; artık her kenar iki *farklı* fonksiyon
+  arası çağrı olduğu için sıradan satır içi alıcı onları açıyor.
+- **Açılış maliyeti.** Her ikili OpenSSL yüklüyor ve libstdc++'ı dinamik
+  bağlıyordu: boş program 1,15 → 0,23 ms.
+- **Dizgi kurma.** `StringBuilder` + kutulamasız `sb_append` + hızlı `itoa`;
+  ayrıca dizgi sabitleri internleniyor.
+- **Tipsiz yol.** `%` operatörünün kutulu satır içi hızlı yolu yoktu ve her
+  kutulu global ataması koşulsuz bir çalışma zamanı çağrısı ödüyordu; ikisi de
+  kapatıldı. Kutulu fonksiyonlar ayrıca **değer ABI'sine** geçti (argüman ve
+  dönüş yazmaçta): tipsiz `fib` 11,9 → 7,7 ms.
+
+Bunların hepsi ölçümle bulundu; ölçülüp *elenen* denemeler de yanlarında
+[`docs/mindmap/Performance.md`](https://github.com/hamer1818/TulparLang/blob/main/docs/mindmap/Performance.md)
+içinde kayıtlı.
+
+### Sunucu sıcak yolu (HTTP)
 
 - `call(handler_name)` dlsym cache (256-slot FNV-1a hash) — request başı sembol-tablosu walk'unu eliyor.
 - Accept'te TCP_NODELAY — Nagle'ın 40ms gecikmesini kaldırır (+%13).
@@ -82,14 +175,21 @@ vs Python + ~50 MB bağımlılık).
 
 ## Metodoloji
 
-- **CPU:** `gcc -O2` (Linux gcc 15 / Windows MinGW64). Best-of-N wall-clock. İş
-  yükü girdisi derleyiciye opaque'tır (runtime'da okunur), böylece `-O2` onu
-  constant-fold edemez; `N` process startup'ı önemsiz kılacak kadar büyüktür.
+- **CPU:** tek Linux kutusunda dokuz araç zinciri — `gcc -O2` / `g++ -O2` /
+  `rustc -O3` / Go / Java / .NET / Node / CPython / Tulpar AOT (LLVM 22). Isıtma
+  koşumu atılır, 7 duvar saati koşumunun en iyisi alınır, iş yükü boyutu çalışma
+  zamanında `BENCH_N`'den okunur (hiçbir derleyici sabit-katlayamaz) ve çıktılar
+  diller arasında karşılaştırılır.
 - **HTTP:** native `benchmarks/loadtest`, tek kutu, keep-alive, concurrency
   çekirdek sayısı ≤ tutulur, böylece yük üreteci ve sunucu CPU için yarışmaz.
   Toolchain'ler: Go 1.23, Node 22, Python 3.14 + FastAPI/uvicorn. Sunucular
   default tek-process yapılandırmasında çalışır (çekirdek kullanımı satır başına
   etiketli).
 - Mutlak rakamlar kutuya özeldir; taşınabilir sinyal olarak **oranları ve
-  latency'yi** baz al. CPU'yu `benchmarks/run_benchmarks.sh` ile yeniden üret;
-  buradaki HTTP sunucuları + sürücü, aynı JSON'u döndüren minimal eşdeğerlerdir.
+  latency'yi** baz al. CPU'yu `cd benchmarks/fair && python3 run.py` ile yeniden
+  üret (sonuçları emekliye ayrılan takım eski `run_benchmarks.sh`'tir); buradaki
+  HTTP sunucuları + sürücü, aynı JSON'u döndüren minimal eşdeğerlerdir.
+- **Bunlar mikro-kıyaslar** — tek makinede sıkı döngüler. Derleyici ve çalışma
+  zamanı maliyetini yalıtır, dilleri aynı iş şekli üzerinde karşılaştırılabilir
+  kılar. Üretim trafiğini modellemezler: soğuk başlangıç, büyük yükler, dağıtık
+  istemciler, p99 kuyruk, sürekli yük altında GC baskısı.

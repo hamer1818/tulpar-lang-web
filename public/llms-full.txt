@@ -21,7 +21,7 @@ As easy as Python, as fast as C. A statically-typed, AOT-compiled language with 
 		</div>
 		<div class="tlp-hero__stats">
 			<div class="tlp-hero__stat"><b>~36k</b><span>req/s · Tulpar pool</span></div>
-			<div class="tlp-hero__stat"><b>~1.9× C</b><span>fib · native AOT</span></div>
+			<div class="tlp-hero__stat"><b>3 of 5</b><span>microbenchmarks beat C</span></div>
 			<div class="tlp-hero__stat"><b>0</b><span>external dependencies</span></div>
 		</div>
 	</div>
@@ -119,7 +119,7 @@ print("Min:     " + toString(min(scores)));`
 			<div class="tlp-bench__val">~3.5k req/s</div>
 		</div>
 		<p class="tlp-bench__note">
-			And latency stays low: <strong>p50 0.32 ms</strong> (Tulpar) vs 3.3 ms (FastAPI). On CPU, fib lands at <strong>1.37× C</strong> (Windows / MinGW) to <strong>~1.9× C</strong> (Linux gcc -O2) — Rust/Go class either way. <a href="/ecosystem/benchmarks/">Full methodology →</a>
+			And latency stays low: <strong>p50 0.32 ms</strong> (Tulpar) vs 3.3 ms (FastAPI). On CPU, across nine languages Tulpar is <strong>fastest on fib, strcat and arrayiter</strong> and within 0.1 ms of <code>gcc -O2</code> on sieve and intloop. <a href="/ecosystem/benchmarks/">Full table + methodology →</a>
 		</p>
 	</div>
 </section>
@@ -374,35 +374,84 @@ Source: https://tulparlang.dev/ecosystem/benchmarks/
 
 How Tulpar performs against C / Go / Node.js / FastAPI on CPU and HTTP workloads.
 
-Tulpar's tagline is "as easy as Python, as fast as C". On CPU it sits in
-Rust/Go territory; on HTTP its multi-core `listen_pool` server out-throughputs
-Go's `net/http` and leaves FastAPI far behind — all from a single self-contained
-binary with no runtime to ship.
+Tulpar's tagline is "as easy as Python, as fast as C". On CPU it now beats
+`gcc -O2` on three of five microbenchmarks and ties it on the other two; on HTTP
+its multi-core `listen_pool` server out-throughputs Go's `net/http` and leaves
+FastAPI far behind — all from a single self-contained binary with no runtime to
+ship.
 
 ## CPU benchmarks
 
-`benchmarks/fib.tpr` uses the typed AOT path (explicit `: int` return type) for
-native LLVM `i64` codegen. The recursion depth is read from an env var so LLVM
-can't partially evaluate the result at compile time.
+Nine languages, five microbenchmarks, one machine. **Lower is faster**; the
+fastest entry in each column is bold. Every language reads its workload size
+from the `BENCH_N` environment variable, so no compiler can fold the loop to a
+closed form and "win" without executing it. Best of 7 runs, 2026-09-08, on one
+Linux box (Tulpar built against LLVM 22), commit `3edb4f4`.
 
-| Environment                          | C            | Tulpar AOT | Ratio       |
-| ------------------------------------ | -----------: | ---------: | ----------- |
-| Windows 11 / MinGW64, `fib(35)`, best-of-3 | 83 ms  | 114 ms     | **1.37× C** |
-| Linux WSL2 / gcc 15 `-O2`, `fib(40)`, best-of-5 | 140 ms | 261 ms | **1.86× C** |
+| Language | fib(32) | sieve(5M) | strcat(2M) | arrayiter(5M) | intloop(50M) |
+|---|---:|---:|---:|---:|---:|
+| **Tulpar AOT** | **0.6** | 7.7 | **13.2** | **1.2** | 134.5 |
+| C (gcc -O2) | 1.6 | **7.6** | 37.6 | 2.2 | **134.4** |
+| C++ (g++ -O2) | 1.9 | 8.0 | 14.7 | 2.7 | 134.9 |
+| Rust (-O3) | 3.8 | 8.1 | 18.7 | 1.5 | 144.0 |
+| Go | 6.7 | 8.5 | 24.3 | 4.3 | 134.5 |
+| Java | 12.4 | 19.7 | 32.9 | 18.2 | 144.1 |
+| C# (.NET) | 20.3 | 20.9 | 31.2 | 18.3 | 149.3 |
+| Node.js | 24.6 | 28.2 | 96.4 | 18.5 | 712.2 |
+| Python | 140.8 | 448.1 | 200.0 | 410.2 | 3127.3 |
 
-**The ratio depends on the C compiler, not just on Tulpar.** Both targets are
-LLVM/AOT-native; the gap is wider against `gcc -O2` (a very aggressive C) than
-against MinGW's older GCC. Either way Tulpar lands in the **~1.4–1.9× C** band —
-the same neighbourhood as Rust and Go, and orders of magnitude ahead of
-interpreted Python.
+Empty-program baseline on the same box — process start-up, and it is *included*
+in every number above: C 0.17 · **Tulpar 0.23** · C++ 0.44 · Python 5.6 ·
+C# 8.2 · Node 10.7 ms.
 
-:::note[Why no `loopsum` here]
-The old `loopsum` (sum `0..n`) is **not** a valid Tulpar-vs-C row: LLVM's
+**Tulpar AOT is the fastest of the nine on `fib`, `strcat` and `arrayiter`, and
+within 0.1 ms of C on `sieve` and `intloop`.**
+
+Three things to read carefully before quoting a row:
+
+- **`intloop` and `sieve` are effectively a four-way tie.** In both, the top
+  four languages sit within 0.5 ms of each other; at that spread the rank order
+  moves between runs. The *band* is the signal, not the position in it.
+- **C is third from last on `strcat`** (37.6 ms) — a hand-rolled
+  `realloc` + `snprintf` loop, 2.5× slower than C++'s `std::string`. Container
+  choice beats language choice, and "C is always fastest" is not a law.
+- **Java and C# pay start-up in these numbers.** C#'s empty program alone costs
+  8.2 ms. The benchmark measures wall clock, which is what a user feels, so the
+  cost is shown rather than subtracted — but it is most of those two rows on the
+  short workloads.
+
+:::note[Why `intloop` and not `loopsum`]
+The old `loopsum` (sum `0..n`) is not a valid cross-language row at all: LLVM's
 scalar-evolution pass folds the series to its closed form `n·(n-1)/2` at compile
-time — even with an opaque runtime `n` — so the Tulpar binary returns in ~5 ms
-and measures process startup, not the loop. `fib`, genuine recursion LLVM can't
-fold, is the load-bearing CPU number.
+time — **even with an opaque runtime `n`** — so Rust and Tulpar returned at
+empty-program speed and the row measured process start-up. It was replaced with
+a loop carrying a genuine serial dependency, `t = (t*31 + i) % 1000000007`,
+which has no closed form for any compiler to find.
 :::
+
+### How these numbers are kept honest
+
+An earlier version of this page put Tulpar at "1.37×–1.9× the runtime of C". That
+table was audited in September 2026 and **thrown out** — it had three flaws, each
+enough to invalidate the result on its own, the worst being that only Tulpar read
+its workload size at run time while `gcc -O2` and `rustc -O3` constant-folded
+theirs away. The replacement suite lives in
+[`benchmarks/fair/`](https://github.com/hamer1818/TulparLang/blob/main/benchmarks/fair/README.md)
+and fixes all three:
+
+- **Workload size comes from the environment in every language**, so nothing can
+  be folded at compile time.
+- **Same algorithm, same data structure** — with each language using its own
+  idiomatic tool (`StringBuilder` / `std::string` / `strings.Builder` /
+  `Int32Array` / `int[]`). Forcing a naive form on somebody measures the trap,
+  not the language.
+- **Outputs are compared across languages.** If they disagree, the row is
+  reported invalid instead of published. All five rows above agree.
+- Warm-up discarded, best **and** median recorded, and the empty-program
+  baseline printed alongside so you can see how much of a number is start-up.
+
+Reproduce with `cd benchmarks/fair && python3 run.py`. Missing toolchains drop
+their own row and the rest still runs.
 
 ## HTTP throughput
 
@@ -411,6 +460,9 @@ fold, is the load-bearing CPU number.
 concurrency swept 1–12 (kept under the box's core count so the load generator
 never starves the server), 4 s per level, best run confirmed by a second pass.
 Box: 14-vCPU WSL2. **Each runtime in its recommended single-process config.**
+
+These HTTP figures come from a separate, earlier run on a different machine than
+the CPU table above — compare rows within each table, not across them.
 
 | Server                | req/sec | p50 latency | Configuration                         |
 | --------------------- | ------: | ----------: | ------------------------------------- |
@@ -437,7 +489,45 @@ binary vs Python + ~50 MB of deps).
 
 ## What got us here
 
-**Hot-path optimisations applied:**
+Since the first fair measurement (2026-09-02), where Tulpar made the top three in
+none of the five benchmarks: `strcat` 233.5 → **13.2** ms (17.7×), `fib(32)`
+5.8 → **0.6** ms (9.7×), `sieve` 60.4 → **7.7** ms (7.8×), `arrayiter`
+6.6 → **1.2** ms (5.5×). `intloop` never moved, as expected — it is a serial
+dependency chain, so it measures the CPU, not the compiler.
+
+### Compiler / CPU
+
+- **Unboxed numeric arrays.** An array is either a boxed `VMValue` vector or a
+  raw integer buffer; element access is an inlined GEP + load in codegen, with
+  TBAA separating the element store from the array header, and a
+  **loop-invariant shape cache** that reads the pointer and length once per loop
+  instead of once per iteration.
+- **Loop versioning.** The body of a `for`/`while` is emitted twice; the fast
+  version has no bounds check at all, because a single test at loop entry proved
+  it redundant. The proof is semantic, not syntactic.
+- **32-bit element storage.** C/Rust/Go use 4-byte elements in a sieve; we used
+  8. Arrays now start 32-bit and **widen** (never box) when a value that doesn't
+  fit is stored — the language's `int` stays 64-bit. The width branch lives in
+  *version selection*, not in element access, so both widths stay branch-free on
+  the hot path.
+- **Self-recursion chain.** LLVM will not inline a function into itself (gcc
+  will — that was the only reason it beat every LLVM language on `fib` by 2.4×).
+  The backend emits four clones wired into a ring, so each edge is a call
+  between two *different* functions and the ordinary inliner unrolls them.
+- **Start-up cost.** Every binary was loading OpenSSL and linking libstdc++
+  dynamically: empty program 1.15 → 0.23 ms.
+- **String building.** `StringBuilder` plus a boxing-free `sb_append` and a fast
+  `itoa`; string literals are interned.
+- **Untyped path.** `%` had no boxed inline fast path and every boxed global
+  assignment paid an unconditional runtime call; both are closed. Boxed
+  functions also moved to a **value ABI** (arguments and return in registers):
+  untyped `fib` 11.9 → 7.7 ms.
+
+Every one of those was found by measurement, and the ones that were measured and
+*rejected* are recorded alongside them in
+[`docs/mindmap/Performance.md`](https://github.com/hamer1818/TulparLang/blob/main/docs/mindmap/Performance.md).
+
+### Server hot path (HTTP)
 
 - `call(handler_name)` dlsym cache (256-slot FNV-1a hash) — eliminates the symbol-table walk per request.
 - TCP_NODELAY on accept — removes Nagle's 40ms batching delay on small JSON responses (+13% req/sec).
@@ -453,16 +543,23 @@ binary vs Python + ~50 MB of deps).
 
 ## Methodology
 
-- **CPU:** `gcc -O2` (Linux gcc 15 / Windows MinGW64). Best-of-N wall-clock. The
-  workload input is opaque to the compiler (read at runtime) so `-O2` can't
-  constant-fold it, and `N` is large enough that process startup is negligible.
+- **CPU:** nine toolchains on one Linux box, `gcc -O2` / `g++ -O2` /
+  `rustc -O3` / Go / Java / .NET / Node / CPython / Tulpar AOT (LLVM 22). Warm-up
+  discarded, best of 7 wall-clock runs, workload size read from `BENCH_N` at run
+  time so no compiler can constant-fold it, outputs compared across languages.
 - **HTTP:** native `benchmarks/loadtest`, single box, keep-alive, concurrency
   kept ≤ core count so the load generator and server don't fight for CPU.
   Toolchains: Go 1.23, Node 22, Python 3.14 + FastAPI/uvicorn. Servers run in
   their default single-process configuration (core usage labelled per row).
 - Absolute numbers are box-specific; treat the **ratios and latency** as the
-  portable signal. Reproduce CPU via `benchmarks/run_benchmarks.sh`; the HTTP
-  servers + driver used here are minimal equivalents returning the same JSON.
+  portable signal. Reproduce CPU via `cd benchmarks/fair && python3 run.py` (the
+  older `run_benchmarks.sh` harness is the one whose results were retired); the
+  HTTP servers + driver used here are minimal equivalents returning the same
+  JSON.
+- **These are microbenchmarks** — tight loops on one machine. They isolate
+  compiler and runtime cost and make the languages comparable on the same shape
+  of work. They do not model production traffic: cold starts, large payloads,
+  distributed clients, p99 tails, or GC pressure under sustained load.
 
 ---
 
@@ -2952,11 +3049,16 @@ no external framework or dependency install.
 
 ## How fast is Tulpar?
 
-Tulpar compiles ahead-of-time to a native binary via LLVM, landing at roughly
-**1.37x to 1.9x the runtime of equivalent C** on CPU-bound benchmarks like
-`fib`, and around **36k req/s** on a keep-alive HTTP benchmark using the
-built-in Wings server pool — the same performance class as Go and Rust. See
-[Benchmarks](/ecosystem/benchmarks/) for the full methodology.
+Tulpar compiles ahead-of-time to a native binary via LLVM. On a nine-language
+microbenchmark suite it is **the fastest of the nine on `fib`, `strcat` and
+`arrayiter`** — ahead of C, C++, Rust and Go — and **within 0.1 ms of
+`gcc -O2`** on `sieve` and `intloop`. On HTTP it serves around **36k req/s** on
+a keep-alive benchmark using the built-in Wings server pool.
+
+Two honest caveats: on `sieve` and `intloop` the top four languages sit inside
+0.1–0.9 ms of each other, so the band is meaningful but the rank order is not;
+and these are microbenchmarks, not production traffic. Full table, workloads and
+methodology in [Benchmarks](/ecosystem/benchmarks/).
 
 ## Does Tulpar have a VM, bytecode interpreter, or REPL?
 

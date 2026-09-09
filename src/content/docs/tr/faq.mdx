@@ -23,7 +23,7 @@ head:
             "name": "Tulpar ne kadar hızlı?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Tulpar, LLVM üzerinden derleme zamanında (AOT) native bir ikili dosyaya derlenir; fib gibi CPU-ağırlıklı benchmark'larda C'nin yaklaşık 1.37-1.9 katı sürede çalışır ve dahili Wings sunucu havuzuyla keep-alive HTTP benchmark'ında saniyede yaklaşık 36 bin isteğe ulaşır — Go ve Rust ile aynı performans sınıfındadır."
+              "text": "Tulpar, LLVM üzerinden derleme zamanında (AOT) native bir ikili dosyaya derlenir. Dokuz dilli mikro-kıyas takımında fib, strcat ve arrayiter'de dokuzunun en hızlısı — C, C++, Rust ve Go'nun önünde — sieve ve intloop'ta ise gcc -O2'nin 0,1 ms içinde. HTTP'de dahili Wings sunucu havuzuyla keep-alive kıyasında saniyede yaklaşık 36 bin istek karşılıyor."
             }
           },
           {
@@ -92,10 +92,14 @@ bağımlılık kurulumu gerekmez.
 ## Tulpar ne kadar hızlı?
 
 Tulpar, LLVM üzerinden derleme zamanında (AOT) native bir ikili dosyaya
-derlenir; `fib` gibi CPU-ağırlıklı benchmark'larda C'nin **yaklaşık 1.37-1.9
-katı** sürede çalışır ve dahili Wings sunucu havuzuyla keep-alive HTTP
-benchmark'ında saniyede **yaklaşık 36 bin isteğe** ulaşır — Go ve Rust ile
-aynı performans sınıfındadır. Ayrıntılı yöntem için
+derlenir. Dokuz dilli mikro-kıyas takımında **`fib`, `strcat` ve `arrayiter`'de
+dokuzunun en hızlısı** — C, C++, Rust ve Go'nun önünde — `sieve` ve
+`intloop`'ta ise **`gcc -O2`'nin 0,1 ms içinde**. HTTP'de dahili Wings sunucu
+havuzuyla keep-alive kıyasında saniyede **yaklaşık 36 bin istek** karşılıyor.
+
+İki dürüst çekince: `sieve` ve `intloop`'ta ilk dört dil birbirinin 0,1–0,9 ms
+içinde, yani bant anlamlı ama sıra numarası değil; ayrıca bunlar mikro-kıyas,
+üretim trafiği değil. Tam tablo, iş yükleri ve yöntem için
 [Benchmark Sonuçları](/tr/ecosystem/benchmarks/)'na bakın.
 
 ## Tulpar'ın bir VM'i, bytecode yorumlayıcısı ya da REPL'i var mı?
