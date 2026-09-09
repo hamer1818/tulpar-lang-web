@@ -221,8 +221,8 @@ print("Min:     " + toString(min(scores)));`
 		</div>
 		<div class="tlp-bento__item">
 			<div class="tlp-bento__icon">🧬</div>
-			<h3>Arena Memory</h3>
-			<p>Region-based allocation reset in bulk (per request, per scope) — no garbage collector and no stop-the-world pauses.</p>
+			<h3>No GC Pauses</h3>
+			<p>No garbage collector, so no stop-the-world pauses. Memory comes from arenas; exactly how much is reclaimed on which path is being measured — see <a href="https://github.com/hamer1818/TulparLang/blob/main/docs/mindmap/Memory.md">the memory notes</a>.</p>
 		</div>
 		<div class="tlp-bento__item">
 			<div class="tlp-bento__icon">🔗</div>
