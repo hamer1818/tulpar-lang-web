@@ -173,7 +173,7 @@ print("Min:     " + toString(min(scores)));`
 				</tr>
 				<tr>
 					<td>Memory Model</td>
-					<td class="tlp-compare__highlight">ARC</td>
+					<td class="tlp-compare__highlight">Arena (no GC)</td>
 					<td>GC (stop-the-world)</td>
 					<td>GC + refcount</td>
 					<td>GC (V8)</td>
@@ -221,8 +221,8 @@ print("Min:     " + toString(min(scores)));`
 		</div>
 		<div class="tlp-bento__item">
 			<div class="tlp-bento__icon">🧬</div>
-			<h3>ARC Memory</h3>
-			<p>Automatic Reference Counting (ARC) for safe, predictable memory — no stop-the-world GC pauses.</p>
+			<h3>Arena Memory</h3>
+			<p>Region-based allocation reset in bulk (per request, per scope) — no garbage collector and no stop-the-world pauses.</p>
 		</div>
 		<div class="tlp-bento__item">
 			<div class="tlp-bento__icon">🔗</div>
@@ -486,7 +486,7 @@ Two disclosures the numbers don't carry on their own:
 
 Five integer/string kernels on one machine cannot support "fastest language".
 Not covered: floating point and SIMD (matmul, n-body, mandelbrot), allocation
-pressure and hash-map/JSON workloads — **where ARC-versus-GC differences would
+pressure and hash-map/JSON workloads — **where the arena model's costs would
 actually show** — pointer chasing, sorting, multi-threaded scaling, RSS, and
 sustained-load p99 latency. The defensible reading: Tulpar is **in C's
 performance class on integer and string kernels**, decisively ahead of

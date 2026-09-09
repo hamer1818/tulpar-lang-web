@@ -178,7 +178,7 @@ print("En düşük:  " + toString(min(notlar)));`
 				</tr>
 				<tr>
 					<td>Bellek Modeli</td>
-					<td class="tlp-compare__highlight">ARC</td>
+					<td class="tlp-compare__highlight">Arena (GC yok)</td>
 					<td>GC (stop-the-world)</td>
 					<td>GC + refcount</td>
 					<td>GC (V8)</td>
@@ -226,8 +226,8 @@ print("En düşük:  " + toString(min(notlar)));`
 		</div>
 		<div class="tlp-bento__item">
 			<div class="tlp-bento__icon">🧬</div>
-			<h3>ARC Bellek Yönetimi</h3>
-			<p>Otomatik Referans Sayımı (ARC) — güvenli, öngörülebilir bellek, stop-the-world GC duraksaması yok.</p>
+			<h3>Arena Bellek Yönetimi</h3>
+			<p>Bölge tabanlı ayırma, toplu sıfırlanır (istek başına, kapsam başına) — çöp toplayıcı yok, stop-the-world duraksaması yok.</p>
 		</div>
 		<div class="tlp-bento__item">
 			<div class="tlp-bento__icon">🔗</div>

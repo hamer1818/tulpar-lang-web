@@ -115,7 +115,7 @@ Two disclosures the numbers don't carry on their own:
 
 Five integer/string kernels on one machine cannot support "fastest language".
 Not covered: floating point and SIMD (matmul, n-body, mandelbrot), allocation
-pressure and hash-map/JSON workloads — **where ARC-versus-GC differences would
+pressure and hash-map/JSON workloads — **where the arena model's costs would
 actually show** — pointer chasing, sorting, multi-threaded scaling, RSS, and
 sustained-load p99 latency. The defensible reading: Tulpar is **in C's
 performance class on integer and string kernels**, decisively ahead of
