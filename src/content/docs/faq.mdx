@@ -23,7 +23,7 @@ head:
             "name": "How fast is Tulpar?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Tulpar compiles ahead-of-time to a native binary via LLVM. On a nine-language microbenchmark suite it is the fastest on fib, strcat and arrayiter — ahead of C, C++, Rust and Go — and within 0.1 ms of gcc -O2 on sieve and intloop. On HTTP it serves around 36k req/s on a keep-alive benchmark using the built-in Wings server pool."
+              "text": "Tulpar compiles ahead-of-time to a native binary via LLVM. On a nine-language microbenchmark suite it beats C on fib (2.7x) and strcat (2.8x) even when C is compiled with -O3 -march=native -flto, and ties C on sieve and intloop; on arrayiter C wins once given -march=native. On HTTP it serves around 36k req/s on a keep-alive benchmark using the built-in Wings server pool. These are integer and string microbenchmarks and do not cover floating point, SIMD, allocation-heavy or multi-threaded workloads."
             }
           },
           {
@@ -92,15 +92,17 @@ no external framework or dependency install.
 ## How fast is Tulpar?
 
 Tulpar compiles ahead-of-time to a native binary via LLVM. On a nine-language
-microbenchmark suite it is **the fastest of the nine on `fib`, `strcat` and
-`arrayiter`** — ahead of C, C++, Rust and Go — and **within 0.1 ms of
-`gcc -O2`** on `sieve` and `intloop`. On HTTP it serves around **36k req/s** on
-a keep-alive benchmark using the built-in Wings server pool.
+microbenchmark suite it beats C on **`fib` (2.7×)** and **`strcat` (2.8×)** —
+a lead that holds even when C is compiled with `-O3 -march=native -flto` — and
+ties C on `sieve` and `intloop`. On HTTP it serves around **36k req/s** on a
+keep-alive benchmark using the built-in Wings server pool.
 
-Two honest caveats: on `sieve` and `intloop` the top four languages sit inside
-0.1–0.9 ms of each other, so the band is meaningful but the rank order is not;
-and these are microbenchmarks, not production traffic. Full table, workloads and
-methodology in [Benchmarks](/ecosystem/benchmarks/).
+Three honest caveats. On `arrayiter` Tulpar leads only at equal generic flags;
+**C takes it back with `-march=native`**. On `sieve` and `intloop` the top four
+languages sit within 0.5 ms of each other, so the band is meaningful but the
+rank order is not. And these are integer/string microbenchmarks: floating
+point, SIMD, allocation-heavy and multi-threaded workloads are untested. Full
+table, flag matrix and scope limits in [Benchmarks](/ecosystem/benchmarks/).
 
 ## Does Tulpar have a VM, bytecode interpreter, or REPL?
 
