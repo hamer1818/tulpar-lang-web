@@ -101,8 +101,8 @@ Caveats, because two earlier claims here were withdrawn after a follow-up run.
 On `arrayiter` C takes the lead back with `-march=native`. On **`strcat`** C
 wins by 1.25× once given the same hand-rolled integer-to-string routine Tulpar
 uses — that gap was a standard-library asymmetry, not a compiler one. The `fib`
-win also **does not generalise**: across the recursion family the clone-chain
-pass gains 6.33× on `fib` but regresses `ackermann` by 21%. On `sieve` and
+win also **does not generalise**: across the recursion family `gcc` still leads
+Tulpar on `treesum`, `ackermann` and `tak`. On `sieve` and
 `intloop` the top four languages sit within 0.5 ms, so the band is meaningful
 but the rank order is not. And floating point, SIMD, allocation-heavy and
 multi-threaded workloads are untested. Full table, flag matrix and withdrawn

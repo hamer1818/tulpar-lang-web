@@ -431,13 +431,19 @@ A follow-up attribution run falsified two claims that appeared here earlier:
   Tulpar's **13.85 ± 0.39** — C is 1.25× ahead. The 2.8× "win" was a
   standard-library asymmetry, not a compiler one.
 - **Recursion in general.** Across the whole self-recursion family the
-  clone-chain pass gains 6.33× on `fib` but only 1.04–1.57× on `tak`,
-  `treesum` and a mutual-recursion control — and **regresses `ackermann` by
-  21%**. `gcc` beats Tulpar on `ackermann` (4.2×), `treesum` (2.5×) and `tak`
-  (1.47×).
+  clone-chain pass gained 6.33× on `fib` but only 1.04–1.57× elsewhere — and
+  **regressed `ackermann` by 21%**. Diagnosing that found the chain depth was
+  simply too large (one clone suffices to break the self-recursion edge);
+  `SELFREC_DEPTH` went 4 → 1, which removed the regression *and* made `fib`
+  faster still. But `gcc` still beats Tulpar on `treesum` (3.6×),
+  `ackermann` (3.2×) and `tak` (1.5×), so "faster than C at recursion"
+  remains unsupported.
 
-`fib` remains a verified win (2.7× vs `gcc -O3 -march=native -flto`, 5.9× vs
-`clang`). Data, matched `clang` baseline and raw CSV:
+`fib` remains a verified win — **3.54× vs `gcc -O3 -march=native -flto`**, 8.3×
+vs `clang` and `rustc`. Calibration from the same run: compiling the *same C
+source* with gcc versus clang swings these kernels by **1.21×–3.82×**, so any
+cross-language gap smaller than that is a compiler difference, not a language
+one. Data, matched baselines and raw CSV:
 [benchmarks/fair/recursion/](https://github.com/hamer1818/TulparLang/blob/main/benchmarks/fair/recursion/README.md).
 :::
 
@@ -3128,8 +3134,8 @@ Caveats, because two earlier claims here were withdrawn after a follow-up run.
 On `arrayiter` C takes the lead back with `-march=native`. On **`strcat`** C
 wins by 1.25× once given the same hand-rolled integer-to-string routine Tulpar
 uses — that gap was a standard-library asymmetry, not a compiler one. The `fib`
-win also **does not generalise**: across the recursion family the clone-chain
-pass gains 6.33× on `fib` but regresses `ackermann` by 21%. On `sieve` and
+win also **does not generalise**: across the recursion family `gcc` still leads
+Tulpar on `treesum`, `ackermann` and `tak`. On `sieve` and
 `intloop` the top four languages sit within 0.5 ms, so the band is meaningful
 but the rank order is not. And floating point, SIMD, allocation-heavy and
 multi-threaded workloads are untested. Full table, flag matrix and withdrawn

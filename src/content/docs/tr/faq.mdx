@@ -101,8 +101,8 @@ kıyasında saniyede **yaklaşık 36 bin istek** karşılıyor.
 `arrayiter`'de `-march=native` ile C öne geçiyor. **`strcat`**'te ise, Tulpar'ın
 kullandığı elle yazılmış tamsayı→dizgi yordamının aynısı verilince C 1,25× önde
 bitiriyor — o fark bir derleyici farkı değil, **stdlib** asimetrisiydi. `fib`
-kazancı da **genelleşmiyor**: özyineleme ailesinde klon zinciri `fib`'de 6,33×
-kazandırırken `ackermann`'ı %21 geriletiyor. `sieve` ve `intloop`'ta ilk dört
+kazancı da **genelleşmiyor**: özyineleme ailesinde `gcc` hâlâ `treesum`,
+`ackermann` ve `tak`'ta Tulpar'ın önünde. `sieve` ve `intloop`'ta ilk dört
 dil 0,5 ms içinde, yani bant anlamlı ama sıra numarası değil. Kayan nokta,
 SIMD, tahsis ağırlıklı ve çok iş parçacıklı yükler denenmedi. Tam tablo, bayrak
 matrisi ve geri çekilen iddialar için

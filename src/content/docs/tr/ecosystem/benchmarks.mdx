@@ -60,12 +60,18 @@ Bir atribüsyon koşusu, daha önce burada duran iki iddiayı yanlışladı:
   Tulpar **13,85 ± 0,39** — C 1,25× önde. 2,8×'lik "kazanç" bir derleyici
   farkı değil, **stdlib** asimetrisiydi.
 - **Genel olarak özyineleme.** Özyineleme ailesinin tamamında klon zinciri
-  `fib`'de 6,33× kazandırırken `tak`, `treesum` ve karşılıklı özyineleme
-  kontrolünde 1,04–1,57×'te kalıyor — ve **`ackermann`'ı %21 geriletiyor**.
-  `gcc` bu ailede `ackermann` 4,2×, `treesum` 2,5×, `tak` 1,47× önde.
+  `fib`'de 6,33× kazandırırken geri kalanında 1,04–1,57×'te kalıyordu — ve
+  **`ackermann`'ı %21 geriletiyordu**. Teşhis, zincir derinliğinin fazla
+  olduğunu gösterdi (öz-özyineleme kenarını kırmak için tek klon yetiyor);
+  `SELFREC_DEPTH` 4 → 1 yapıldı, gerileme kalktı *ve* `fib` daha da hızlandı.
+  Ama `gcc` hâlâ `treesum`'da 3,6×, `ackermann`'da 3,2×, `tak`'ta 1,5× önde;
+  yani "özyinelemede C'den hızlıyız" desteklenmiyor.
 
-`fib` doğrulanmış bir kazanç olarak duruyor (`gcc -O3 -march=native -flto`'ya
-karşı 2,7×, `clang`'a karşı 5,9×). Veri, eşleşen `clang` tabanı ve ham CSV:
+`fib` doğrulanmış kazanç olarak duruyor — **`gcc -O3 -march=native -flto`'ya
+karşı 3,54×**, `clang` ve `rustc`'ye karşı 8,3×. Aynı koşudan kalibrasyon:
+*aynı C kaynağı* gcc ile clang arasında **1,21×–3,82×** oynuyor, yani bundan
+küçük diller arası farklar bir derleyici farkıdır, dil farkı değil. Veri,
+eşleşen tabanlar ve ham CSV:
 [benchmarks/fair/recursion/](https://github.com/hamer1818/TulparLang/blob/main/benchmarks/fair/recursion/README.md).
 :::
 
