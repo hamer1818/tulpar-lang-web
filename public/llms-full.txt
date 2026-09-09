@@ -21,7 +21,7 @@ As easy as Python, as fast as C. A statically-typed, AOT-compiled language with 
 		</div>
 		<div class="tlp-hero__stats">
 			<div class="tlp-hero__stat"><b>~36k</b><span>req/s · Tulpar pool</span></div>
-			<div class="tlp-hero__stat"><b>2.7× C</b><span>fib · vs C at -march=native</span></div>
+			<div class="tlp-hero__stat"><b>C-class</b><span>integer kernels · AOT</span></div>
 			<div class="tlp-hero__stat"><b>0</b><span>external dependencies</span></div>
 		</div>
 	</div>
@@ -119,7 +119,7 @@ print("Min:     " + toString(min(scores)));`
 			<div class="tlp-bench__val">~3.5k req/s</div>
 		</div>
 		<p class="tlp-bench__note">
-			And latency stays low: <strong>p50 0.32 ms</strong> (Tulpar) vs 3.3 ms (FastAPI). On CPU, Tulpar beats C on <strong>fib (2.7×)</strong> and <strong>strcat (2.8×)</strong> even when C is given <code>-O3 -march=native -flto</code>, and ties it on sieve and intloop. <a href="/ecosystem/benchmarks/">Full table, flag matrix + limits →</a>
+			And latency stays low: <strong>p50 0.32 ms</strong> (Tulpar) vs 3.3 ms (FastAPI). On CPU, Tulpar beats C on <strong>fib (2.7× vs <code>gcc -O3 -march=native -flto</code>)</strong> and ties it on sieve and intloop; C takes arrayiter and strcat at equal flags and tooling. <a href="/ecosystem/benchmarks/">Full table, flag matrix + withdrawn claims →</a>
 		</p>
 	</div>
 </section>
@@ -405,10 +405,10 @@ Empty-program baseline on the same box — process start-up, and it is *included
 in every number above: C 0.17 · **Tulpar 0.23** · C++ 0.44 · Python 5.6 ·
 C# 8.2 · Node 10.7 ms.
 
-**Tulpar AOT is the fastest of the nine on `fib`, `strcat` and `arrayiter`, and
-within 0.1 ms of C on `sieve` and `intloop`** — but see the flag matrix below
-before quoting "faster than C": one of those three wins does not survive giving
-C its best compiler flags.
+**Tulpar AOT beats C on `fib` and ties it on `sieve` and `intloop`.** The
+`strcat` and `arrayiter` entries above are *not* wins over C once C is given
+equal flags and the same integer-formatting routine — see the two sections
+below before quoting anything from this table.
 
 Three things to read carefully before quoting a row:
 
@@ -422,6 +422,24 @@ Three things to read carefully before quoting a row:
   8.2 ms. The benchmark measures wall clock, which is what a user feels, so the
   cost is shown rather than subtracted — but it is most of those two rows on the
   short workloads.
+
+:::caution[Two of these wins were later withdrawn]
+A follow-up attribution run falsified two claims that appeared here earlier:
+
+- **`strcat`.** Given the same hand-rolled integer-to-string routine Tulpar
+  uses (instead of `snprintf`), C runs it in **11.07 ± 0.10 ms** against
+  Tulpar's **13.85 ± 0.39** — C is 1.25× ahead. The 2.8× "win" was a
+  standard-library asymmetry, not a compiler one.
+- **Recursion in general.** Across the whole self-recursion family the
+  clone-chain pass gains 6.33× on `fib` but only 1.04–1.57× on `tak`,
+  `treesum` and a mutual-recursion control — and **regresses `ackermann` by
+  21%**. `gcc` beats Tulpar on `ackermann` (4.2×), `treesum` (2.5×) and `tak`
+  (1.47×).
+
+`fib` remains a verified win (2.7× vs `gcc -O3 -march=native -flto`, 5.9× vs
+`clang`). Data, matched `clang` baseline and raw CSV:
+[benchmarks/fair/recursion/](https://github.com/hamer1818/TulparLang/blob/main/benchmarks/fair/recursion/README.md).
+:::
 
 ### Does the lead survive C's best compiler flags?
 
@@ -3106,12 +3124,16 @@ a lead that holds even when C is compiled with `-O3 -march=native -flto` — and
 ties C on `sieve` and `intloop`. On HTTP it serves around **36k req/s** on a
 keep-alive benchmark using the built-in Wings server pool.
 
-Three honest caveats. On `arrayiter` Tulpar leads only at equal generic flags;
-**C takes it back with `-march=native`**. On `sieve` and `intloop` the top four
-languages sit within 0.5 ms of each other, so the band is meaningful but the
-rank order is not. And these are integer/string microbenchmarks: floating
-point, SIMD, allocation-heavy and multi-threaded workloads are untested. Full
-table, flag matrix and scope limits in [Benchmarks](/ecosystem/benchmarks/).
+Caveats, because two earlier claims here were withdrawn after a follow-up run.
+On `arrayiter` C takes the lead back with `-march=native`. On **`strcat`** C
+wins by 1.25× once given the same hand-rolled integer-to-string routine Tulpar
+uses — that gap was a standard-library asymmetry, not a compiler one. The `fib`
+win also **does not generalise**: across the recursion family the clone-chain
+pass gains 6.33× on `fib` but regresses `ackermann` by 21%. On `sieve` and
+`intloop` the top four languages sit within 0.5 ms, so the band is meaningful
+but the rank order is not. And floating point, SIMD, allocation-heavy and
+multi-threaded workloads are untested. Full table, flag matrix and withdrawn
+claims in [Benchmarks](/ecosystem/benchmarks/).
 
 ## Does Tulpar have a VM, bytecode interpreter, or REPL?
 

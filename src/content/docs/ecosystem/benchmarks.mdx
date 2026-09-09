@@ -34,10 +34,10 @@ Empty-program baseline on the same box — process start-up, and it is *included
 in every number above: C 0.17 · **Tulpar 0.23** · C++ 0.44 · Python 5.6 ·
 C# 8.2 · Node 10.7 ms.
 
-**Tulpar AOT is the fastest of the nine on `fib`, `strcat` and `arrayiter`, and
-within 0.1 ms of C on `sieve` and `intloop`** — but see the flag matrix below
-before quoting "faster than C": one of those three wins does not survive giving
-C its best compiler flags.
+**Tulpar AOT beats C on `fib` and ties it on `sieve` and `intloop`.** The
+`strcat` and `arrayiter` entries above are *not* wins over C once C is given
+equal flags and the same integer-formatting routine — see the two sections
+below before quoting anything from this table.
 
 Three things to read carefully before quoting a row:
 
@@ -51,6 +51,24 @@ Three things to read carefully before quoting a row:
   8.2 ms. The benchmark measures wall clock, which is what a user feels, so the
   cost is shown rather than subtracted — but it is most of those two rows on the
   short workloads.
+
+:::caution[Two of these wins were later withdrawn]
+A follow-up attribution run falsified two claims that appeared here earlier:
+
+- **`strcat`.** Given the same hand-rolled integer-to-string routine Tulpar
+  uses (instead of `snprintf`), C runs it in **11.07 ± 0.10 ms** against
+  Tulpar's **13.85 ± 0.39** — C is 1.25× ahead. The 2.8× "win" was a
+  standard-library asymmetry, not a compiler one.
+- **Recursion in general.** Across the whole self-recursion family the
+  clone-chain pass gains 6.33× on `fib` but only 1.04–1.57× on `tak`,
+  `treesum` and a mutual-recursion control — and **regresses `ackermann` by
+  21%**. `gcc` beats Tulpar on `ackermann` (4.2×), `treesum` (2.5×) and `tak`
+  (1.47×).
+
+`fib` remains a verified win (2.7× vs `gcc -O3 -march=native -flto`, 5.9× vs
+`clang`). Data, matched `clang` baseline and raw CSV:
+[benchmarks/fair/recursion/](https://github.com/hamer1818/TulparLang/blob/main/benchmarks/fair/recursion/README.md).
+:::
 
 ### Does the lead survive C's best compiler flags?
 

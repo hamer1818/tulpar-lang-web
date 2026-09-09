@@ -34,10 +34,10 @@ Aynı makinede boş program taban çizgisi — süreç başlatma maliyeti, ve yu
 her sayının *içinde*: C 0,17 · **Tulpar 0,23** · C++ 0,44 · Python 5,6 ·
 C# 8,2 · Node 10,7 ms.
 
-**Tulpar AOT dokuz dil arasında `fib`, `strcat` ve `arrayiter`'de birinci;
-`sieve` ve `intloop`'ta C'nin 0,1 ms içinde** — ama "C'den hızlı" demeden önce
-aşağıdaki bayrak matrisine bak: bu üç kazançtan biri, C'ye en iyi derleme
-bayrakları verilince ayakta kalmıyor.
+**Tulpar AOT `fib`'de C'yi geçiyor, `sieve` ve `intloop`'ta başa baş.**
+Yukarıdaki `strcat` ve `arrayiter` satırları, C'ye eşit bayraklar ve aynı
+tamsayı biçimlendirme yordamı verilince **kazanç değil** — bu tablodan bir şey
+alıntılamadan önce aşağıdaki iki bölümü oku.
 
 Bir satırı alıntılamadan önce dikkatle okunması gereken üç şey:
 
@@ -51,6 +51,23 @@ Bir satırı alıntılamadan önce dikkatle okunması gereken üç şey:
   programı 8,2 ms. Kıyas, kullanıcının hissettiği şey olduğu için duvar saatini
   ölçüyor; maliyet çıkarılmıyor, gösteriliyor — ama kısa iş yüklerinde o iki
   satırın çoğu bu.
+
+:::caution[Bu kazançlardan ikisi sonradan geri çekildi]
+Bir atribüsyon koşusu, daha önce burada duran iki iddiayı yanlışladı:
+
+- **`strcat`.** C'ye, Tulpar'ın kullandığı elle yazılmış tamsayı→dizgi
+  yordamının aynısı verilince (`snprintf` yerine), C **11,07 ± 0,10 ms**,
+  Tulpar **13,85 ± 0,39** — C 1,25× önde. 2,8×'lik "kazanç" bir derleyici
+  farkı değil, **stdlib** asimetrisiydi.
+- **Genel olarak özyineleme.** Özyineleme ailesinin tamamında klon zinciri
+  `fib`'de 6,33× kazandırırken `tak`, `treesum` ve karşılıklı özyineleme
+  kontrolünde 1,04–1,57×'te kalıyor — ve **`ackermann`'ı %21 geriletiyor**.
+  `gcc` bu ailede `ackermann` 4,2×, `treesum` 2,5×, `tak` 1,47× önde.
+
+`fib` doğrulanmış bir kazanç olarak duruyor (`gcc -O3 -march=native -flto`'ya
+karşı 2,7×, `clang`'a karşı 5,9×). Veri, eşleşen `clang` tabanı ve ham CSV:
+[benchmarks/fair/recursion/](https://github.com/hamer1818/TulparLang/blob/main/benchmarks/fair/recursion/README.md).
+:::
 
 ### "C'den hızlı" iddiası C'nin EN İYİ bayraklarına dayanıyor mu?
 

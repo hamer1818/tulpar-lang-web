@@ -23,7 +23,7 @@ head:
             "name": "Tulpar ne kadar hızlı?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Tulpar, LLVM üzerinden derleme zamanında (AOT) native bir ikili dosyaya derlenir. Dokuz dilli mikro-kıyas takımında, C'ye -O3 -march=native -flto verildiğinde bile fib'de 2,7 kat ve strcat'te 2,8 kat önde; sieve ve intloop'ta C ile başa baş; arrayiter'de ise -march=native verilen C öne geçiyor. HTTP'de dahili Wings sunucu havuzuyla keep-alive kıyasında saniyede yaklaşık 36 bin istek karşılıyor. Bunlar tam sayı ve dizgi mikro-kıyaslarıdır; kayan nokta, SIMD, tahsis ağırlıklı ve çok iş parçacıklı yükleri kapsamaz."
+              "text": "Tulpar, LLVM üzerinden derleme zamanında (AOT) native bir ikili dosyaya derlenir ve tam sayı çekirdeklerinde C sınıfındadır: fib'de -O3 -march=native -flto ile derlenmiş C'yi bile 2,7 kat geçer, sieve ve intloop'ta C ile başa baştır. arrayiter'i -march=native verilen C alır; strcat'i de aynı tamsayı biçimlendirme yordamı verilen C alır. HTTP'de dahili Wings sunucu havuzuyla saniyede yaklaşık 36 bin istek karşılar. Bunlar tam sayı ve dizgi mikro-kıyaslarıdır; kayan nokta, SIMD, tahsis ağırlıklı ve çok iş parçacıklı yükleri kapsamaz."
             }
           },
           {
@@ -97,11 +97,15 @@ verildiğinde bile **`fib`'de 2,7×** ve **`strcat`'te 2,8×** önde; `sieve` ve
 `intloop`'ta C ile başa baş. HTTP'de dahili Wings sunucu havuzuyla keep-alive
 kıyasında saniyede **yaklaşık 36 bin istek** karşılıyor.
 
-Üç dürüst çekince. `arrayiter`'de yalnız eşit jenerik bayrakta öndeyiz;
-**`-march=native` ile C geri alıyor**. `sieve` ve `intloop`'ta ilk dört dil
-birbirinin 0,5 ms içinde, yani bant anlamlı ama sıra numarası değil. Ve bunlar
-tam sayı/dizgi mikro-kıyasları: kayan nokta, SIMD, tahsis ağırlıklı ve çok iş
-parçacıklı yükler denenmedi. Tam tablo, bayrak matrisi ve kapsam sınırları için
+Çekinceler — çünkü buradaki iki iddia bir sonraki koşuda geri çekildi.
+`arrayiter`'de `-march=native` ile C öne geçiyor. **`strcat`**'te ise, Tulpar'ın
+kullandığı elle yazılmış tamsayı→dizgi yordamının aynısı verilince C 1,25× önde
+bitiriyor — o fark bir derleyici farkı değil, **stdlib** asimetrisiydi. `fib`
+kazancı da **genelleşmiyor**: özyineleme ailesinde klon zinciri `fib`'de 6,33×
+kazandırırken `ackermann`'ı %21 geriletiyor. `sieve` ve `intloop`'ta ilk dört
+dil 0,5 ms içinde, yani bant anlamlı ama sıra numarası değil. Kayan nokta,
+SIMD, tahsis ağırlıklı ve çok iş parçacıklı yükler denenmedi. Tam tablo, bayrak
+matrisi ve geri çekilen iddialar için
 [Benchmark Sonuçları](/tr/ecosystem/benchmarks/)'na bakın.
 
 ## Tulpar'ın bir VM'i, bytecode yorumlayıcısı ya da REPL'i var mı?

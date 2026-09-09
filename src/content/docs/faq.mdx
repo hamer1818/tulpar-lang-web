@@ -23,7 +23,7 @@ head:
             "name": "How fast is Tulpar?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Tulpar compiles ahead-of-time to a native binary via LLVM. On a nine-language microbenchmark suite it beats C on fib (2.7x) and strcat (2.8x) even when C is compiled with -O3 -march=native -flto, and ties C on sieve and intloop; on arrayiter C wins once given -march=native. On HTTP it serves around 36k req/s on a keep-alive benchmark using the built-in Wings server pool. These are integer and string microbenchmarks and do not cover floating point, SIMD, allocation-heavy or multi-threaded workloads."
+              "text": "Tulpar compiles ahead-of-time to a native binary via LLVM, putting it in C's performance class on integer kernels: it beats C on fib by 2.7x even against -O3 -march=native -flto, and ties C on sieve and intloop. C wins arrayiter once given -march=native, and wins strcat once given the same integer-formatting routine. On HTTP it serves around 36k req/s using the built-in Wings server pool. These are integer and string microbenchmarks and do not cover floating point, SIMD, allocation-heavy or multi-threaded workloads."
             }
           },
           {
@@ -97,12 +97,16 @@ a lead that holds even when C is compiled with `-O3 -march=native -flto` — and
 ties C on `sieve` and `intloop`. On HTTP it serves around **36k req/s** on a
 keep-alive benchmark using the built-in Wings server pool.
 
-Three honest caveats. On `arrayiter` Tulpar leads only at equal generic flags;
-**C takes it back with `-march=native`**. On `sieve` and `intloop` the top four
-languages sit within 0.5 ms of each other, so the band is meaningful but the
-rank order is not. And these are integer/string microbenchmarks: floating
-point, SIMD, allocation-heavy and multi-threaded workloads are untested. Full
-table, flag matrix and scope limits in [Benchmarks](/ecosystem/benchmarks/).
+Caveats, because two earlier claims here were withdrawn after a follow-up run.
+On `arrayiter` C takes the lead back with `-march=native`. On **`strcat`** C
+wins by 1.25× once given the same hand-rolled integer-to-string routine Tulpar
+uses — that gap was a standard-library asymmetry, not a compiler one. The `fib`
+win also **does not generalise**: across the recursion family the clone-chain
+pass gains 6.33× on `fib` but regresses `ackermann` by 21%. On `sieve` and
+`intloop` the top four languages sit within 0.5 ms, so the band is meaningful
+but the rank order is not. And floating point, SIMD, allocation-heavy and
+multi-threaded workloads are untested. Full table, flag matrix and withdrawn
+claims in [Benchmarks](/ecosystem/benchmarks/).
 
 ## Does Tulpar have a VM, bytecode interpreter, or REPL?
 

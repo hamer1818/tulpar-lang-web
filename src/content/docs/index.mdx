@@ -25,7 +25,7 @@ import CodeTabs from '../../components/CodeTabs.astro';
 		</div>
 		<div class="tlp-hero__stats">
 			<div class="tlp-hero__stat"><b>~36k</b><span>req/s · Tulpar pool</span></div>
-			<div class="tlp-hero__stat"><b>2.7× C</b><span>fib · vs C at -march=native</span></div>
+			<div class="tlp-hero__stat"><b>C-class</b><span>integer kernels · AOT</span></div>
 			<div class="tlp-hero__stat"><b>0</b><span>external dependencies</span></div>
 		</div>
 	</div>
@@ -124,7 +124,7 @@ print("Min:     " + toString(min(scores)));`
 			<div class="tlp-bench__val">~3.5k req/s</div>
 		</div>
 		<p class="tlp-bench__note">
-			And latency stays low: <strong>p50 0.32 ms</strong> (Tulpar) vs 3.3 ms (FastAPI). On CPU, Tulpar beats C on <strong>fib (2.7×)</strong> and <strong>strcat (2.8×)</strong> even when C is given <code>-O3 -march=native -flto</code>, and ties it on sieve and intloop. <a href="/ecosystem/benchmarks/">Full table, flag matrix + limits →</a>
+			And latency stays low: <strong>p50 0.32 ms</strong> (Tulpar) vs 3.3 ms (FastAPI). On CPU, Tulpar beats C on <strong>fib (2.7× vs <code>gcc -O3 -march=native -flto</code>)</strong> and ties it on sieve and intloop; C takes arrayiter and strcat at equal flags and tooling. <a href="/ecosystem/benchmarks/">Full table, flag matrix + withdrawn claims →</a>
 		</p>
 	</div>
 </section>

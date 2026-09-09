@@ -25,7 +25,7 @@ import CodeTabs from '../../../components/CodeTabs.astro';
 		</div>
 		<div class="tlp-hero__stats">
 			<div class="tlp-hero__stat"><b>~36k</b><span>istek/sn · Tulpar pool</span></div>
-			<div class="tlp-hero__stat"><b>2,7× C</b><span>fib · C -march=native'e karşı</span></div>
+			<div class="tlp-hero__stat"><b>C sınıfı</b><span>tam sayı çekirdekleri · AOT</span></div>
 			<div class="tlp-hero__stat"><b>0</b><span>dış bağımlılık</span></div>
 		</div>
 	</div>
@@ -124,7 +124,7 @@ print("En düşük:  " + toString(min(notlar)));`
 			<div class="tlp-bench__val">~3.5k istek/sn</div>
 		</div>
 		<p class="tlp-bench__note">
-			Üstelik latency düşük kalıyor: <strong>p50 0.32 ms</strong> (Tulpar) vs 3.3 ms (FastAPI). CPU'da Tulpar, C'ye <code>-O3 -march=native -flto</code> verildiğinde bile <strong>fib'de 2,7×</strong> ve <strong>strcat'te 2,8×</strong> önde; sieve ve intloop'ta başa baş. <a href="/tr/ecosystem/benchmarks/">Tüm tablo, bayrak matrisi + sınırlar →</a>
+			Üstelik latency düşük kalıyor: <strong>p50 0.32 ms</strong> (Tulpar) vs 3.3 ms (FastAPI). CPU'da Tulpar <strong>fib'de C'yi 2,7× geçiyor</strong> (<code>gcc -O3 -march=native -flto</code>'ya karşı), sieve ve intloop'ta başa baş; arrayiter ve strcat'i eşit bayrak ve eşit araçla C alıyor. <a href="/tr/ecosystem/benchmarks/">Tüm tablo, bayrak matrisi + geri çekilen iddialar →</a>
 		</p>
 	</div>
 </section>
