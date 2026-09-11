@@ -478,11 +478,31 @@ Two disclosures the numbers don't carry on their own:
   formats each number with `snprintf`, a general-purpose formatter, while Tulpar
   uses a specialised integer-to-string routine optimised for exactly this path.
   A C programmer hand-rolling `itoa` would close much of the gap.
-- **`fib` measures inlining, not just call cost**, despite its label. Both
-  languages genuinely execute the exponential tree — time scales as φ² per +2 in
-  `n` (measured: C 2.67×, Tulpar 2.30×), so neither collapses it to a linear
-  form. But Tulpar's lower exponent shows part of the lead comes from the
-  self-recursion clone chain enabling subexpression sharing the C build misses.
+- **`fib`'s lead is algorithmic, not micro-architectural** (measured and named
+  2026-09-11). With process start-up subtracted *using the same binary*, the
+  growth exponent per +1 in `n` (naive tree φ = 1.618):
+
+  | | exponent |
+  |---|---:|
+  | clang -O3 | 1.604 |
+  | gcc -O2 | **1.607** |
+  | Tulpar, chain disabled | 1.612 |
+  | **Tulpar** | **1.488** |
+
+  **gcc's exponent is naive too** — its `fib` body is 264 instructions against
+  clang's 20, so aggressive unrolling, but a *constant-factor* win. Tulpar's
+  clone chain inlines `fib` once, giving
+  `fib(n) = fib(n-2) + 2·fib(n-3) + fib(n-4)`, and common-subexpression
+  elimination merges the duplicated `fib(n-3)`. **Three calls** remain
+  (confirmed in the disassembly), the recurrence becomes
+  `T(n) = T(n-2)+T(n-3)+T(n-4)`, and its root is **1.4656** — measured 1.488.
+
+  ⚠ **Consequence: the `fib` ratio is not a constant — it grows with `n`.**
+  Start-up subtracted, against gcc `-O2`: 12.3× at n=34 · 12.0× at n=36 ·
+  14.5× at n=38 · **17.3×** at n=40. The `fib(32)` row in the table above is
+  **one point** on a diverging curve — the gap narrows for smaller `n` and
+  widens for larger. The honest statement: *on this kernel Tulpar is in a
+  different complexity class from every compiler measured.*
 
 ### Floating point: there is no single answer, there are two
 

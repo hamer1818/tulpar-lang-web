@@ -106,11 +106,30 @@ Sayıların tek başına taşımadığı iki açıklama:
   amaçlı `snprintf` ile biçimliyor; Tulpar tam bu yol için optimize edilmiş özel
   bir tamsayı→dizgi yordamı kullanıyor. Elle `itoa` yazan bir C programcısı
   farkın çoğunu kapatır.
-- **`fib`, etiketine rağmen çağrı maliyetini değil satır içi almayı ölçüyor.**
-  İki dil de üstel ağacı gerçekten koşuyor — süre `n`'deki her +2 için φ² katına
-  çıkıyor (ölçüldü: C 2,67×, Tulpar 2,30×), yani hiçbiri ağacı doğrusala
-  çökertmiyor. Ama Tulpar'ın daha düşük üsteli, kazancın bir kısmının özyineleme
-  klon zincirinin sağladığı altifade paylaşımından geldiğini gösteriyor.
+- **`fib` kazancı mikro-mimari değil, ALGORİTMİK** (2026-09-11'de ölçülüp
+  adlandırıldı). Süreç açılışı *aynı ikiliden* çıkarılıp büyüme üssü ölçüldü
+  (naif ağaç φ = 1,618, `n`'deki her +1 için):
+
+  | | üs |
+  |---|---:|
+  | clang -O3 | 1,604 |
+  | gcc -O2 | **1,607** |
+  | Tulpar, zincir kapalı | 1,612 |
+  | **Tulpar** | **1,488** |
+
+  **gcc'nin üssü de naif** — gcc'nin `fib` gövdesi 264 komut (clang 20), yani
+  agresif açma, ama *sabit çarpan* kazancı. Tulpar'ın klon zinciri `fib`i bir
+  kez satır içine alıyor; `fib(n) = fib(n-2) + 2·fib(n-3) + fib(n-4)` oluyor ve
+  ortak alt ifade eliminasyonu yinelenen `fib(n-3)`ü birleştiriyor. Geriye
+  **3 çağrı** kalıyor (makine kodunda doğrulandı), bağıntı
+  `T(n) = T(n-2)+T(n-3)+T(n-4)` oluyor ve kökü **1,4656** — ölçülen 1,488.
+
+  ⚠ **Bunun sonucu: `fib` oranı sabit değil, `n` ile büyüyor.** Açılış
+  çıkarılmış, gcc `-O2`ye karşı: n=34'te 12,3× · n=36'da 12,0× · n=38'de
+  14,5× · n=40'ta **17,3×**. Yukarıdaki tablodaki `fib(32)` satırı ıraksayan
+  bir eğrinin üstünde **bir nokta** — daha küçük `n`'de fark kapanır, daha
+  büyükte açılır. Dürüst cümle: *bu çekirdekte Tulpar ölçülen her derleyiciden
+  farklı bir karmaşıklık sınıfında.*
 
 ### Kayan nokta: tek cevap yok, iki ayrı cevap var
 
