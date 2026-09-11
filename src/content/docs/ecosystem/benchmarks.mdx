@@ -130,8 +130,11 @@ Two disclosures the numbers don't carry on their own:
   Start-up subtracted, against gcc `-O2`: 12.3× at n=34 · 12.0× at n=36 ·
   14.5× at n=38 · **17.3×** at n=40. The `fib(32)` row in the table above is
   **one point** on a diverging curve — the gap narrows for smaller `n` and
-  widens for larger. The honest statement: *on this kernel Tulpar is in a
-  different complexity class from every compiler measured.*
+  widens for larger. The honest statement: ***same complexity class, smaller
+  base*** — both sides are exponential; the difference is in the base (1.488
+  vs 1.607), not the class. "Different class" would mean polynomial-vs-
+  exponential, which this is not. The ratio grows as `(1.607/1.488)ⁿ`, so it
+  is unbounded — but the growth stays inside the same family.
 
 ### Floating point: there is no single answer, there are two
 

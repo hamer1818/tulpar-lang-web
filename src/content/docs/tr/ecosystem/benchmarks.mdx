@@ -128,8 +128,11 @@ Sayıların tek başına taşımadığı iki açıklama:
   çıkarılmış, gcc `-O2`ye karşı: n=34'te 12,3× · n=36'da 12,0× · n=38'de
   14,5× · n=40'ta **17,3×**. Yukarıdaki tablodaki `fib(32)` satırı ıraksayan
   bir eğrinin üstünde **bir nokta** — daha küçük `n`'de fark kapanır, daha
-  büyükte açılır. Dürüst cümle: *bu çekirdekte Tulpar ölçülen her derleyiciden
-  farklı bir karmaşıklık sınıfında.*
+  büyükte açılır. Dürüst cümle: ***aynı karmaşıklık sınıfı, daha küçük taban***
+  — her iki taraf da üstel; fark tabanda (1,488 vs 1,607), sınıfta değil.
+  "Farklı sınıf" polinom-vs-üstel demek olurdu; burada olan o değil. Oran
+  `(1,607/1,488)ⁿ` ile büyüyor, yani sınırsız — ama büyüme *aynı ailenin*
+  içinde.
 
 ### Kayan nokta: tek cevap yok, iki ayrı cevap var
 
