@@ -4,15 +4,17 @@ description: How Tulpar performs against C / Go / Node.js / FastAPI on CPU and H
 ---
 
 Tulpar's tagline is "as easy as Python, as fast as C". On CPU it beats C on
-`fib` and `strcat` even when C is given `-O3 -march=native -flto`, and ties it
-on `sieve` and `intloop`; on HTTP
+`fib` and `strcat` even when C is given `-O3 -march=native -flto`, ties it on
+`sieve` and `intloop`, and is **indistinguishable from C on pure floating-point
+arithmetic** — but runs **5–27× behind on floating-point arrays** (measured,
+[below](#floating-point-there-is-no-single-answer-there-are-two)); on HTTP
 its multi-core `listen_pool` server out-throughputs Go's `net/http` and leaves
 FastAPI far behind — all from a single self-contained binary with no runtime to
 ship.
 
 ## CPU benchmarks
 
-Nine languages, five microbenchmarks, one machine. **Lower is faster**; the
+Nine languages, eight microbenchmarks, one machine. **Lower is faster**; the
 fastest entry in each column is bold. Every language reads its workload size
 from the `BENCH_N` environment variable, so no compiler can fold the loop to a
 closed form and "win" without executing it. Best of 7 runs, 2026-09-08, on one
@@ -105,21 +107,100 @@ Two disclosures the numbers don't carry on their own:
   formats each number with `snprintf`, a general-purpose formatter, while Tulpar
   uses a specialised integer-to-string routine optimised for exactly this path.
   A C programmer hand-rolling `itoa` would close much of the gap.
-- **`fib` measures inlining, not just call cost**, despite its label. Both
-  languages genuinely execute the exponential tree — time scales as φ² per +2 in
-  `n` (measured: C 2.67×, Tulpar 2.30×), so neither collapses it to a linear
-  form. But Tulpar's lower exponent shows part of the lead comes from the
-  self-recursion clone chain enabling subexpression sharing the C build misses.
+- **`fib`'s lead is algorithmic, not micro-architectural** (measured and named
+  2026-09-11). With process start-up subtracted *using the same binary*, the
+  growth exponent per +1 in `n` (naive tree φ = 1.618):
+
+  | | exponent |
+  |---|---:|
+  | clang -O3 | 1.604 |
+  | gcc -O2 | **1.607** |
+  | Tulpar, chain disabled | 1.612 |
+  | **Tulpar** | **1.488** |
+
+  **gcc's exponent is naive too** — its `fib` body is 264 instructions against
+  clang's 20, so aggressive unrolling, but a *constant-factor* win. Tulpar's
+  clone chain inlines `fib` once, giving
+  `fib(n) = fib(n-2) + 2·fib(n-3) + fib(n-4)`, and common-subexpression
+  elimination merges the duplicated `fib(n-3)`. **Three calls** remain
+  (confirmed in the disassembly), the recurrence becomes
+  `T(n) = T(n-2)+T(n-3)+T(n-4)`, and its root is **1.4656** — measured 1.488.
+
+  ⚠ **Consequence: the `fib` ratio is not a constant — it grows with `n`.**
+  Start-up subtracted, against gcc `-O2`: 12.3× at n=34 · 12.0× at n=36 ·
+  14.5× at n=38 · **17.3×** at n=40. The `fib(32)` row in the table above is
+  **one point** on a diverging curve — the gap narrows for smaller `n` and
+  widens for larger. The honest statement: ***same complexity class, smaller
+  base*** — both sides are exponential; the difference is in the base (1.488
+  vs 1.607), not the class. "Different class" would mean polynomial-vs-
+  exponential, which this is not. The ratio grows as `(1.607/1.488)ⁿ`, so it
+  is unbounded — but the growth stays inside the same family.
+
+### Floating point: there is no single answer, there are two
+
+All five kernels above are integer or string work. "What about `float`?" was
+measured on 2026-09-11 with three new kernels — and it turned out the question
+**cannot be answered with one number**, because there are two distinct costs:
+
+- **value** representation — boxing/unboxing on every operation
+- **storage** representation — bytes per element inside an array
+
+The kernels were chosen to **separate** them:
+
+| Kernel | What it measures | Uses arrays? | C (gcc -O2) | Tulpar | Ratio |
+|---|---|---|---:|---:|---:|
+| `mandelbrot(2000)` | pure floating-point arithmetic | **no** | 158.6 | **158.4** | **1.00×** |
+| `nbody(3M)` | arithmetic + small arrays + `sqrt` | yes, small | 114.8 | 1326.1 | 11.6× |
+| `matmul(640)` | floating-point **arrays** | only that | 31.0 | 824.5 | **26.6×** |
+
+**On pure floating-point arithmetic Tulpar is indistinguishable from C** —
+158.4 ms against 158.6 ms. Python in the same run: 15,721 ms. So `float`
+*values* are not boxed; arithmetic runs on raw `double`s in registers.
+
+**Arrays invert the picture.** The cause was measured — same loop, only the
+element type changes (20M elements):
+
+| | time | bytes/element |
+|---|---:|---:|
+| `int[]`, C (`long long*`) | 13.9 ms | 8.1 |
+| `int[]`, **Tulpar** | 20.6 ms | **4.1** |
+| `float[]`, C (`double*`) | 16.0 ms | 8.1 |
+| `float[]`, **Tulpar** | 87.0 ms | **16.1** |
+
+Tulpar's **integer** array is *narrower* than C's (4.1 bytes per element —
+values that fit in 32 bits are narrowed automatically). In the same engine a
+**floating-point** array takes twice the space, because unboxed storage
+currently exists only for integers. `matmul`'s 26.6× exceeds the 4.2× of a
+plain traversal: boxed elements cannot enter the "proven access" fast path,
+and 16-byte elements also stop the compiler from vectorising the inner loop.
+
+:::note[Honest summary]
+**Floating-point arithmetic is C-class; floating-point arrays are not.** The
+second is a known, measured gap — not a hidden surprise. If your numeric code
+is mostly scalar math, Tulpar runs at C speed; if it walks large `float[]`
+buffers, today you pay between 5× and 27×.
+
+The shape of the fix is known (extend unboxed storage to `float`) and the
+**profitability gate was written before the work started**: the migration is
+reverted unless it brings `matmul` to ≤ 4× and plain traversal to ≤ 2×. The
+upper bound is known — an integer array in the same engine runs at 1.48×.
+:::
+
+⚠ This table is also a record of why **measuring one kernel** misleads: someone
+looking only at `mandelbrot` would say *"float is free"*, someone looking only
+at `matmul` would say *"float is 26× slower"*. Both are wrong, because both
+are true.
 
 ### What this suite does *not* establish
 
 Five integer/string kernels on one machine cannot support "fastest language".
-Not covered: floating point and SIMD (matmul, n-body, mandelbrot), allocation
-pressure and hash-map/JSON workloads — **where the arena model's costs would
-actually show** — pointer chasing, sorting, multi-threaded scaling, RSS, and
-sustained-load p99 latency. The defensible reading: Tulpar is **in C's
-performance class on integer and string kernels**, decisively ahead of
-Node/Python/Java/C#, and ahead of C specifically on `fib` and `strcat`.
+Not covered: hand-written SIMD, allocation pressure and hash-map/JSON
+workloads — **where the arena model's costs would actually show** — pointer
+chasing, sorting, multi-threaded scaling, RSS, and sustained-load p99 latency.
+The defensible reading: Tulpar is **in C's performance class on integer,
+string and scalar floating-point kernels**, decisively ahead of
+Node/Python/Java/C#, ahead of C specifically on `fib` and `strcat` — and
+**measurably behind on floating-point arrays** (the FP section above).
 
 Machine: AMD Ryzen 7 9800X3D (Zen 5, 8C/16T, 96 MB 3D V-Cache), Linux.
 Toolchains: gcc 16.2.1 · rustc 1.89.0 · go 1.27.1 · Tulpar AOT (LLVM 22).

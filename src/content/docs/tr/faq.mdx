@@ -23,7 +23,7 @@ head:
             "name": "Tulpar ne kadar hızlı?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Tulpar, LLVM üzerinden derleme zamanında (AOT) native bir ikili dosyaya derlenir ve tam sayı çekirdeklerinde C sınıfındadır: fib'de -O3 -march=native -flto ile derlenmiş C'yi bile 2,7 kat geçer, sieve ve intloop'ta C ile başa baştır. arrayiter'i -march=native verilen C alır; strcat'i de aynı tamsayı biçimlendirme yordamı verilen C alır. HTTP'de dahili Wings sunucu havuzuyla saniyede yaklaşık 36 bin istek karşılar. Bunlar tam sayı ve dizgi mikro-kıyaslarıdır; kayan nokta, SIMD, tahsis ağırlıklı ve çok iş parçacıklı yükleri kapsamaz."
+              "text": "Tulpar, LLVM üzerinden derleme zamanında (AOT) native bir ikili dosyaya derlenir ve tam sayı çekirdeklerinde C sınıfındadır: fib'de -O3 -march=native -flto ile derlenmiş C'yi bile 2,7 kat geçer, sieve ve intloop'ta C ile başa baştır. arrayiter'i -march=native verilen C alır; strcat'i de aynı tamsayı biçimlendirme yordamı verilen C alır. HTTP'de dahili Wings sunucu havuzuyla saniyede yaklaşık 36 bin istek karşılar. Saf kayan nokta aritmetiğinde Tulpar C'den ayırt edilemez (mandelbrot: 158,4 ms'ye karşı 158,6 ms); ancak kayan nokta dizileri 5 ila 27 kat yavaştır, çünkü kutulanmamış dizi depolaması şu an yalnız tam sayılar için vardır. Bu mikro-kıyaslar elle yazılmış SIMD, tahsis ağırlıklı ve çok iş parçacıklı yükleri kapsamaz."
             }
           },
           {
@@ -103,10 +103,14 @@ kullandığı elle yazılmış tamsayı→dizgi yordamının aynısı verilince 
 bitiriyor — o fark bir derleyici farkı değil, **stdlib** asimetrisiydi. `fib`
 kazancı da **genelleşmiyor**: özyineleme ailesinde `gcc` hâlâ `treesum`,
 `ackermann` ve `tak`'ta Tulpar'ın önünde. `sieve` ve `intloop`'ta ilk dört
-dil 0,5 ms içinde, yani bant anlamlı ama sıra numarası değil. Kayan nokta,
-SIMD, tahsis ağırlıklı ve çok iş parçacıklı yükler denenmedi. Tam tablo, bayrak
-matrisi ve geri çekilen iddialar için
-[Benchmark Sonuçları](/tr/ecosystem/benchmarks/)'na bakın.
+dil 0,5 ms içinde, yani bant anlamlı ama sıra numarası değil. **Kayan nokta
+ikiye ayrılıyor**: saf aritmetikte Tulpar C'den ayırt edilemiyor (mandelbrot
+158,4'e karşı 158,6 ms), ama `float[]` dizilerinde 5–27× geride — kutulanmamış
+dizi depolaması bugün yalnız tam sayılar için var, yani bir float eleman
+C'nin 8,1 baytına karşı 16,1 bayt tutuyor. Elle yazılmış SIMD, tahsis ağırlıklı
+ve çok iş parçacıklı yükler hâlâ denenmedi. Tam tablo, bayrak matrisi ve geri
+çekilen iddialar için [Benchmark Sonuçları](/tr/ecosystem/benchmarks/)'na
+bakın.
 
 ## Tulpar'ın bir VM'i, bytecode yorumlayıcısı ya da REPL'i var mı?
 

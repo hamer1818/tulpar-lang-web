@@ -5,14 +5,16 @@ description: Tulpar'ın CPU ve HTTP iş yüklerinde C / Go / Node.js / FastAPI k
 
 Tulpar'ın sloganı "Python kadar kolay, C kadar hızlı". CPU'da `fib` ve
 `strcat`'te C'yi — ona `-O3 -march=native -flto` verildiğinde bile — geçiyor,
-`sieve` ve `intloop`'ta başa baş; HTTP'de
+`sieve` ve `intloop`'ta başa baş; **saf kayan nokta aritmetiğinde C'den ayırt
+edilemiyor**, ama **kayan nokta dizilerinde 5–27× geride** (ölçüldü,
+[aşağıda](#kayan-nokta-tek-cevap-yok-iki-ayrı-cevap-var)); HTTP'de
 çok-çekirdekli `listen_pool` sunucusu Go'nun `net/http`'sini geçiyor ve
 FastAPI'yi çok geride bırakıyor — hepsi gönderilecek bir runtime olmadan, tek
 bağımsız binary'den.
 
 ## CPU benchmark'ları
 
-Dokuz dil, beş mikro-kıyas, tek makine. **Düşük olan hızlı**; her sütunun en
+Dokuz dil, sekiz mikro-kıyas, tek makine. **Düşük olan hızlı**; her sütunun en
 hızlı girdisi kalın. Her dil iş yükü boyutunu `BENCH_N` ortam değişkeninden
 okur, böylece hiçbir derleyici döngüyü kapalı forma katlayıp onu hiç
 çalıştırmadan "kazanamaz". 7 koşumun en iyisi, 2026-09-08, tek bir Linux
@@ -104,21 +106,98 @@ Sayıların tek başına taşımadığı iki açıklama:
   amaçlı `snprintf` ile biçimliyor; Tulpar tam bu yol için optimize edilmiş özel
   bir tamsayı→dizgi yordamı kullanıyor. Elle `itoa` yazan bir C programcısı
   farkın çoğunu kapatır.
-- **`fib`, etiketine rağmen çağrı maliyetini değil satır içi almayı ölçüyor.**
-  İki dil de üstel ağacı gerçekten koşuyor — süre `n`'deki her +2 için φ² katına
-  çıkıyor (ölçüldü: C 2,67×, Tulpar 2,30×), yani hiçbiri ağacı doğrusala
-  çökertmiyor. Ama Tulpar'ın daha düşük üsteli, kazancın bir kısmının özyineleme
-  klon zincirinin sağladığı altifade paylaşımından geldiğini gösteriyor.
+- **`fib` kazancı mikro-mimari değil, ALGORİTMİK** (2026-09-11'de ölçülüp
+  adlandırıldı). Süreç açılışı *aynı ikiliden* çıkarılıp büyüme üssü ölçüldü
+  (naif ağaç φ = 1,618, `n`'deki her +1 için):
+
+  | | üs |
+  |---|---:|
+  | clang -O3 | 1,604 |
+  | gcc -O2 | **1,607** |
+  | Tulpar, zincir kapalı | 1,612 |
+  | **Tulpar** | **1,488** |
+
+  **gcc'nin üssü de naif** — gcc'nin `fib` gövdesi 264 komut (clang 20), yani
+  agresif açma, ama *sabit çarpan* kazancı. Tulpar'ın klon zinciri `fib`i bir
+  kez satır içine alıyor; `fib(n) = fib(n-2) + 2·fib(n-3) + fib(n-4)` oluyor ve
+  ortak alt ifade eliminasyonu yinelenen `fib(n-3)`ü birleştiriyor. Geriye
+  **3 çağrı** kalıyor (makine kodunda doğrulandı), bağıntı
+  `T(n) = T(n-2)+T(n-3)+T(n-4)` oluyor ve kökü **1,4656** — ölçülen 1,488.
+
+  ⚠ **Bunun sonucu: `fib` oranı sabit değil, `n` ile büyüyor.** Açılış
+  çıkarılmış, gcc `-O2`ye karşı: n=34'te 12,3× · n=36'da 12,0× · n=38'de
+  14,5× · n=40'ta **17,3×**. Yukarıdaki tablodaki `fib(32)` satırı ıraksayan
+  bir eğrinin üstünde **bir nokta** — daha küçük `n`'de fark kapanır, daha
+  büyükte açılır. Dürüst cümle: ***aynı karmaşıklık sınıfı, daha küçük taban***
+  — her iki taraf da üstel; fark tabanda (1,488 vs 1,607), sınıfta değil.
+  "Farklı sınıf" polinom-vs-üstel demek olurdu; burada olan o değil. Oran
+  `(1,607/1,488)ⁿ` ile büyüyor, yani sınırsız — ama büyüme *aynı ailenin*
+  içinde.
+
+### Kayan nokta: tek cevap yok, iki ayrı cevap var
+
+Yukarıdaki beş çekirdeğin hepsi tam sayı ya da dizgi. "Peki ya `float`?"
+sorusu 2026-09-11'de üç yeni çekirdekle ölçüldü — ve **tek sayıyla
+cevaplanamayacağı** ortaya çıktı, çünkü iki ayrı maliyet var:
+
+- **değer** temsili — her işlemde kutu aç/kapa
+- **depolama** temsili — dizide eleman başına kaç bayt
+
+Çekirdekler bunları **ayıracak** şekilde seçildi:
+
+| Çekirdek | Ne ölçer | Dizi kullanır mı | C (gcc -O2) | Tulpar | Oran |
+|---|---|---|---:|---:|---:|
+| `mandelbrot(2000)` | saf kayan nokta aritmetiği | **hayır** | 158,6 | **158,4** | **1,00×** |
+| `nbody(3M)` | aritmetik + küçük dizi + `sqrt` | evet, küçük | 114,8 | 1326,1 | 11,6× |
+| `matmul(640)` | kayan nokta **dizisi** | yalnız o | 31,0 | 824,5 | **26,6×** |
+
+**Saf kayan nokta aritmetiğinde Tulpar C'den ayırt edilemiyor** — 158,4 ms'ye
+karşı 158,6 ms. Aynı koşuda Python 15 721 ms. Yani `float` *değerleri*
+kutulanmıyor; aritmetik yerel değişkenlerde ham `double` olarak yürüyor.
+
+**Dizilerde durum tersine dönüyor.** Sebebi ölçüldü — aynı döngü, yalnız eleman
+tipi değişiyor (20M eleman):
+
+| | süre | bayt/eleman |
+|---|---:|---:|
+| `int[]`, C (`long long*`) | 13,9 ms | 8,1 |
+| `int[]`, **Tulpar** | 20,6 ms | **4,1** |
+| `float[]`, C (`double*`) | 16,0 ms | 8,1 |
+| `float[]`, **Tulpar** | 87,0 ms | **16,1** |
+
+Tulpar'ın **tam sayı** dizisi C'ninkinden *dar* (eleman başına 4,1 bayt — 32
+bite sığan değerler otomatik daraltılıyor). Aynı motorda **kayan nokta** dizisi
+iki katı yer tutuyor, çünkü kutulanmamış depolama şu an yalnız tam sayılar için
+var. `matmul`'un 26,6×'i düz taramanın 4,2×'inden büyük: kutulu elemanlar
+"kanıtlı erişim" hızlı yoluna giremiyor ve 16 baytlık elemanlar derleyicinin iç
+döngüyü vektörleştirmesini de engelliyor.
+
+:::note[Dürüst özet]
+**Kayan nokta aritmetiği C sınıfında; kayan nokta dizileri değil.** İkincisi
+bilinen ve ölçülmüş bir açık — gizli bir sürpriz değil. Sayısal kodunuz
+çoğunlukla skaler hesap yapıyorsa Tulpar C hızında koşar; büyük `float[]`
+tamponları geziyorsa bugün 5–27× arası bir bedel ödersiniz.
+
+Düzeltmenin şekli belli (kutulanmamış depolamayı `float`a da açmak) ve
+**kârlılık kapısı iş başlamadan yazıldı**: göç `matmul` oranını ≤ 4×'e,
+düz taramayı ≤ 2×'ye indirmezse geri alınır. Üst sınır biliniyor — aynı
+motorda tam sayı dizisi 1,48× yapıyor.
+:::
+
+⚠ Bu tablo, **tek çekirdekle ölçmenin** neden yanıltıcı olduğunun da kaydı:
+yalnız `mandelbrot`'a bakan *"float bedava"*, yalnız `matmul`'a bakan
+*"float 26× yavaş"* derdi. İkisi de yanlış, çünkü ikisi de gerçek.
 
 ### Bu takımın KANITLAMADIĞI şeyler
 
-Tek makinede beş tam sayı/dizgi çekirdeği "en hızlı dil" iddiasını taşıyamaz.
-Kapsam dışı: kayan nokta ve SIMD (matmul, n-body, mandelbrot), tahsis baskısı ve
-hash-map/JSON yükleri — **arena modelinin bedeli ancak orada görünür** — işaretçi
-takibi, sıralama, çok iş parçacıklı ölçekleme, RSS, ve sürekli yük altında p99.
-Savunulabilir okuma: Tulpar **tam sayı ve dizgi çekirdeklerinde C sınıfında**,
-Node/Python/Java/C#'ın açık ara önünde, ve `fib` ile `strcat`'te özellikle
-C'nin de önünde.
+Tek makinede sekiz mikro-çekirdek "en hızlı dil" iddiasını taşıyamaz.
+Kapsam dışı: elle yazılmış SIMD, tahsis baskısı ve hash-map/JSON yükleri —
+**arena modelinin bedeli ancak orada görünür** — işaretçi takibi, sıralama, çok
+iş parçacıklı ölçekleme, RSS, ve sürekli yük altında p99.
+Savunulabilir okuma: Tulpar **tam sayı, dizgi ve skaler kayan nokta
+çekirdeklerinde C sınıfında**, Node/Python/Java/C#'ın açık ara önünde, `fib` ile
+`strcat`'te özellikle C'nin de önünde — ve **kayan nokta dizilerinde ölçülmüş
+biçimde geride** (yukarıdaki FP bölümü).
 
 Makine: AMD Ryzen 7 9800X3D (Zen 5, 8Ç/16İP, 96 MB 3D V-Cache), Linux.
 Araç zincirleri: gcc 16.2.1 · rustc 1.89.0 · go 1.27.1 · Tulpar AOT (LLVM 22).
