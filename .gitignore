@@ -24,3 +24,6 @@ github/
 vscode/
 wrangler/
 astro/
+
+# KDE klasor ayarlari (yerel artik)
+.directory
