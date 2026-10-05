@@ -1,0 +1,48 @@
+---
+/**
+ * CompareTable — the "Why Tulpar?" matrix. Cell status renders as an icon
+ * instead of emoji; the first data column is the highlighted (Tulpar) one.
+ *
+ *   rows={[{ label: 'HTTP Server', cells: [['yes', 'Built-in'], ['no', 'pip install'], ...] }]}
+ */
+import Icon from './Icon.astro';
+
+type Status = 'yes' | 'no' | 'warn' | '';
+export interface Props {
+	columns: string[];
+	rows: { label: string; cells: [Status, string][] }[];
+}
+
+const { columns, rows } = Astro.props;
+const ICON: Record<Exclude<Status, ''>, string> = { yes: 'check', no: 'x', warn: 'minus' };
+---
+
+<div class="tlp-compare not-content">
+	<table>
+		<thead>
+			<tr>
+				<th></th>
+				{columns.map((c, i) => <th class:list={{ 'tlp-compare__highlight': i === 0 }}>{c}</th>)}
+			</tr>
+		</thead>
+		<tbody>
+			{rows.map((row) => (
+				<tr>
+					<td>{row.label}</td>
+					{row.cells.map(([status, text], i) => (
+						<td class:list={{ 'tlp-compare__highlight': i === 0 }}>
+							<span class="tlp-compare__cell">
+								{status && (
+									<span class={`tlp-compare__mark tlp-compare__mark--${status}`}>
+										<Icon name={ICON[status]} size={12} strokeWidth={3} />
+									</span>
+								)}
+								{text}
+							</span>
+						</td>
+					))}
+				</tr>
+			))}
+		</tbody>
+	</table>
+</div>

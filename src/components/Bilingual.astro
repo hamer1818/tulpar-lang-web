@@ -1,0 +1,34 @@
+---
+/**
+ * Bilingual — the same program in English and Turkish keywords, side by side.
+ * LandingMotion types both panes in lock-step and pairs the n-th keyword of
+ * one pane with the n-th of the other (hover one to light up its twin), so
+ * both snippets must keep the same keyword order.
+ */
+import { highlightTulpar } from '../lib/tulpar-highlight';
+
+export interface Pane {
+	lang: string;
+	file: string;
+	badge: string;
+	code: string;
+}
+export interface Props {
+	panes: Pane[];
+}
+
+const { panes } = Astro.props;
+---
+
+<div class="tlp-bilingual not-content" data-bilingual>
+	{panes.map((pane) => (
+		<div class="tlp-bilingual__pane">
+			<div class="tlp-bilingual__header">
+				<span class="tlp-bilingual__lang">{pane.lang}</span>
+				<span class="tlp-bilingual__filename">{pane.file}</span>
+				<span class="tlp-bilingual__badge">{pane.badge}</span>
+			</div>
+			<pre class="tlp-bilingual__code"><code set:html={highlightTulpar(pane.code)} /></pre>
+		</div>
+	))}
+</div>

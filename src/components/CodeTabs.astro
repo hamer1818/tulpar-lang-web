@@ -5,17 +5,25 @@
  * Each tab shows a different `.tpr` snippet inside the same macOS-style
  * window chrome. Switching is handled with vanilla JS — no framework deps.
  *
+ * Snippets are highlighted at build time (no client-side highlighter) and
+ * every source line is wrapped in `.ln`, which LandingMotion uses for the
+ * typing reveal. The full text is always in the HTML, so crawlers, copy and
+ * no-JS / reduced-motion visitors see the finished code.
+ *
  * Usage (MDX):
  *   <CodeTabs tabs={[
- *     { icon: "🌐", label: "Web API", file: "api.tpr", code: `...` },
- *     { icon: "🛠️", label: "CLI Tool", file: "cli.tpr", code: `...` },
+ *     { icon: "globe", label: "Web API", file: "api.tpr", code: `...` },
+ *     { icon: "terminal", label: "CLI Tool", file: "cli.tpr", code: `...` },
  *   ]} />
  */
 export interface Tab {
+	/** Lucide icon name, e.g. `globe`, `terminal`, `chart-column`. */
 	icon: string;
 	label: string;
 	file: string;
 	code: string;
+	/** Command shown in the terminal strip; defaults to `tulpar build <file>`. */
+	cmd?: string;
 }
 
 export interface Props {
@@ -24,7 +32,16 @@ export interface Props {
 	liveText?: string;
 }
 
+import Icon from './Icon.astro';
+import { highlightTulpar } from '../lib/tulpar-highlight';
+
 const { tabs, liveText = 'running' } = Astro.props;
+
+const panels = tabs.map((tab) => ({
+	...tab,
+	html: highlightTulpar(tab.code),
+	cmd: tab.cmd ?? `tulpar build ${tab.file}`,
+}));
 ---
 
 <div class="tlp-hero__preview">
@@ -42,25 +59,29 @@ const { tabs, liveText = 'running' } = Astro.props;
 						aria-selected={i === 0 ? 'true' : 'false'}
 						data-tab-index={i}
 					>
-						<span class="tlp-window__tab-icon">{tab.icon}</span>
+						<Icon name={tab.icon} size={14} class="tlp-window__tab-icon" />
 						{tab.label}
 					</button>
 				))}
 			</div>
 
-			<span class="tlp-window__live">{liveText}</span>
 		</div>
 
-		{tabs.map((tab, i) => (
+		{panels.map((panel, i) => (
 			<div
 				class:list={['tlp-window__panel', { 'is-active': i === 0 }]}
 				role="tabpanel"
 				data-panel-index={i}
 			>
 				<div class="tlp-window__filename">
-					<span>{tab.file}</span>
+					<span>{panel.file}</span>
 				</div>
-				<pre class="tlp-window__code"><code>{tab.code}</code></pre>
+				<pre class="tlp-window__code"><code set:html={panel.html} /></pre>
+				<div class="tlp-window__term">
+					<span class="tlp-prompt">$</span>
+					<span class="ln tlp-window__cmd">{panel.cmd}</span><span class="tlp-caret" aria-hidden="true"></span>
+					<span class="tlp-window__live">{liveText}</span>
+				</div>
 			</div>
 		))}
 	</div>
@@ -87,7 +108,12 @@ const { tabs, liveText = 'running' } = Astro.props;
 					const targetPanel = root.querySelector<HTMLElement>(
 						`[data-panel-index="${idx}"]`,
 					);
-					if (targetPanel) targetPanel.classList.add('is-active');
+					if (targetPanel) {
+						targetPanel.classList.add('is-active');
+						root.dispatchEvent(
+							new CustomEvent('tlp:tabchange', { detail: { panel: targetPanel } }),
+						);
+					}
 				});
 			});
 		});
