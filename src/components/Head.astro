@@ -73,4 +73,20 @@ const jsonLdBlocks = [organizationSchema, softwareSchema, pageSchema, breadcrumb
 ---
 
 <Default {...Astro.props}><slot /></Default>
+{/*
+	Motion gate: runs before first paint, so CSS can hold animated elements in
+	their start state without flashing the finished page. Without `.tlp-anim`
+	(no JS, reduced motion, or the motion bundle never booted) every element
+	renders in its final state.
+*/}
+<script is:inline>
+	(function () {
+		if (!window.matchMedia || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		var root = document.documentElement;
+		root.classList.add('tlp-anim');
+		setTimeout(function () {
+			if (!window.__tlpMotion) root.classList.remove('tlp-anim');
+		}, 3000);
+	})();
+</script>
 {jsonLdBlocks.map((schema) => <script type="application/ld+json" set:html={JSON.stringify(schema)} />)}

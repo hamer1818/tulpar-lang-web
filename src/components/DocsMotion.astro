@@ -1,0 +1,19 @@
+---
+/**
+ * DocsMotion — motion layer for doc pages (rendered by PageTitle). The
+ * `.tlp-anim` gate is set in Head.astro; the choreography lives in
+ * src/scripts/docs/motion.ts.
+ */
+---
+
+<div class="tlp-progress" aria-hidden="true"></div>
+
+<script>
+	import { boot } from '../scripts/docs/motion';
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', boot);
+	} else {
+		boot();
+	}
+</script>

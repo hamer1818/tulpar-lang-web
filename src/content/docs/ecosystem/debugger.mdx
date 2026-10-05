@@ -61,18 +61,18 @@ You can also drop a permanent launch config under
 
 | DAP feature           | Status | Notes                                                      |
 | --------------------- | :----: | ---------------------------------------------------------- |
-| Line breakpoints      |   ✅   | Click the gutter or use `setBreakpoints` over DAP.         |
-| Run to completion     |   ✅   | `configurationDone` → `-exec-run` → `terminated` event.    |
-| Stop on breakpoint    |   ✅   | `*stopped,reason=breakpoint-hit` → DAP `stopped` event.    |
-| Stack trace           |   ✅   | `-stack-list-frames` → DAP `StackFrame[]` with file/line.  |
-| Locals / parameters   |   ✅   | `-stack-list-variables --simple-values`. Leaf values only. |
-| Continue              |   ✅   | `-exec-continue` → resume + downstream `stopped`/`terminated`. |
-| Step over             |   ✅   | `next` → `-exec-next`.                                     |
-| Step into             |   ✅   | `stepIn` → `-exec-step`.                                   |
-| Step out              |   ✅   | `stepOut` → `-exec-finish`.                                |
-| Pause                 |   ✅   | `pause` → `-exec-interrupt` (SIGINT → DAP `reason=pause`). |
-| Console output        |   ✅   | gdb `~"..."` console + `@"..."` target streams → DAP `output`. |
-| Terminate / disconnect|   ✅   | Sends `-gdb-exit`, reaps subprocess.                       |
+| Line breakpoints      |   ✓   | Click the gutter or use `setBreakpoints` over DAP.         |
+| Run to completion     |   ✓   | `configurationDone` → `-exec-run` → `terminated` event.    |
+| Stop on breakpoint    |   ✓   | `*stopped,reason=breakpoint-hit` → DAP `stopped` event.    |
+| Stack trace           |   ✓   | `-stack-list-frames` → DAP `StackFrame[]` with file/line.  |
+| Locals / parameters   |   ✓   | `-stack-list-variables --simple-values`. Leaf values only. |
+| Continue              |   ✓   | `-exec-continue` → resume + downstream `stopped`/`terminated`. |
+| Step over             |   ✓   | `next` → `-exec-next`.                                     |
+| Step into             |   ✓   | `stepIn` → `-exec-step`.                                   |
+| Step out              |   ✓   | `stepOut` → `-exec-finish`.                                |
+| Pause                 |   ✓   | `pause` → `-exec-interrupt` (SIGINT → DAP `reason=pause`). |
+| Console output        |   ✓   | gdb `~"..."` console + `@"..."` target streams → DAP `output`. |
+| Terminate / disconnect|   ✓   | Sends `-gdb-exit`, reaps subprocess.                       |
 
 ## What's not wired up yet
 

@@ -27,6 +27,7 @@ export default defineConfig({
 			],
 			components: {
 				Head: './src/components/Head.astro',
+				PageTitle: './src/components/PageTitle.astro',
 			},
 			// PNG fallback for browsers that don't render SVG favicons, plus
 			// sitewide OG/Twitter card defaults (Starlight merges page-level

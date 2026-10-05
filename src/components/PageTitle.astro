@@ -1,0 +1,55 @@
+---
+/**
+ * Starlight `PageTitle` override: every doc page opens with the landing
+ * page's visual language — a signal-grid band, a `// group` eyebrow taken
+ * from the sidebar, the title, the frontmatter description as a lead and a
+ * reading-time estimate. Splash pages (the landing, 404) keep the default:
+ * they draw their own header. DocsMotion supplies the movement.
+ */
+import Default from '@astrojs/starlight/components/PageTitle.astro';
+import type { SidebarEntry } from '@astrojs/starlight/utils/routing/types';
+import Icon from './Icon.astro';
+import DocsMotion from './DocsMotion.astro';
+
+const { entry, sidebar, lang } = Astro.locals.starlightRoute;
+const isSplash = entry.data.template === 'splash';
+const isTurkish = lang?.startsWith('tr');
+
+/** Label of the sidebar group that holds the current page, if any. */
+function currentGroup(entries: SidebarEntry[], parent?: string): string | undefined {
+	for (const e of entries) {
+		if (e.type === 'link' && e.isCurrent) return parent;
+		if (e.type === 'group') {
+			const found = currentGroup(e.entries, e.label);
+			if (found) return found;
+		}
+	}
+}
+
+const group = isSplash ? undefined : currentGroup(sidebar);
+const description = entry.data.description;
+// ~220 wpm for technical prose; code-heavy pages read slower, so round up.
+const words = (entry.body ?? '').split(/\s+/).filter(Boolean).length;
+const minutes = Math.max(1, Math.ceil(words / 220));
+const readLabel = isTurkish ? `${minutes} dk okuma` : `${minutes} min read`;
+---
+
+{
+	isSplash ? (
+		<Default />
+	) : (
+		<header class="tlp-doc-head" data-doc-head>
+			<div class="tlp-doc-head__bg" aria-hidden="true">
+				<canvas class="tlp-doc-head__canvas" />
+			</div>
+			{group && <span class="tlp-eyebrow tlp-doc-head__eyebrow">{group}</span>}
+			<Default />
+			{description && <p class="tlp-doc-head__lead">{description}</p>}
+			<div class="tlp-doc-head__meta">
+				<Icon name="clock" size={14} />
+				{readLabel}
+			</div>
+			<DocsMotion />
+		</header>
+	)
+}
