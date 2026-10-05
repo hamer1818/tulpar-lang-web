@@ -1,0 +1,44 @@
+---
+/**
+ * CompilePipeline — what `tulpar build` does, as an animated sequence.
+ *
+ * Static markup is the finished state (every stage lit, rail full), so
+ * no-JS and reduced-motion visitors get the complete diagram. LandingMotion
+ * dims it under `.tlp-anim` and plays the source → binary run once when the
+ * section scrolls into view; the replay button restarts it.
+ */
+export interface Stage {
+	/** Monospace artefact name shown on the stage, e.g. `api.tpr`, `LLVM 18 IR`. */
+	label: string;
+	title: string;
+	desc: string;
+}
+
+export interface Props {
+	stages: Stage[];
+	replayLabel?: string;
+}
+
+const { stages, replayLabel = 'Replay' } = Astro.props;
+---
+
+<div class="tlp-pipe not-content" data-pipe style={`--stages:${stages.length}`}>
+	<div class="tlp-pipe__rail" aria-hidden="true">
+		<div class="tlp-pipe__fill"></div>
+		<span class="tlp-pipe__packet"></span>
+	</div>
+	<ol class="tlp-pipe__stages">
+		{stages.map((stage) => (
+			<li class="tlp-pipe__stage">
+				<span class="tlp-pipe__node" aria-hidden="true"></span>
+				<code class="tlp-pipe__label">{stage.label}</code>
+				<h3 class="tlp-pipe__title">{stage.title}</h3>
+				<p class="tlp-pipe__desc">{stage.desc}</p>
+			</li>
+		))}
+	</ol>
+	<button type="button" class="tlp-pipe__replay" data-pipe-replay>
+		<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+		{replayLabel}
+	</button>
+</div>

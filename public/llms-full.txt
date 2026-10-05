@@ -5,9 +5,12 @@ As easy as Python, as fast as C. A statically-typed, AOT-compiled language with 
 
 <div class="tlp-landing">
 
+<LandingMotion />
+
 <section class="tlp-hero">
+	<div class="tlp-hero__bg" aria-hidden="true"><canvas class="tlp-hero__canvas"></canvas></div>
 	<div class="tlp-hero__content">
-		<span class="tlp-eyebrow">AOT · LLVM 18 · batteries included</span>
+		<span class="tlp-hero__badge"><span class="tlp-hero__pulse"></span>AOT-compiled, LLVM-backed programming language</span>
 		<h1 class="tlp-hero__title">Build anything<span>without the boilerplate</span></h1>
 		<p class="tlp-hero__lead">
 			As easy as Python, as fast as C. A statically-typed, AOT-compiled
@@ -15,9 +18,9 @@ As easy as Python, as fast as C. A statically-typed, AOT-compiled language with 
 			into the runtime — no <code>npm install</code>, no pip, no dependencies.
 		</p>
 		<div class="tlp-hero__actions">
-			<a class="tlp-btn tlp-btn--primary" href="/intro/getting-started/">Get Started →</a>
-			<a class="tlp-btn tlp-btn--ghost" href="#playground">Open Playground</a>
-			<a class="tlp-btn tlp-btn--minimal" href="https://github.com/hamer1818/TulparLang">View on GitHub ↗</a>
+			<a class="tlp-btn tlp-btn--primary" href="/intro/getting-started/">Get started <Icon name="arrow-right" size={18} /></a>
+			<a class="tlp-btn tlp-btn--ghost" href="#playground"><Icon name="play" size={16} /> Open playground</a>
+			<a class="tlp-btn tlp-btn--minimal" href="https://github.com/hamer1818/TulparLang"><Icon name="github" size={18} /> GitHub</a>
 		</div>
 		<div class="tlp-hero__stats">
 			<div class="tlp-hero__stat"><b>~36k</b><span>req/s · Tulpar pool</span></div>
@@ -30,7 +33,7 @@ As easy as Python, as fast as C. A statically-typed, AOT-compiled language with 
 		liveText="running"
 		tabs={[
 			{
-				icon: "🌐",
+				icon: "globe",
 				label: "Web API",
 				file: "api.tpr",
 				code: `import "wings";
@@ -48,7 +51,7 @@ get("/users", "list_users");
 serve(8080);  // + Swagger UI, /openapi.json`
 			},
 			{
-				icon: "🛠️",
+				icon: "terminal",
 				label: "CLI Tool",
 				file: "counter.tpr",
 				code: `// Count lines in all .tpr files
@@ -68,8 +71,8 @@ for (str f in files) {
 print("Total: " + toString(total));`
 			},
 			{
-				icon: "📊",
-				label: "Data Processing",
+				icon: "chart-column",
+				label: "Data",
 				file: "stats.tpr",
 				code: `// Compute stats from a dataset
 func mean(array data) {
@@ -86,6 +89,25 @@ print("Average: " + toString(avg));
 print("Max:     " + toString(max(scores)));
 print("Min:     " + toString(min(scores)));`
 			}
+		]}
+	/>
+</section>
+
+<section class="tlp-section">
+	<div class="tlp-section__head">
+		<span class="tlp-eyebrow">Under the hood</span>
+		<h2>One command, one native binary</h2>
+		<p><code>tulpar build</code> runs the whole pipeline ahead of time. What you ship is a standalone native executable — no VM, no interpreter.</p>
+	</div>
+
+	<CompilePipeline
+		replayLabel="Replay"
+		stages={[
+			{ label: "api.tpr", title: "Source", desc: "English or Turkish keywords — same compiler." },
+			{ label: "lexer → parser", title: "Parse", desc: "Source becomes an AST. Syntax errors stop here, in your locale." },
+			{ label: "LLVM 18 IR", title: "Codegen", desc: "The AST is lowered to LLVM IR." },
+			{ label: "clang + runtime", title: "Link", desc: "Linked with the Tulpar runtime: HTTP, JSON, SQLite and more." },
+			{ label: "./api", title: "Native binary", desc: "A standalone executable. No VM, no interpreter." }
 		]}
 	/>
 </section>
@@ -119,7 +141,7 @@ print("Min:     " + toString(min(scores)));`
 			<div class="tlp-bench__val">~3.5k req/s</div>
 		</div>
 		<p class="tlp-bench__note">
-			And latency stays low: <strong>p50 0.32 ms</strong> (Tulpar) vs 3.3 ms (FastAPI). On CPU, Tulpar beats C on <strong>fib (2.7× vs <code>gcc -O3 -march=native -flto</code>)</strong> and ties it on sieve and intloop; C takes arrayiter and strcat at equal flags and tooling. <a href="/ecosystem/benchmarks/">Full table, flag matrix + withdrawn claims →</a>
+			And latency stays low: <strong>p50 0.32 ms</strong> (Tulpar) vs 3.3 ms (FastAPI). On CPU, Tulpar beats C on <strong>fib (2.7× vs <code>gcc -O3 -march=native -flto</code>)</strong> and ties it on sieve and intloop; C takes arrayiter and strcat at equal flags and tooling. <a href="/ecosystem/benchmarks/">Full table, flag matrix and withdrawn claims</a>
 		</p>
 	</div>
 </section>
@@ -131,70 +153,18 @@ print("Min:     " + toString(min(scores)));`
 		<p>What takes four packages elsewhere ships in a single binary with Tulpar.</p>
 	</div>
 
-	<div class="tlp-compare">
-		<table>
-			<thead>
-				<tr>
-					<th></th>
-					<th class="tlp-compare__highlight">TulparLang</th>
-					<th>Go</th>
-					<th>Python (FastAPI)</th>
-					<th>Node.js</th>
-				</tr>
-			</thead>
-			<tbody>
-				<tr>
-					<td>HTTP Server</td>
-					<td class="tlp-compare__highlight">✅ Built-in</td>
-					<td>✅ Built-in</td>
-					<td>❌ pip install</td>
-					<td>⚠️ Minimal</td>
-				</tr>
-				<tr>
-					<td>ORM / Database</td>
-					<td class="tlp-compare__highlight">✅ Built-in</td>
-					<td>❌ go get gorm</td>
-					<td>❌ pip install</td>
-					<td>❌ npm install</td>
-				</tr>
-				<tr>
-					<td>OpenAPI / Swagger</td>
-					<td class="tlp-compare__highlight">✅ Auto-generated</td>
-					<td>❌ External tool</td>
-					<td>⚠️ Plugin</td>
-					<td>❌ npm install</td>
-				</tr>
-				<tr>
-					<td>Deployment</td>
-					<td class="tlp-compare__highlight">Single binary</td>
-					<td>Single binary</td>
-					<td>Container needed</td>
-					<td>Container needed</td>
-				</tr>
-				<tr>
-					<td>Memory Model</td>
-					<td class="tlp-compare__highlight">Arena (no GC)</td>
-					<td>GC (stop-the-world)</td>
-					<td>GC + refcount</td>
-					<td>GC (V8)</td>
-				</tr>
-				<tr>
-					<td>Throughput</td>
-					<td class="tlp-compare__highlight">~36k req/s</td>
-					<td>~30k req/s</td>
-					<td>~3.5k req/s</td>
-					<td>~8.7k req/s</td>
-				</tr>
-				<tr>
-					<td>C Interop (FFI)</td>
-					<td class="tlp-compare__highlight">✅ Native</td>
-					<td>✅ cgo</td>
-					<td>⚠️ ctypes / cffi</td>
-					<td>⚠️ node-ffi</td>
-				</tr>
-			</tbody>
-		</table>
-	</div>
+	<CompareTable
+		columns={["TulparLang", "Go", "Python (FastAPI)", "Node.js"]}
+		rows={[
+			{ label: "HTTP server", cells: [["yes", "Built-in"], ["yes", "Built-in"], ["no", "pip install"], ["warn", "Minimal"]] },
+			{ label: "ORM / database", cells: [["yes", "Built-in"], ["no", "go get gorm"], ["no", "pip install"], ["no", "npm install"]] },
+			{ label: "OpenAPI / Swagger", cells: [["yes", "Auto-generated"], ["no", "External tool"], ["warn", "Plugin"], ["no", "npm install"]] },
+			{ label: "Deployment", cells: [["", "Single binary"], ["", "Single binary"], ["", "Container needed"], ["", "Container needed"]] },
+			{ label: "Memory model", cells: [["", "Arena (no GC)"], ["", "GC (stop-the-world)"], ["", "GC + refcount"], ["", "GC (V8)"]] },
+			{ label: "Throughput", cells: [["", "~36k req/s"], ["", "~30k req/s"], ["", "~3.5k req/s"], ["", "~8.7k req/s"]] },
+			{ label: "C interop (FFI)", cells: [["yes", "Native"], ["yes", "cgo"], ["warn", "ctypes / cffi"], ["warn", "node-ffi"]] }
+		]}
+	/>
 </section>
 
 <section class="tlp-section">
@@ -203,45 +173,55 @@ print("Min:     " + toString(min(scores)));`
 		<h2>Everything you need is already in the box</h2>
 	</div>
 
-	<div class="tlp-bento tlp-bento--expanded">
+	<div class="tlp-bento tlp-bento--expanded not-content" data-bento>
 		<div class="tlp-bento__item tlp-bento__item--feature">
-			<div class="tlp-bento__icon">🚀</div>
+			<div class="tlp-bento__icon"><Icon name="server" size={26} /></div>
 			<h3>An API on day one</h3>
-			<p><code>import "wings"</code>, register a route, <code>serve(8080)</code> — done. You get OpenAPI 3.0 + Swagger UI auto-generation, schema validation (invalid body → 422), dependency injection, structured logging, keep-alive, plus built-in <code>/healthz</code> and <code>/metrics</code> (JSON + Prometheus) for free.</p>
+			<p><code>import "wings"</code>, register a route, <code>serve(8080)</code> — done. All of this comes with it:</p>
+			<ul class="tlp-chips">
+				<li>OpenAPI 3.0</li>
+				<li>Swagger UI</li>
+				<li>Schema validation → 422</li>
+				<li>Dependency injection</li>
+				<li>Structured logging</li>
+				<li>Keep-alive</li>
+				<li><code>/healthz</code></li>
+				<li><code>/metrics</code> · JSON + Prometheus</li>
+			</ul>
 		</div>
 		<div class="tlp-bento__item">
-			<div class="tlp-bento__icon">⚡</div>
+			<div class="tlp-bento__icon"><Icon name="zap" /></div>
 			<h3>C-class performance</h3>
 			<p>AOT-compiled via LLVM 18 to a standalone native binary. No VM overhead in production.</p>
 		</div>
 		<div class="tlp-bento__item">
-			<div class="tlp-bento__icon">🗄️</div>
+			<div class="tlp-bento__icon"><Icon name="database" /></div>
 			<h3>SQLite + ORM</h3>
 			<p>Embedded SQLite and an Active-Record ORM — no driver to wire up.</p>
 		</div>
 		<div class="tlp-bento__item">
-			<div class="tlp-bento__icon">🧬</div>
-			<h3>No GC Pauses</h3>
+			<div class="tlp-bento__icon"><Icon name="gauge" /></div>
+			<h3>No GC pauses</h3>
 			<p>No garbage collector, so no stop-the-world pauses. Memory comes from arenas; exactly how much is reclaimed on which path is being measured — see <a href="https://github.com/hamer1818/TulparLang/blob/main/docs/mindmap/Memory.md">the memory notes</a>.</p>
 		</div>
 		<div class="tlp-bento__item">
-			<div class="tlp-bento__icon">🔗</div>
+			<div class="tlp-bento__icon"><Icon name="plug" /></div>
 			<h3>C FFI</h3>
 			<p>Call any C library directly. Native interop with zero wrapper overhead.</p>
 		</div>
 		<div class="tlp-bento__item">
-			<div class="tlp-bento__icon">🧰</div>
+			<div class="tlp-bento__icon"><Icon name="code" /></div>
 			<h3>Editor tooling</h3>
 			<p>Bundled LSP, <code>tulpar fmt</code>, and a VS Code extension.</p>
 		</div>
 		<div class="tlp-bento__item">
-			<div class="tlp-bento__icon">📦</div>
+			<div class="tlp-bento__icon"><Icon name="package" /></div>
 			<h3>Package manager</h3>
 			<p><code>tulpar pkg</code> with a <code>tulpar.toml</code> manifest and lockfile.</p>
 		</div>
-		<div class="tlp-bento__item">
-			<div class="tlp-bento__icon">🌍</div>
-			<h3>UTF-8 · TR + EN</h3>
+		<div class="tlp-bento__item tlp-bento__item--wide">
+			<div class="tlp-bento__icon"><Icon name="languages" /></div>
+			<h3>UTF-8, Turkish + English</h3>
 			<p>Full Turkish keyword support (<code>fonk</code>, <code>eğer</code>, <code>döndür</code>) and bilingual compiler diagnostics.</p>
 		</div>
 	</div>
@@ -251,27 +231,43 @@ print("Min:     " + toString(min(scores)));`
 	<div class="tlp-section__head">
 		<span class="tlp-eyebrow">Write code in your language</span>
 		<h2>English and Turkish — same compiler, same binary</h2>
-		<p>Every keyword has a Turkish equivalent. Mix freely, or write entirely in one language. Compiler diagnostics follow your locale.</p>
+		<p>Every keyword has a Turkish equivalent. Mix freely, or write entirely in one language. Compiler diagnostics follow your locale. Hover a keyword to see its twin.</p>
 	</div>
 
-	<div class="tlp-bilingual">
-		<div class="tlp-bilingual__pane">
-			<div class="tlp-bilingual__header">
-				<span class="tlp-bilingual__lang">EN</span>
-				<span class="tlp-bilingual__filename">greet.tpr</span>
-				<span class="tlp-bilingual__badge">English syntax</span>
-			</div>
-			<pre class="tlp-bilingual__code" set:html={`<code><span class="kw">import</span> <span class="str">"wings"</span>;\n\n<span class="kw">func</span> <span class="fn">greet</span>(req) {\n    <span class="kw">var</span> name = req.json[<span class="str">"name"</span>];\n    <span class="kw">if</span> (name == <span class="str">""</span>) { <span class="kw">return</span> <span class="fn">bad_request</span>(<span class="str">"Name required"</span>); }\n    <span class="kw">return</span> <span class="fn">ok</span>(<span class="str">"Hello, "</span> + name + <span class="str">"!"</span>);\n}\n\n<span class="fn">post</span>(<span class="str">"/greet"</span>, <span class="str">"greet"</span>);\n<span class="fn">serve</span>(<span class="num">8080</span>);</code>`} />
-		</div>
-		<div class="tlp-bilingual__pane">
-			<div class="tlp-bilingual__header">
-				<span class="tlp-bilingual__lang">TR</span>
-				<span class="tlp-bilingual__filename">selamla.tpr</span>
-				<span class="tlp-bilingual__badge">Türkçe sözdizimi</span>
-			</div>
-			<pre class="tlp-bilingual__code" set:html={`<code><span class="kw">içe_aktar</span> <span class="str">"wings"</span>;\n\n<span class="kw">fonk</span> <span class="fn">selamla</span>(req) {\n    <span class="kw">değişken</span> isim = req.json[<span class="str">"name"</span>];\n    <span class="kw">eğer</span> (isim == <span class="str">""</span>) { <span class="kw">döndür</span> <span class="fn">bad_request</span>(<span class="str">"İsim gerekli"</span>); }\n    <span class="kw">döndür</span> <span class="fn">ok</span>(<span class="str">"Merhaba, "</span> + isim + <span class="str">"!"</span>);\n}\n\n<span class="fn">post</span>(<span class="str">"/selamla"</span>, <span class="str">"selamla"</span>);\n<span class="fn">serve</span>(<span class="num">8080</span>);</code>`} />
-		</div>
-	</div>
+	<Bilingual
+		panes={[
+			{
+				lang: "EN",
+				file: "greet.tpr",
+				badge: "English syntax",
+				code: `import "wings";
+
+func greet(req) {
+    var name = req.json["name"];
+    if (name == "") { return bad_request("Name required"); }
+    return ok("Hello, " + name + "!");
+}
+
+post("/greet", "greet");
+serve(8080);`
+			},
+			{
+				lang: "TR",
+				file: "selamla.tpr",
+				badge: "Türkçe sözdizimi",
+				code: `içe_aktar "wings";
+
+fonk selamla(req) {
+    değişken isim = req.json["name"];
+    eğer (isim == "") { döndür bad_request("İsim gerekli"); }
+    döndür ok("Merhaba, " + isim + "!");
+}
+
+post("/selamla", "selamla");
+serve(8080);`
+			}
+		]}
+	/>
 </section>
 
 <section id="playground" class="tlp-section">
@@ -281,6 +277,7 @@ print("Min:     " + toString(min(scores)));`
 		<p>No install, no setup. Edit the code and hit <strong>Run</strong> — it executes in the page.</p>
 	</div>
 
+	<div class="tlp-try">
 	**hello.tpr — recursion + the ternary operator**
 
 ```tulpar
@@ -293,6 +290,7 @@ for (int i = 0; i < 12; i++) {
     print("fib(" + toString(i) + ") = " + toString(fib(i)));
 }
 ```
+	</div>
 </section>
 
 <section class="tlp-section">
@@ -301,6 +299,9 @@ for (int i = 0; i < 12; i++) {
 		<h2>A persistent CRUD service in one file</h2>
 		<p>Model, routes and server in a single <code>.tpr</code> — boots with <code>/healthz</code>, <code>/metrics</code>, <code>/openapi.json</code> and a Swagger UI for free.</p>
 	</div>
+
+<div class="tlp-crud">
+<div class="tlp-crud__code">
 
 ```tulpar
 
@@ -325,47 +326,42 @@ body_schema({"name": "str", "age?": "int"});   // invalid body → 422, automati
 serve(8080);
 ```
 
-Want the guided version? The **[Wings Tutorial](/ecosystem/wings-tutorial/)**
-builds three complete apps step by step — REST, token auth, and a SQLite-backed API.
+</div>
+<div class="tlp-routes not-content" data-routes>
+	<div class="tlp-routes__head"><Icon name="route" size={16} /> Routes after <code>serve(8080)</code></div>
+	<ul>
+		<li><span class="tlp-routes__m">GET</span><code>/users</code><span class="tlp-routes__note">list_users</span></li>
+		<li><span class="tlp-routes__m tlp-routes__m--post">POST</span><code>/users</code><span class="tlp-routes__note">validated, 422 on bad body</span></li>
+		<li><span class="tlp-routes__m">GET</span><code>/healthz</code><span class="tlp-routes__note">built-in</span></li>
+		<li><span class="tlp-routes__m">GET</span><code>/metrics</code><span class="tlp-routes__note">JSON + Prometheus</span></li>
+		<li><span class="tlp-routes__m">GET</span><code>/openapi.json</code><span class="tlp-routes__note">generated</span></li>
+		<li><span class="tlp-routes__m tlp-routes__m--ui">UI</span><code>Swagger UI</code><span class="tlp-routes__note">generated</span></li>
+	</ul>
+	<p class="tlp-routes__foot">Want the guided version? The <a href="/ecosystem/wings-tutorial/">Wings tutorial</a> builds three complete apps step by step — REST, token auth, and a SQLite-backed API.</p>
+</div>
+</div>
 
 </section>
 
-<div class="tlp-cta">
-	## Ready in one command
-
+<div class="tlp-cta not-content" data-cta>
+	<div class="tlp-cta__aurora" aria-hidden="true"><span></span><span></span></div>
+	<h2>Ready in one command</h2>
 	<p>Install the toolchain, then compile and run your first program. macOS, Linux, and Windows.</p>
 
-	<div class="tlp-cta__cmd"><span class="tlp-prompt">$ </span>curl -fsSL https://tulparlang.dev/install.sh | bash</div>
+	<div class="tlp-cta__cmd">
+		<span class="tlp-prompt">$</span>
+		<code class="ln" data-copy-text>{"curl -fsSL https://tulparlang.dev/install.sh | bash"}</code>
+		<button type="button" class="tlp-cta__copy" data-copy data-label-done="Copied" aria-label="Copy install command"><Icon name="copy" size={15} /><span>Copy</span></button>
+	</div>
 
-	<div style="margin-top:1.5rem">
-		[Get Started →](/intro/getting-started/) &nbsp;·&nbsp; [Installation](/intro/installation/) &nbsp;·&nbsp; [Language Guide](/guide/syntax/)
+	<div class="tlp-cta__links">
+		<a class="tlp-btn tlp-btn--primary" href="/intro/getting-started/">Get started <Icon name="arrow-right" size={18} /></a>
+		<a class="tlp-btn tlp-btn--ghost" href="/intro/installation/"><Icon name="download" size={16} /> Installation</a>
+		<a class="tlp-btn tlp-btn--ghost" href="/guide/syntax/"><Icon name="book-open" size={16} /> Language guide</a>
 	</div>
 </div>
 
 </div>
-
-<script>
-{`
-// Scroll-triggered benchmark bar animation
-if (typeof IntersectionObserver !== 'undefined') {
-	const bench = document.querySelector('.tlp-bench');
-	if (bench) {
-		const observer = new IntersectionObserver(
-			(entries) => {
-				entries.forEach((entry) => {
-					if (entry.isIntersecting) {
-						bench.classList.add('is-visible');
-						observer.disconnect();
-					}
-				});
-			},
-			{ threshold: 0.3 }
-		);
-		observer.observe(bench);
-	}
-}
-`}
-</script>
 
 ---
 
