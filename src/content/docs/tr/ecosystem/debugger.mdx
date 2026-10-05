@@ -59,18 +59,18 @@ eklenti **Add Configuration… → Tulpar Debug** snippet'ini sunuyor:
 
 | DAP özelliği          | Durum  | Notlar                                                      |
 | --------------------- | :----: | ----------------------------------------------------------- |
-| Line breakpoints      |   ✅   | Gutter tıklaması veya DAP `setBreakpoints`.                 |
-| Run to completion     |   ✅   | `configurationDone` → `-exec-run` → `terminated` event.    |
-| Stop on breakpoint    |   ✅   | `*stopped,reason=breakpoint-hit` → DAP `stopped` event.    |
-| Stack trace           |   ✅   | `-stack-list-frames` → DAP `StackFrame[]` file/line ile.   |
-| Locals / parametreler |   ✅   | `-stack-list-variables --simple-values`. Yaprak değerler.   |
-| Continue              |   ✅   | `-exec-continue` → devam + `stopped`/`terminated`.          |
-| Step over             |   ✅   | `next` → `-exec-next`.                                      |
-| Step into             |   ✅   | `stepIn` → `-exec-step`.                                    |
-| Step out              |   ✅   | `stepOut` → `-exec-finish`.                                 |
-| Pause                 |   ✅   | `pause` → `-exec-interrupt` (SIGINT → `reason=pause`).      |
-| Konsol çıktısı        |   ✅   | gdb `~"..."` console + `@"..."` target → DAP `output`.      |
-| Terminate / disconnect|   ✅   | `-gdb-exit` gönderir, subprocess'i reap eder.               |
+| Line breakpoints      |   ✓   | Gutter tıklaması veya DAP `setBreakpoints`.                 |
+| Run to completion     |   ✓   | `configurationDone` → `-exec-run` → `terminated` event.    |
+| Stop on breakpoint    |   ✓   | `*stopped,reason=breakpoint-hit` → DAP `stopped` event.    |
+| Stack trace           |   ✓   | `-stack-list-frames` → DAP `StackFrame[]` file/line ile.   |
+| Locals / parametreler |   ✓   | `-stack-list-variables --simple-values`. Yaprak değerler.   |
+| Continue              |   ✓   | `-exec-continue` → devam + `stopped`/`terminated`.          |
+| Step over             |   ✓   | `next` → `-exec-next`.                                      |
+| Step into             |   ✓   | `stepIn` → `-exec-step`.                                    |
+| Step out              |   ✓   | `stepOut` → `-exec-finish`.                                 |
+| Pause                 |   ✓   | `pause` → `-exec-interrupt` (SIGINT → `reason=pause`).      |
+| Konsol çıktısı        |   ✓   | gdb `~"..."` console + `@"..."` target → DAP `output`.      |
+| Terminate / disconnect|   ✓   | `-gdb-exit` gönderir, subprocess'i reap eder.               |
 
 ## Henüz desteklenmeyenler
 

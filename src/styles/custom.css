@@ -447,9 +447,6 @@ header.header {
 /* 2026 redesign — hero / benchmark / bento / code-window               */
 /* ===================================================================== */
 
-/* The splash template still reserves the default hero slot; we render our
-   own hero from MDX, so collapse the empty built-in one. */
-.hero { display: none; }
 
 /* Give the landing more room than the default markdown column — scoped to
    the landing page only so long-form docs keep their readable measure. */
@@ -1731,4 +1728,167 @@ body:has(.tlp-landing) { overflow-x: clip; }
 	.tlp-crud { grid-template-columns: minmax(0, 1fr); }
 	.tlp-cta { padding: 2.4rem 1.1rem 2.2rem; }
 	.tlp-cta__cmd code { font-size: 0.8rem; }
+}
+
+/* ===================================================================== */
+/* DOCS LAYOUT — the landing page's language on every doc page           */
+/* ===================================================================== */
+
+/* --- Page header band ------------------------------------------------- */
+.tlp-doc-head {
+	position: relative;
+	isolation: isolate;
+	padding: 1.75rem 0 1.6rem;
+	margin-bottom: 0.5rem;
+	border-bottom: 1px solid var(--tech-glass-border);
+}
+.tlp-doc-head__bg {
+	position: absolute;
+	z-index: -1;
+	inset: -2.5rem -3rem 0;
+	pointer-events: none;
+	-webkit-mask-image: radial-gradient(ellipse 75% 90% at 30% 35%, #000 20%, transparent 80%);
+	        mask-image: radial-gradient(ellipse 75% 90% at 30% 35%, #000 20%, transparent 80%);
+}
+.tlp-doc-head__bg::after {
+	content: "";
+	position: absolute;
+	inset: 10% 40% 10% 0;
+	background: radial-gradient(circle at 30% 40%, var(--tech-glow), transparent 65%);
+	filter: blur(50px);
+	opacity: 0.45;
+}
+.tlp-doc-head__canvas { display: block; width: 100%; height: 100%; }
+@media (max-width: 50rem) {
+	.tlp-doc-head__bg { inset: -2rem 0 0; }
+}
+.tlp-doc-head h1 {
+	margin-top: 0.4rem;
+	font-size: clamp(2rem, 4vw, 2.75rem);
+	font-weight: 800;
+	letter-spacing: -0.025em;
+	line-height: 1.1;
+}
+.tlp-doc-head__lead {
+	max-width: 42rem;
+	margin: 0.8rem 0 0;
+	font-size: 1.12rem;
+	line-height: 1.55;
+	color: var(--sl-color-gray-2);
+}
+.tlp-doc-head__meta {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	margin-top: 1rem;
+	font: 500 0.78rem var(--sl-font-mono);
+	color: var(--sl-color-gray-3);
+}
+.tlp-doc-head__meta .tlp-icon { color: var(--sl-color-accent); }
+
+/* --- Headings: an accent rule under every h2 -------------------------- */
+.sl-markdown-content h2 { position: relative; padding-bottom: 0.45rem; }
+.sl-markdown-content h2::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	bottom: 0;
+	width: 3rem;
+	height: 2px;
+	border-radius: 2px;
+	background: linear-gradient(90deg, var(--sl-color-accent), #2979ff);
+	box-shadow: 0 0 10px var(--tech-glow);
+	transform-origin: left center;
+	transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tlp-anim .sl-markdown-content h2:not(.is-in)::after { transform: scaleX(0); }
+
+/* --- Code blocks: light up under the pointer -------------------------- */
+.sl-markdown-content .expressive-code .frame {
+	transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.sl-markdown-content .expressive-code .frame:hover {
+	border-color: var(--sl-color-accent) !important;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 0 22px var(--tech-glow) !important;
+}
+
+/* --- Callouts --------------------------------------------------------- */
+.starlight-aside { transition: box-shadow 0.3s ease; }
+.starlight-aside:hover { box-shadow: -4px 0 0 var(--sl-color-accent), 0 0 24px var(--tech-glow); }
+:root[data-theme='light'] .starlight-aside { background: rgba(255, 255, 255, 0.75) !important; }
+
+/* --- Tables ----------------------------------------------------------- */
+.sl-markdown-content table { border-radius: 10px; }
+.sl-markdown-content tbody tr { transition: background-color 0.2s ease; }
+.sl-markdown-content tbody tr:hover { background: rgba(0, 229, 255, 0.05); }
+
+/* --- Cards: the bento spotlight, for Starlight's cards too ------------ */
+.sl-link-card,
+.card-grid .card,
+.pagination-links a {
+	position: relative;
+	overflow: hidden;
+	isolation: isolate;
+	transition: border-color 0.3s ease;
+}
+.sl-link-card { background: var(--tech-card-bg); backdrop-filter: blur(8px); }
+.sl-link-card::after,
+.card-grid .card::after,
+.pagination-links a::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	border-radius: inherit;
+	background: radial-gradient(320px circle at var(--mx, 50%) var(--my, 50%), var(--tech-glow), transparent 65%);
+	opacity: 0;
+	transition: opacity 0.3s ease;
+	pointer-events: none;
+}
+.sl-link-card:hover,
+.pagination-links a:hover { border-color: var(--sl-color-accent); }
+.sl-link-card:hover::after,
+.card-grid .card:hover::after,
+.pagination-links a:hover::after { opacity: 0.55; }
+.card-grid .card:hover { transform: none; }
+.pagination-links a svg { transition: transform 0.25s ease; }
+.pagination-links a[rel='next']:hover svg { transform: translateX(3px); }
+.pagination-links a[rel='prev']:hover svg { transform: translateX(-3px); }
+
+/* --- Sidebar ---------------------------------------------------------- */
+.sidebar-content a { transition: color 0.2s ease, background-color 0.2s ease; }
+.sidebar-content a:not([aria-current='page']):hover { background: rgba(0, 229, 255, 0.05); }
+
+/* --- "On this page": a sliding indicator (DocsMotion) ----------------- */
+starlight-toc nav > ul { position: relative; }
+.tlp-toc-indicator {
+	position: absolute;
+	left: -0.75rem;
+	top: 0;
+	width: 2px;
+	height: 1.5rem;
+	border-radius: 2px;
+	background: linear-gradient(180deg, var(--sl-color-accent), #2979ff);
+	box-shadow: 0 0 10px var(--tech-glow);
+	opacity: 0;
+	list-style: none;
+	pointer-events: none;
+}
+
+/* --- Motion start states for the header (above the fold) -------------- */
+.tlp-anim [data-doc-head] .tlp-doc-head__eyebrow,
+.tlp-anim [data-doc-head] h1,
+.tlp-anim [data-doc-head] .tlp-doc-head__lead,
+.tlp-anim [data-doc-head] .tlp-doc-head__meta {
+	visibility: hidden;
+}
+
+@media print {
+	.tlp-doc-head__bg,
+	.tlp-progress,
+	.tlp-toc-indicator { display: none; }
+	.sl-markdown-content * { opacity: 1 !important; transform: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.sl-markdown-content h2::after { transition: none; }
 }

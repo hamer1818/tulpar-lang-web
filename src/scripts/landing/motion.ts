@@ -4,59 +4,20 @@
 // twins, card spotlight, static hero matrix) also run for reduced-motion
 // visitors; everything that moves things around is gated on `.tlp-anim`.
 
-import { gsap } from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { heroCanvas } from './hero-canvas';
-
-gsap.registerPlugin(ScrollTrigger);
-
-const CHAR_TIME = 0.0065; // seconds per typed character
-const EASE = 'power3.out';
-
-/** Play `tl` once, the first time `trigger` scrolls into view. */
-function onEnter(trigger: Element, tl: gsap.core.Timeline, start = 'top 80%') {
-	tl.pause();
-	ScrollTrigger.create({ trigger, start, once: true, onEnter: () => tl.play() });
-	return tl;
-}
-
-/** Clip-reveal each `.ln` left→right in character-sized steps (monospace). */
-function typeLines(lines: Element[], tl = gsap.timeline(), charTime = CHAR_TIME) {
-	for (const line of lines) {
-		const n = (line.textContent ?? '').length;
-		if (n === 0) {
-			tl.set(line, { clipPath: 'inset(0 0% 0 0)' });
-			continue;
-		}
-		tl.fromTo(
-			line,
-			{ clipPath: 'inset(0 100% 0 0)' },
-			{ clipPath: 'inset(0 0% 0 0)', duration: Math.max(0.04, n * charTime), ease: `steps(${n})` },
-		);
-	}
-	return tl;
-}
-
-/** Tween the first number inside `el`'s text, keeping prefix/suffix and decimals. */
-function countUp(el: Element, duration: number) {
-	const text = el.textContent ?? '';
-	const m = text.match(/^(\D*)(\d+(?:\.\d+)?)(.*)$/s);
-	if (!m || parseFloat(m[2]) === 0) return gsap.timeline();
-	const [, pre, num, post] = m;
-	const decimals = num.includes('.') ? num.split('.')[1].length : 0;
-	const state = { v: 0 };
-	return gsap.timeline().to(state, {
-		v: parseFloat(num),
-		duration,
-		ease: EASE,
-		onUpdate: () => {
-			el.textContent = pre + state.v.toFixed(decimals) + post;
-		},
-		onComplete: () => {
-			el.textContent = text;
-		},
-	});
-}
+import {
+	EASE,
+	ScrollTrigger,
+	countUp,
+	gsap,
+	markBooted,
+	motionEnabled,
+	onEnter,
+	scrollProgress,
+	spotlight,
+	typeLines,
+	watchReducedMotion,
+} from '../motion/core';
+import { signalGrid } from '../motion/signal-grid';
 
 /* --- Hero --------------------------------------------------------------- */
 
@@ -306,12 +267,6 @@ function ctaMotion(cta: Element) {
 	onEnter(cta, tl, 'top 85%');
 }
 
-function scrollProgress() {
-	const bar = document.querySelector('.tlp-progress');
-	if (!bar) return;
-	gsap.to(bar, { scaleX: 1, ease: 'none', scrollTrigger: { start: 0, end: 'max', scrub: 0.3 } });
-}
-
 /* --- Interaction (also without motion) ---------------------------------- */
 
 function copyButtons(root: Element) {
@@ -350,23 +305,6 @@ function keywordTwins(root: Element) {
 	pair(b, a);
 }
 
-/** Feed the pointer position to every card so the edge light spans the grid. */
-function bentoSpotlight(grid: HTMLElement) {
-	const items = [...grid.querySelectorAll<HTMLElement>('.tlp-bento__item')];
-	let frame = 0;
-	grid.addEventListener('pointermove', (e) => {
-		if (frame) return;
-		frame = requestAnimationFrame(() => {
-			frame = 0;
-			for (const item of items) {
-				const r = item.getBoundingClientRect();
-				item.style.setProperty('--mx', `${e.clientX - r.left}px`);
-				item.style.setProperty('--my', `${e.clientY - r.top}px`);
-			}
-		});
-	});
-}
-
 /** The vertical (narrow-layout) rail spans first node → last node; CSS can't know that height. */
 function measureRail(pipe: HTMLElement) {
 	const nodes = pipe.querySelectorAll<HTMLElement>('.tlp-pipe__node');
@@ -386,16 +324,16 @@ export function boot() {
 	const landing = document.querySelector('.tlp-landing');
 	if (!landing) return;
 	const $$ = <T extends Element = HTMLElement>(sel: string) => [...landing.querySelectorAll<T>(sel)];
-	const motion = document.documentElement.classList.contains('tlp-anim');
+	const motion = motionEnabled();
 
 	$$('[data-pipe]').forEach(measureRail);
 	copyButtons(landing);
 	$$('[data-bilingual]').forEach(keywordTwins);
-	$$('[data-bento]').forEach(bentoSpotlight);
+	$$('[data-bento]').forEach((grid) => spotlight(grid, [...grid.querySelectorAll<HTMLElement>('.tlp-bento__item')]));
 	const hero = landing.querySelector<HTMLElement>('.tlp-hero');
-	if (hero) heroCanvas(hero, motion);
+	if (hero) signalGrid(hero, hero.querySelector('.tlp-hero__canvas'), motion);
 	if (!motion) return;
-	(window as any).__tlpMotion = true;
+	markBooted();
 
 	if (hero) {
 		const tl = heroTimeline(hero);
@@ -418,11 +356,5 @@ export function boot() {
 	$$('[data-cta]').forEach(ctaMotion);
 	scrollProgress();
 
-	// Reduced motion switched on mid-visit: jump everything to its end state.
-	matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', (e) => {
-		if (!e.matches) return;
-		gsap.globalTimeline.getChildren(false, true, true).forEach((t) => t.progress(1));
-		ScrollTrigger.getAll().forEach((st) => st.kill());
-		document.documentElement.classList.remove('tlp-anim');
-	});
+	watchReducedMotion();
 }

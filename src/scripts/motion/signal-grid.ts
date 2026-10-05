@@ -1,8 +1,10 @@
-// Hero backdrop: light pulses running along the page's 40px background grid
+// Signal grid: light pulses running along the page's 40px background grid
 // (as if it were a bus), dots on its intersections, and a soft halo that
-// follows the pointer. Plain Canvas 2D: the static dots are rasterised once
-// into an offscreen layer and only lit things are drawn per frame. The loop sleeps while the hero is off-screen
-// or the tab is hidden; without `animate` only the static matrix is drawn.
+// follows the pointer. Used behind the landing hero and every doc page
+// header. Plain Canvas 2D: the static dots are rasterised once into an
+// offscreen layer and only lit things are drawn per frame. The loop sleeps
+// while the host is off-screen or the tab is hidden; without `animate`
+// only the static matrix is drawn.
 
 const GAP = 40; // must match the body background grid in custom.css
 const BASE_ALPHA = 0.28;
@@ -24,8 +26,17 @@ function accentRgb(): string {
 	return m ? `${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)}` : '0,229,255';
 }
 
-export function heroCanvas(hero: HTMLElement, animate: boolean) {
-	const canvas = hero.querySelector<HTMLCanvasElement>('.tlp-hero__canvas');
+export interface SignalGridOptions {
+	/** Upper bound on concurrent pulses (smaller hosts want fewer). */
+	maxSignals?: number;
+	/** Milliseconds between pulse spawns. */
+	spawnEvery?: number;
+}
+
+/** `host` receives pointer events and gates the loop on visibility; `canvas` is drawn into. */
+export function signalGrid(host: HTMLElement, canvas: HTMLCanvasElement | null, animate: boolean, opts: SignalGridOptions = {}) {
+	const maxSignals = opts.maxSignals ?? MAX_SIGNALS;
+	const spawnEvery = opts.spawnEvery ?? 420;
 	const ctx = canvas?.getContext('2d');
 	if (!canvas || !ctx) return;
 
@@ -146,7 +157,7 @@ export function heroCanvas(hero: HTMLElement, animate: boolean) {
 		raf = 0;
 		const dt = last ? Math.min((now - last) / 1000, 0.05) : 0;
 		last = now;
-		if (now - lastSpawn > 420 && signals.length < MAX_SIGNALS) {
+		if (now - lastSpawn > spawnEvery && signals.length < maxSignals) {
 			spawn();
 			lastSpawn = now;
 		}
@@ -170,15 +181,15 @@ export function heroCanvas(hero: HTMLElement, animate: boolean) {
 	new IntersectionObserver(([entry]) => {
 		visible = entry.isIntersecting;
 		schedule();
-	}).observe(hero);
+	}).observe(host);
 	document.addEventListener('visibilitychange', schedule);
 
-	hero.addEventListener('pointermove', (e) => {
+	host.addEventListener('pointermove', (e) => {
 		const rect = canvas.getBoundingClientRect();
 		pointer.x = e.clientX - rect.left;
 		pointer.y = e.clientY - rect.top;
 		pointer.on = e.pointerType === 'mouse';
 	});
-	hero.addEventListener('pointerleave', () => (pointer.on = false));
+	host.addEventListener('pointerleave', () => (pointer.on = false));
 	schedule();
 }

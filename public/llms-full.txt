@@ -778,18 +778,18 @@ You can also drop a permanent launch config under
 
 | DAP feature           | Status | Notes                                                      |
 | --------------------- | :----: | ---------------------------------------------------------- |
-| Line breakpoints      |   ✅   | Click the gutter or use `setBreakpoints` over DAP.         |
-| Run to completion     |   ✅   | `configurationDone` → `-exec-run` → `terminated` event.    |
-| Stop on breakpoint    |   ✅   | `*stopped,reason=breakpoint-hit` → DAP `stopped` event.    |
-| Stack trace           |   ✅   | `-stack-list-frames` → DAP `StackFrame[]` with file/line.  |
-| Locals / parameters   |   ✅   | `-stack-list-variables --simple-values`. Leaf values only. |
-| Continue              |   ✅   | `-exec-continue` → resume + downstream `stopped`/`terminated`. |
-| Step over             |   ✅   | `next` → `-exec-next`.                                     |
-| Step into             |   ✅   | `stepIn` → `-exec-step`.                                   |
-| Step out              |   ✅   | `stepOut` → `-exec-finish`.                                |
-| Pause                 |   ✅   | `pause` → `-exec-interrupt` (SIGINT → DAP `reason=pause`). |
-| Console output        |   ✅   | gdb `~"..."` console + `@"..."` target streams → DAP `output`. |
-| Terminate / disconnect|   ✅   | Sends `-gdb-exit`, reaps subprocess.                       |
+| Line breakpoints      |   ✓   | Click the gutter or use `setBreakpoints` over DAP.         |
+| Run to completion     |   ✓   | `configurationDone` → `-exec-run` → `terminated` event.    |
+| Stop on breakpoint    |   ✓   | `*stopped,reason=breakpoint-hit` → DAP `stopped` event.    |
+| Stack trace           |   ✓   | `-stack-list-frames` → DAP `StackFrame[]` with file/line.  |
+| Locals / parameters   |   ✓   | `-stack-list-variables --simple-values`. Leaf values only. |
+| Continue              |   ✓   | `-exec-continue` → resume + downstream `stopped`/`terminated`. |
+| Step over             |   ✓   | `next` → `-exec-next`.                                     |
+| Step into             |   ✓   | `stepIn` → `-exec-step`.                                   |
+| Step out              |   ✓   | `stepOut` → `-exec-finish`.                                |
+| Pause                 |   ✓   | `pause` → `-exec-interrupt` (SIGINT → DAP `reason=pause`). |
+| Console output        |   ✓   | gdb `~"..."` console + `@"..."` target streams → DAP `output`. |
+| Terminate / disconnect|   ✓   | Sends `-gdb-exit`, reaps subprocess.                       |
 
 ## What's not wired up yet
 
@@ -3151,25 +3151,25 @@ levels; clearing the last one shows the win screen.
 ## The games
 
 <CardGrid>
-  <LinkCard title="🦘 Jump" href="/oyunlar/jump.html" target="_blank"
+  <LinkCard title="Jump" href="/oyunlar/jump.html" target="_blank"
     description="Platformer — climb the platforms to the gold target. Levels: easy → zigzag climb → narrow platforms + a moving obstacle." />
-  <LinkCard title="💰 Collect" href="/oyunlar/collect.html" target="_blank"
+  <LinkCard title="Collect" href="/oyunlar/collect.html" target="_blank"
     description="Top-down — grab every yellow, avoid the red. Levels: 3 items / 1 enemy → 5 / 2 → 6 / 3 fast." />
-  <LinkCard title="🎯 Shooter" href="/oyunlar/shooter.html" target="_blank"
+  <LinkCard title="Shooter" href="/oyunlar/shooter.html" target="_blank"
     description="Shoot the falling reds to hit the target score. Levels: 30 → 60 → 100 as the tempo rises." />
-  <LinkCard title="🐍 Snake" href="/oyunlar/snake.html" target="_blank"
+  <LinkCard title="Snake" href="/oyunlar/snake.html" target="_blank"
     description="Eat food, don't hit yourself. Levels: slow → fast → fastest + obstacle walls." />
-  <LinkCard title="🧱 Breakout" href="/oyunlar/breakout.html" target="_blank"
+  <LinkCard title="Breakout" href="/oyunlar/breakout.html" target="_blank"
     description="Paddle and ball — break every brick. Levels: flat wall → pyramid → gapped wall + faster ball." />
-  <LinkCard title="👾 Space Invaders" href="/oyunlar/invaders.html" target="_blank"
+  <LinkCard title="Space Invaders" href="/oyunlar/invaders.html" target="_blank"
     description="Clear the fleet. Levels: 3×5 slow → 4×6 fast → 4×7 and the fleet shoots back." />
-  <LinkCard title="🗝️ Maze" href="/oyunlar/maze.html" target="_blank"
+  <LinkCard title="Maze" href="/oyunlar/maze.html" target="_blank"
     description="Collect the keys, dodge the patrols. Levels: open → symmetric / 2 patrols → dense / 3 fast patrols." />
-  <LinkCard title="🚗 Crossing" href="/oyunlar/crossing.html" target="_blank"
+  <LinkCard title="Crossing" href="/oyunlar/crossing.html" target="_blank"
     description="Reach the gold strip through flowing traffic. Levels: 3 lanes slow → 4 → 5 fast." />
-  <LinkCard title="🐦 Flight" href="/oyunlar/flight.html" target="_blank"
+  <LinkCard title="Flight" href="/oyunlar/flight.html" target="_blank"
     description="Flap through the pipe gaps. Levels: wide gap / slow → narrow / fast → narrowest / fastest." />
-  <LinkCard title="☄️ Meteor Dodge" href="/oyunlar/dodge.html" target="_blank"
+  <LinkCard title="Meteor Dodge" href="/oyunlar/dodge.html" target="_blank"
     description="Survive the timer while dodging meteors. Levels: 12s / sparse → 15s / dense → 18s / densest." />
 </CardGrid>
 

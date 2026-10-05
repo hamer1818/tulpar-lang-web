@@ -2,29 +2,13 @@
 /**
  * LandingMotion — the landing page's motion layer (GSAP + ScrollTrigger).
  *
- * Place it as the FIRST child of `.tlp-landing`, before the hero: the inline
- * script then runs before the hero is parsed and adds `.tlp-anim` to <html>,
- * so the CSS can hold elements in their start state without a flash of the
- * finished page. Without that class (no JS, reduced motion, or the bundle
- * failed to load) every element renders in its final state.
- *
- * The choreography itself lives in src/scripts/landing/.
+ * Place it as the first child of `.tlp-landing`. The `.tlp-anim` gate it
+ * relies on is set in Head.astro; the choreography lives in
+ * src/scripts/landing/.
  */
 ---
 
 <div class="tlp-progress" aria-hidden="true"></div>
-
-<script is:inline>
-	(function () {
-		if (!window.matchMedia || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-		var root = document.documentElement;
-		root.classList.add('tlp-anim');
-		// Safety net: if the motion bundle never boots, show the finished page.
-		setTimeout(function () {
-			if (!window.__tlpMotion) root.classList.remove('tlp-anim');
-		}, 3000);
-	})();
-</script>
 
 <script>
 	import { boot } from '../scripts/landing/motion';
